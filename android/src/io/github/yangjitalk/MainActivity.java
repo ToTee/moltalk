@@ -64,6 +64,7 @@ public class MainActivity extends Activity {
     // 보조 웹뷰에서 진행 중인 작업 하나의 상태
     private String jobId;
     private boolean jobVisible;
+    private boolean jobShown; // 숨겨서 진행하던 작업을 잠깐 보여 주는 중
     private String jobCloseOn;
     private String jobCode;
     private String jobInjectedUrl;
@@ -96,7 +97,7 @@ public class MainActivity extends Activity {
         bar.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         Button close = new Button(this);
         close.setText("닫기");
-        close.setOnClickListener(v -> finishJob("false"));
+        close.setOnClickListener(v -> finishJob(jobVisible ? "false" : CANCELLED));
         bar.addView(close);
         helperBox.addView(bar, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         helper = new WebView(this);
@@ -250,6 +251,15 @@ public class MainActivity extends Activity {
             String safe = "(()=>{try{return JSON.parse(" + JSONObject.quote(json == null ? "null" : json) + ")}catch(e){return {error:'응답을 해석하지 못했습니다.'}}})()";
             ui.post(() -> { if (id != null && id.equals(jobId) && !jobVisible) finishJob(safe); });
         }
+        /** '사람인지 확인'처럼 직접 눌러야 하는 일이 생기면 숨겨 둔 공식 화면을 잠깐 보여 줍니다. */
+        @JavascriptInterface public void show(boolean on) {
+            ui.post(() -> {
+                if (jobId == null || jobVisible) return;
+                jobShown = on;
+                helperBox.setVisibility(on ? View.VISIBLE : View.INVISIBLE);
+                if (jobTimeout != null) { ui.removeCallbacks(jobTimeout); ui.postDelayed(jobTimeout, on ? 200000 : 45000); }
+            });
+        }
     }
 
     private void startJob(String id, String url, String code, boolean visible, String closeOptJson, String optJson) {
@@ -275,10 +285,13 @@ public class MainActivity extends Activity {
         helper.loadUrl(url);
     }
 
+    private static final String CANCELLED = "{\"error\":\"창을 닫아 등록을 취소했습니다.\"}";
+
     private void finishJob(String json) {
         if (jobId == null) return;
         String id = jobId;
         jobId = null;
+        jobShown = false;
         if (jobTimeout != null) { ui.removeCallbacks(jobTimeout); jobTimeout = null; }
         helperBox.setVisibility(View.GONE);
         helper.loadUrl("about:blank");
@@ -287,7 +300,8 @@ public class MainActivity extends Activity {
 
     private class HelperClient extends WebViewClient {
         @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-            return !dcUrl(request.getUrl().toString());
+            // 화면 전체가 디시 밖으로 나가는 것만 막습니다. '사람인지 확인' 상자처럼 화면 안에 들어가는 틀은 그대로 둡니다.
+            return request.isForMainFrame() && !dcUrl(request.getUrl().toString());
         }
         @Override public void onPageFinished(WebView view, String url) {
             if (jobId == null || url == null || url.startsWith("about:")) return;
@@ -399,6 +413,7 @@ public class MainActivity extends Activity {
             if (helper.canGoBack()) helper.goBack(); else finishJob("false");
             return;
         }
+        if (jobId != null && jobShown) { finishJob(CANCELLED); return; }
         main.evaluateJavascript("!!(window.yjBack&&window.yjBack())", handled -> { if (!"true".equals(handled)) finish(); });
     }
 

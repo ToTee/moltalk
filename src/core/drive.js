@@ -27,7 +27,30 @@ function helpers(){
   const idx=li.id.replace('comment_cnt_','');if(!document.querySelector('#comment_addDiv'+idx))window.comment_reple(idx);
   return {form:document.querySelector('#comment_write_reple'),memo:'#comment_memo_reple',mode:'commentReple',tmode:'txtconReple'};
  };
- return {alerts,wait,until,ajax,user,done,form};
+ // 숨겨진 공식 화면을 사용자에게 잠깐 보여 주거나 다시 숨깁니다(안드로이드는 YJD.show, 윈도우는 콘솔 신호).
+ const reveal=on=>{
+  let tip=document.querySelector('#yj-tip');
+  if(on&&!tip){tip=document.createElement('div');tip.id='yj-tip';tip.textContent="'사람인지 확인'을 눌러 주세요. 확인되면 자동으로 등록됩니다.";tip.style.cssText='position:fixed;left:0;right:0;top:0;z-index:2147483647;background:#191919;color:#fff;font-size:14px;line-height:1.4;padding:10px 14px;text-align:center';document.body.appendChild(tip)}
+  if(!on&&tip)tip.remove();
+  try{if(window.YJD&&window.YJD.show)window.YJD.show(!!on)}catch(e){}
+  console.log(on?'__YJ_SHOW__':'__YJ_HIDE__');
+ };
+ // 사람인지 확인(디시가 글·댓글 등록에 붙인 클라우드플레어 확인 상자). root 안에 확인 칸이 있으면 불러와서
+ // 확인값이 생길 때까지 기다립니다. 대부분 자동으로 통과하고, 직접 눌러야 할 때만 화면을 보여 줍니다.
+ const human=async root=>{
+  const slot=root&&root.querySelector('#dc-turnstile, .dc-ts-slot'),ts=window.dcTs;
+  if(!slot||!ts||typeof window.dcTsLoad!=='function')return true;
+  if(!ts.focusAt)ts.focusAt=Date.now();
+  window.dcTsLoad();window.dcTsUse(root);
+  const token=()=>{try{return window.turnstile&&ts.id!==null&&window.turnstile.getResponse(ts.id)||''}catch(e){return ''}};
+  await until(()=>token()||ts.state==='interactive'||ts.state==='error',20000);
+  if(token())return true;
+  (ts.host||slot).scrollIntoView({block:'center'});reveal(true);
+  const ok=await until(token,170000);reveal(false);
+  return !!ok;
+ };
+ const HUMAN_FAIL={error:"'사람인지 확인'을 마치지 못해 등록하지 않았습니다. 다시 시도해 주세요."};
+ return {alerts,wait,until,ajax,user,done,form,human,HUMAN_FAIL};
 }
 
 const SCRIPTS={
@@ -57,6 +80,7 @@ const SCRIPTS={
   const f=h.form(a.parentNo);if(!f||!f.form)return {error:a.parentNo?'답글을 달 댓글을 찾지 못했습니다.':'댓글을 쓸 수 없는 글입니다.'};
   if(f.form.querySelector('[id^="captcha_codeC"]'))return {need:'captcha'};
   f.form.querySelector(f.memo).value=a.text;
+  if(!await h.human(f.form))return h.HUMAN_FAIL;
   const p=h.ajax(/\/ajax\/comment-write/);window.comment_write_ok(f.form);
   return h.done(await p);
  },
@@ -78,6 +102,7 @@ const SCRIPTS={
   window.show_dccon(f.mode);
   const box=await h.until(()=>{const b=document.querySelector(f.mode==='commentWrite'?'#dcconBoxComment':'#dcconBoxReple');return b&&!b.querySelector('.dccon-loading')?b:null},12000);
   if(!box)return {error:'디시콘 창을 열지 못했습니다.'};
+  if(!await h.human(f.form))return h.HUMAN_FAIL;
   const p=h.ajax(/\/ajax\/comment-write/);
   if(a.items.length===2){const chk=document.querySelector('#dbl_con_chk');if(!chk)return {error:'이 화면에서는 더블콘을 쓸 수 없습니다.'};if(!chk.checked)chk.click()}
   for(const it of a.items){window.insertDccon({dcconPackage:it.pkg,dcconDetail:it.detail});await h.wait(400)}
@@ -94,6 +119,7 @@ const SCRIPTS={
   const pick=(list,c)=>{const b=document.querySelector(list+' [data-txtcon-color="'+c+'"]');if(b)b.click()};
   pick('#txtcon_bg_list',a.bg);pick('#txtcon_font_list',a.fg);
   memo.value=a.text;memo.dispatchEvent(new Event('input',{bubbles:true}));memo.dispatchEvent(new Event('keyup',{bubbles:true}));
+  if(!await h.human(f.form))return h.HUMAN_FAIL;
   const p=h.ajax(/\/ajax\/comment-write/);window.insertTxtcon();
   return h.done(await p);
  },
@@ -136,6 +162,7 @@ const SCRIPTS={
    await h.wait(500);
   }
   box.dispatchEvent(new Event('input',{bubbles:true}));
+  if(!await h.human(document.body))return h.HUMAN_FAIL;
   window.write_submit();
   await h.wait(20000);
   return {error:h.alerts.join(' ')||'등록 응답을 확인하지 못했습니다.'};

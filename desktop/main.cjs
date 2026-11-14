@@ -49,15 +49,22 @@ function helperWindow(show){
 // 공식 화면을 보이지 않는 창에서 열고 스크립트를 실행해 결과를 돌려줍니다. 화면이 다른 주소로 넘어가면(글 등록 완료 등) 그 주소를 돌려줍니다.
 ipcMain.handle('drive',async(event,url,code,opt={})=>{
  if(!dcUrl(url)||typeof code!=='string')throw Error('디시인사이드 주소만 열 수 있습니다.');
- const w=helperWindow(false);
+ const w=helperWindow(false);let timer;
  try{
   await w.loadURL(url).catch(()=>{});
   if(!dcUrl(w.webContents.getURL()))return {error:'화면을 열지 못했습니다.'};
   const nav=new Promise(res=>w.webContents.once('did-navigate',(e,u)=>res({navigated:u})));
+  const limit=Math.min(Number(opt.timeout)||45000,300000);
+  const timeout=new Promise(res=>{
+   const arm=ms=>{clearTimeout(timer);timer=setTimeout(()=>res({error:'시간이 초과되었습니다.'}),ms)};arm(limit);
+   // '사람인지 확인'을 직접 눌러야 하면 공식 화면이 신호를 보냅니다. 그동안 창을 보여 주고 기다리는 시간을 늘립니다.
+   w.webContents.on('console-message',(e,level,message)=>{const m=typeof message==='string'?message:e&&e.message;
+    if(m==='__YJ_SHOW__'){w.show();arm(200000)}else if(m==='__YJ_HIDE__'){w.hide();arm(limit)}});
+  });
+  const closed=new Promise(res=>w.once('closed',()=>res({error:'창을 닫아 등록을 취소했습니다.'})));
   const run=w.webContents.executeJavaScript(code,true).catch(async err=>{await sleep(2500);return {error:'처리 중 오류가 났습니다: '+err.message}});
-  const timeout=sleep(Math.min(Number(opt.timeout)||45000,300000)).then(()=>({error:'시간이 초과되었습니다.'}));
-  return await Promise.race([run,nav,timeout]);
- }finally{if(!w.isDestroyed())w.destroy()}
+  return await Promise.race([run,nav,timeout,closed]);
+ }finally{clearTimeout(timer);if(!w.isDestroyed())w.destroy()}
 });
 // 공식 화면을 사용자에게 보여 줍니다(로그인, 보안 문자 입력 등). 창을 닫거나 closeOn 주소에 도달하면 끝납니다.
 ipcMain.handle('official',(event,url,opt={})=>new Promise(resolve=>{

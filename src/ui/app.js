@@ -196,11 +196,14 @@ document.addEventListener('scroll',e=>{const t=e.target;if(t.id==='cscroll'&&t.s
 
 /* ---------- 채팅방(본문 + 댓글) ---------- */
 const bub=(t,q='')=>'<div class="bub">'+q+esc(t)+(t.length>280||t.split('\n').length>8?'<div class="more" aria-hidden="true"><span>전체보기</span>'+I.next+'</div>':'')+'</div>';
+const conVideo=(src,alt)=>'<video class="dcon1" autoplay loop muted playsinline src="'+esc(src)+'" aria-label="'+esc(alt||'디시콘')+'"></video>';
+/* 디시콘 주소는 그림일 수도 영상일 수도 있습니다. 그림으로 못 읽으면 영상으로 한 번 바꿔 봅니다. */
+document.addEventListener('error',e=>{const n=e.target;if(n.tagName==='IMG'&&n.classList.contains('dcon1')&&n.isConnected)n.outerHTML=conVideo(n.src,n.alt)},true);
 function blockHtml(b,q=''){
  if(b.t==='text')return bub(b.v,q);
  if(b.t==='img')return '<img class="media" loading="lazy" src="'+esc(b.src)+'" alt="'+esc(b.alt||'본문 사진')+'" data-zoom>';
  if(b.t==='txtcon')return '<div class="tcon" style="'+tstyle(b.v,b.bg,b.fg)+'">'+esc(b.v)+'</div>';
- if(b.t==='dccon')return '<img class="dcon1" loading="lazy" src="'+esc(b.src)+'" alt="'+esc(b.alt||'디시콘')+'">';
+ if(b.t==='dccon')return b.video?conVideo(b.src,b.alt):'<img class="dcon1" loading="lazy" src="'+esc(b.src)+'" alt="'+esc(b.alt||'디시콘')+'">';
  if(b.t==='video')return '<video class="media" controls preload="none" src="'+esc(b.src)+'"'+(b.poster?' poster="'+esc(b.poster)+'"':'')+'></video>';
  return '<button class="embed" data-url="'+esc(b.src)+'">동영상·외부 콘텐츠 열기</button>';
 }

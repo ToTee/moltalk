@@ -31,7 +31,7 @@
           continue;
         }
         if (tag === "img") {
-          const src = abs(c.getAttribute("data-original") || c.getAttribute("src") || "");
+          const src = abs(c.getAttribute("data-original") || c.getAttribute("data-src") || c.getAttribute("src") || "");
           if (/^https:\/\//.test(src)) {
             flush();
             out.push({ t: /dccon/.test(c.getAttribute("class") || "") ? "dccon" : "img", src, alt: c.getAttribute("alt") || c.getAttribute("title") || "" });
@@ -39,10 +39,10 @@
           continue;
         }
         if (tag === "video") {
-          const src = abs(c.getAttribute("src") || c.querySelector("source")?.getAttribute("src") || "");
-          if (src) {
+          const con = /dccon/.test(c.getAttribute("class") || ""), src = abs(c.getAttribute("src") || c.querySelector("source")?.getAttribute("src") || c.getAttribute("data-src") || "");
+          if (/^https:\/\//.test(src)) {
             flush();
-            out.push({ t: /dccon/.test(c.getAttribute("class") || "") ? "dccon" : "video", src, poster: abs(c.getAttribute("poster") || "") });
+            out.push(con ? { t: "dccon", src, video: true, alt: c.getAttribute("title") || "" } : { t: "video", src, poster: abs(c.getAttribute("poster") || "") });
           }
           continue;
         }
@@ -259,7 +259,45 @@
       if (!document.querySelector("#comment_addDiv" + idx)) window.comment_reple(idx);
       return { form: document.querySelector("#comment_write_reple"), memo: "#comment_memo_reple", mode: "commentReple", tmode: "txtconReple" };
     };
-    return { alerts, wait, until, ajax, user, done, form };
+    const reveal = (on) => {
+      let tip = document.querySelector("#yj-tip");
+      if (on && !tip) {
+        tip = document.createElement("div");
+        tip.id = "yj-tip";
+        tip.textContent = "'\uC0AC\uB78C\uC778\uC9C0 \uD655\uC778'\uC744 \uB20C\uB7EC \uC8FC\uC138\uC694. \uD655\uC778\uB418\uBA74 \uC790\uB3D9\uC73C\uB85C \uB4F1\uB85D\uB429\uB2C8\uB2E4.";
+        tip.style.cssText = "position:fixed;left:0;right:0;top:0;z-index:2147483647;background:#191919;color:#fff;font-size:14px;line-height:1.4;padding:10px 14px;text-align:center";
+        document.body.appendChild(tip);
+      }
+      if (!on && tip) tip.remove();
+      try {
+        if (window.YJD && window.YJD.show) window.YJD.show(!!on);
+      } catch (e) {
+      }
+      console.log(on ? "__YJ_SHOW__" : "__YJ_HIDE__");
+    };
+    const human = async (root) => {
+      const slot = root && root.querySelector("#dc-turnstile, .dc-ts-slot"), ts = window.dcTs;
+      if (!slot || !ts || typeof window.dcTsLoad !== "function") return true;
+      if (!ts.focusAt) ts.focusAt = Date.now();
+      window.dcTsLoad();
+      window.dcTsUse(root);
+      const token = () => {
+        try {
+          return window.turnstile && ts.id !== null && window.turnstile.getResponse(ts.id) || "";
+        } catch (e) {
+          return "";
+        }
+      };
+      await until(() => token() || ts.state === "interactive" || ts.state === "error", 2e4);
+      if (token()) return true;
+      (ts.host || slot).scrollIntoView({ block: "center" });
+      reveal(true);
+      const ok = await until(token, 17e4);
+      reveal(false);
+      return !!ok;
+    };
+    const HUMAN_FAIL = { error: "'\uC0AC\uB78C\uC778\uC9C0 \uD655\uC778'\uC744 \uB9C8\uCE58\uC9C0 \uBABB\uD574 \uB4F1\uB85D\uD558\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4. \uB2E4\uC2DC \uC2DC\uB3C4\uD574 \uC8FC\uC138\uC694." };
+    return { alerts, wait, until, ajax, user, done, form, human, HUMAN_FAIL };
   }
   var SCRIPTS = {
     // 로그인 상태 확인
@@ -292,6 +330,7 @@
       if (!f2 || !f2.form) return { error: a.parentNo ? "\uB2F5\uAE00\uC744 \uB2EC \uB313\uAE00\uC744 \uCC3E\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4." : "\uB313\uAE00\uC744 \uC4F8 \uC218 \uC5C6\uB294 \uAE00\uC785\uB2C8\uB2E4." };
       if (f2.form.querySelector('[id^="captcha_codeC"]')) return { need: "captcha" };
       f2.form.querySelector(f2.memo).value = a.text;
+      if (!await h.human(f2.form)) return h.HUMAN_FAIL;
       const p = h.ajax(/\/ajax\/comment-write/);
       window.comment_write_ok(f2.form);
       return h.done(await p);
@@ -320,6 +359,7 @@
         return b && !b.querySelector(".dccon-loading") ? b : null;
       }, 12e3);
       if (!box) return { error: "\uB514\uC2DC\uCF58 \uCC3D\uC744 \uC5F4\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4." };
+      if (!await h.human(f2.form)) return h.HUMAN_FAIL;
       const p = h.ajax(/\/ajax\/comment-write/);
       if (a.items.length === 2) {
         const chk = document.querySelector("#dbl_con_chk");
@@ -351,6 +391,7 @@
       memo.value = a.text;
       memo.dispatchEvent(new Event("input", { bubbles: true }));
       memo.dispatchEvent(new Event("keyup", { bubbles: true }));
+      if (!await h.human(f2.form)) return h.HUMAN_FAIL;
       const p = h.ajax(/\/ajax\/comment-write/);
       window.insertTxtcon();
       return h.done(await p);
@@ -412,6 +453,7 @@
         await h.wait(500);
       }
       box.dispatchEvent(new Event("input", { bubbles: true }));
+      if (!await h.human(document.body)) return h.HUMAN_FAIL;
       window.write_submit();
       await h.wait(2e4);
       return { error: h.alerts.join(" ") || "\uB4F1\uB85D \uC751\uB2F5\uC744 \uD655\uC778\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4." };
@@ -757,11 +799,16 @@
     if (t.id === "cscroll" && t.scrollTop + t.clientHeight > t.scrollHeight - 200) showMore(true);
   }, true);
   var bub = (t, q = "") => '<div class="bub">' + q + esc(t) + (t.length > 280 || t.split("\n").length > 8 ? '<div class="more" aria-hidden="true"><span>\uC804\uCCB4\uBCF4\uAE30</span>' + I.next + "</div>" : "") + "</div>";
+  var conVideo = (src, alt) => '<video class="dcon1" autoplay loop muted playsinline src="' + esc(src) + '" aria-label="' + esc(alt || "\uB514\uC2DC\uCF58") + '"></video>';
+  document.addEventListener("error", (e) => {
+    const n = e.target;
+    if (n.tagName === "IMG" && n.classList.contains("dcon1") && n.isConnected) n.outerHTML = conVideo(n.src, n.alt);
+  }, true);
   function blockHtml(b, q = "") {
     if (b.t === "text") return bub(b.v, q);
     if (b.t === "img") return '<img class="media" loading="lazy" src="' + esc(b.src) + '" alt="' + esc(b.alt || "\uBCF8\uBB38 \uC0AC\uC9C4") + '" data-zoom>';
     if (b.t === "txtcon") return '<div class="tcon" style="' + tstyle(b.v, b.bg, b.fg) + '">' + esc(b.v) + "</div>";
-    if (b.t === "dccon") return '<img class="dcon1" loading="lazy" src="' + esc(b.src) + '" alt="' + esc(b.alt || "\uB514\uC2DC\uCF58") + '">';
+    if (b.t === "dccon") return b.video ? conVideo(b.src, b.alt) : '<img class="dcon1" loading="lazy" src="' + esc(b.src) + '" alt="' + esc(b.alt || "\uB514\uC2DC\uCF58") + '">';
     if (b.t === "video") return '<video class="media" controls preload="none" src="' + esc(b.src) + '"' + (b.poster ? ' poster="' + esc(b.poster) + '"' : "") + "></video>";
     return '<button class="embed" data-url="' + esc(b.src) + '">\uB3D9\uC601\uC0C1\xB7\uC678\uBD80 \uCF58\uD150\uCE20 \uC5F4\uAE30</button>';
   }
