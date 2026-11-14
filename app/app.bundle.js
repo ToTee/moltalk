@@ -1925,7 +1925,7 @@
   document.body.append(ptr);
   var pull = null;
   var ptrSet = (y, spin) => {
-    ptr.classList.toggle("spin", !!spin);
+    ptr.classList.toggle("turn", !!spin);
     ptr.classList.toggle("drag", !spin && y > 0);
     ptr.style.transform = "translate(-50%," + y + "px) rotate(" + y * 4 + "deg)";
     ptr.style.opacity = y ? Math.min(1, y / 40) : 0;

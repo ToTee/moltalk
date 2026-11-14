@@ -587,7 +587,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')window.yjBack();
 /* 휴대폰: 목록이 맨 위일 때 아래로 당겼다 놓으면 새로고침합니다. */
 const ptr=document.createElement('div');ptr.id='ptr';ptr.innerHTML=I.refresh;document.body.append(ptr);
 let pull=null;
-const ptrSet=(y,spin)=>{ptr.classList.toggle('spin',!!spin);ptr.classList.toggle('drag',!spin&&y>0);ptr.style.transform='translate(-50%,'+y+'px) rotate('+y*4+'deg)';ptr.style.opacity=y?Math.min(1,y/40):0};
+const ptrSet=(y,spin)=>{ptr.classList.toggle('turn',!!spin);ptr.classList.toggle('drag',!spin&&y>0);ptr.style.transform='translate(-50%,'+y+'px) rotate('+y*4+'deg)';ptr.style.opacity=y?Math.min(1,y/40):0};
 document.addEventListener('touchstart',e=>{const s=e.target.closest('#fscroll,#cscroll,#rscroll');pull=s&&s.scrollTop<=0&&e.touches.length===1?{s,x:e.touches[0].clientX,y:e.touches[0].clientY,d:0}:null},{passive:true});
 document.addEventListener('touchmove',e=>{if(!pull)return;const t=e.touches[0],dx=t.clientX-pull.x,dy=t.clientY-pull.y;
  if(!pull.d&&(dy<0||Math.abs(dx)>Math.abs(dy))||pull.s.scrollTop>0){pull=null;ptrSet(0);return}
