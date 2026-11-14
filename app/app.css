@@ -72,7 +72,7 @@ body{display:flex;flex-direction:column}
 .av svg{width:64%;height:64%}
 .av img{width:100%;height:100%;object-fit:cover;display:block}
 /* 사람 자리의 프로필 그림: 한 장에 가로 8칸 × 세로 6칸으로 모아 둔 그림에서 한 칸만 보여 줍니다. */
-.av.avp{background-image:url(avatars.jpg);background-size:800% 600%;background-repeat:no-repeat}
+.av.avp,.av.grid i.avp{background-image:url(avatars.jpg);background-size:800% 600%;background-repeat:no-repeat}
 .photoset{display:flex;align-items:center;gap:10px;margin:14px 22px 0}
 .photoset .av{width:64px;height:64px}
 .av.grid{display:grid;grid-template:1fr 1fr/1fr 1fr;place-items:stretch;gap:2px;background:none;border-radius:0}

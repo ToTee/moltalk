@@ -27,6 +27,8 @@ const AV_N=AV_COLS*AV_ROWS;
 const avBase=(n,seed)=>hash('av'+n+(seed?'#'+seed:''))%AV_N;/* 이름(과 덧붙인 값)으로 정해지는 그림 번호 */
 const avSpan=(i,n)=>'<span class="av avp" style="background-color:'+hue(n)+';background-position:'+(i%AV_COLS)/(AV_COLS-1)*100+'% '+Math.floor(i/AV_COLS)/(AV_ROWS-1)*100+'%"></span>';
 const userAv=(n,seed)=>avSpan(avBase(n,seed),n);
+/* 단체 채팅방(공지 글) 자리: 프로필 그림 네 장을 2×2로 모아 보여 줍니다. 글 번호로 정하므로 같은 방은 언제나 같은 네 장입니다. */
+const gridAv=id=>'<span class="av grid">'+[0,1,2,3].map(i=>{const k=(hash('g'+id)+i*7)%AV_N;return '<i class="avp" style="background-color:'+COLORS[(hash(id)+i)%COLORS.length]+';background-position:'+(k%AV_COLS)/(AV_COLS-1)*100+'% '+Math.floor(k/AV_COLS)/(AV_ROWS-1)*100+'%"></i>'}).join('')+'</span>';
 
 /* ---------- 저장되는 설정 ---------- */
 /* 앱 이름을 바꾸기 전(yangjitalk)에 저장한 설정이 있으면 새 이름으로 옮기고, 실제로 쓸 이름을 돌려줍니다.
@@ -180,7 +182,7 @@ function chatsHtml(){
  const rowHtml=p=>{const pi=pins.indexOf(p),n=unreadOf(p),author=who(p);
   const pv=p.notice?p.title:R.pv[R.g+'/'+p.id]||(p.hasVideo?'동영상을 보냈습니다.':p.hasImage?'사진을 보냈습니다.':author+' · 조회 '+p.views.toLocaleString());
   return '<button class="row post'+(R.room&&R.room.g===R.g&&R.room.no===p.id?' sel':'')+'" data-p="'+p.id+'">'+
-   (p.notice?'<span class="av grid">'+[0,1,2,3].map(i=>'<i style="background:'+COLORS[(hash(p.id)+i)%COLORS.length]+'"></i>').join('')+'</span>':rowAv(p))+
+   (p.notice?gridAv(p.id):rowAv(p))+
    '<span class="tx"><b><span class="t">'+esc(p.notice?noticeName(g,pi,p):p.title)+'</span><small>'+(p.notice?pins.length:p.comments)+'</small>'+(p.notice?I.pin:'')+'</b><span class="pv">'+esc(pv)+'</span></span>'+
    '<span class="rt">'+listTime(p.time)+(n?'<br><em>'+n+'</em>':'')+'</span></button>'};
  /* 처음에는 20개만 보여 주고, 아래로 스크롤하면 10개씩 더 보여 줍니다. 보이는 글만 본문 미리보기를 읽어 옵니다. */
@@ -335,7 +337,7 @@ function renderRoom(keep){
   else if(r.total>r.comments.length&&!r.noMore)h+='<div class="sys"><button data-cmore>'+(r.cbusy?'불러오는 중…':'댓글 더 보기')+'</button></div>';
  }else h=r.err?'<div class="sys err"><span>'+esc(r.err)+'</span></div><div class="sys"><button data-rreload>다시 시도</button></div>':'<div class="sys"><span>불러오는 중…</span></div>';
  const people=p?new Set([author,...(r.comments||[]).map(who)]).size:1;
- el.innerHTML='<div class="rhead"><button class="ib back" data-back aria-label="목록으로">'+I.back+'</button>'+avSpan(roomAvIdx,author)+'<span class="tt"><b>'+esc(title)+'</b><span>'+esc(gname(g))+' · 참여 '+people+'명</span></span>'+
+ el.innerHTML='<div class="rhead"><button class="ib back" data-back aria-label="목록으로">'+I.back+'</button>'+(meta.notice?gridAv(meta.id):avSpan(roomAvIdx,author))+'<span class="tt"><b>'+esc(title)+'</b><span>'+esc(gname(g))+' · 참여 '+people+'명</span></span>'+
   '<button class="ib" data-rreload aria-label="새로고침">'+I.refresh+'</button><button class="ib" data-rmenu aria-label="글 메뉴" aria-expanded="'+!!R.rmenu+'">'+I.menu+'</button></div>'+
   /* 오른쪽 위 메뉴: 원본 모양으로 보기(글쓴이가 꾸민 그대로), 디시에서 열기 */
   (R.rmenu?'<button class="rdim" data-rmenu aria-label="메뉴 닫기"></button><div class="rpop"><button data-orig'+(p?'':' disabled')+'>원본 모양으로 보기</button><button data-vote="up"'+(p?'':' disabled')+'>추천'+(p?' '+(p.up||0):'')+'</button><button data-vote="down"'+(p?'':' disabled')+'>비추천'+(p&&p.down?' '+p.down:'')+'</button><button data-rmenu data-url="'+esc(postUrl(g,r.no))+'">디시에서 열기</button></div>':'')+
