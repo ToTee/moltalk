@@ -399,6 +399,10 @@ public class MainActivity extends Activity {
             Uri u = request.getUrl();
             if (APP_HOST.equals(u.getHost())) return asset(u.getPath());
             if (!"GET".equals(request.getMethod()) || request.isForMainFrame() || !dcUrl(u.toString())) return null;
+            // 본문 동영상(영상 서버 dcm*의 mp4)은 대신 받아 주면 재생기가 원하는 구간만 골라 받지 못해 재생이 실패합니다.
+            // 이 서버는 Referer 없이도 내주므로 화면이 직접 받게 둡니다.
+            String host = u.getHost();
+            if (host != null && host.startsWith("dcm") && "mp4".equals(u.getQueryParameter("type"))) return null;
             return proxy(request);
         }
     }
