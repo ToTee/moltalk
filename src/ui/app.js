@@ -289,7 +289,7 @@ const bub=(t,q='')=>'<div class="bub">'+q+linkify(t)+'</div>';
    기기에서 재생하지 못하면 디시 화면으로 여는 단추로 바꿉니다. */
 const MV={},MVP={},MVT=new Set();
 /* 눌러서 틀 때(auto)만 영상을 내려받기 시작합니다. 미리 보기 그림만 보여 줄 때는 영상을 받지 않습니다. */
-const movieHtml=(u,m,auto)=>'<span class="mvw"><video class="media mv" controls playsinline preload="'+(auto?'metadata':'none')+'"'+(auto?' autoplay':'')+' src="'+esc(m.src)+'"'+(m.poster?' poster="'+esc(m.poster)+'"':'')+' data-page="'+esc(u)+'"></video><button class="mvbig" data-mvbig aria-label="동영상 크게 보기">크게</button></span>';
+const movieHtml=(u,m,auto)=>'<span class="mvw"><video class="media mv" controls playsinline preload="'+(auto?'metadata':'none')+'"'+(auto?' autoplay':'')+' src="'+esc(m.src)+'"'+(m.poster?' poster="'+esc(m.poster)+'"':'')+' data-page="'+esc(u)+'"></video><button class="mvplay" data-mvplay aria-label="동영상 재생">▶</button><button class="mvbig" data-mvbig aria-label="동영상 크게 보기">크게</button></span>';
 /* 크게 보기: 앱 창을 가득 채우는 화면에서 같은 영상을 보던 자리부터 이어서 틉니다. 닫으면 본문 영상도 그 자리로 맞춥니다. */
 let bigFrom=null;
 function openBig(b){const v=b.closest('.mvw')?.querySelector('video');if(!v)return;const at=v.currentTime||0,box=$('#viewer');v.pause();bigFrom=v;
@@ -308,7 +308,12 @@ function openBigYt(b){const id=b.dataset.ytbig,box=$('#viewer');if(!ytOk(id))ret
 function closeViewer(){const box=$('#viewer'),big=box.querySelector('video');if(big&&bigFrom?.isConnected)try{bigFrom.currentTime=big.currentTime}catch{}
  bigFrom=null;box.innerHTML='';box.hidden=true}
 /* 같은 영상을 두 번 읽지 않게, 읽는 중인 요청을 함께 씁니다. */
-const movie=u=>MVP[u]||(MVP[u]=dc.readMovie(u).then(m=>MV[u]=m).catch(e=>{delete MVP[u];throw e}));
+const movie=u=>MVP[u]||(MVP[u]=dc.readMovie(u).then(m=>MV[u]={...m,at:Date.now()}).catch(e=>{delete MVP[u];throw e}));
+/* 방금 올린 영상은 디시가 처리(인코딩)를 끝내면 미리 보기 그림과 영상 주소가 바뀝니다. 채팅방을 열거나 새로 고칠 때, 읽은 지 1분이 지난 영상 정보는 버리고 다시 읽게 합니다. */
+function staleMovies(){for(const u of Object.keys(MV))if(Date.now()-MV[u].at>60000){delete MV[u];delete MVP[u];MVT.delete(u)}}
+/* 재생 단추: 브라우저가 영상 한가운데에 그리는 큰 단추 대신 작은 단추를 씁니다. 재생 중에는 숨깁니다. */
+document.addEventListener('play',e=>{e.target.closest?.('.mvw')?.classList.add('playing')},true);
+document.addEventListener('pause',e=>{e.target.closest?.('.mvw')?.classList.remove('playing')},true);
 async function playMovie(b){const u=b.dataset.movie;if(b.disabled)return;
  if(!MV[u]){b.disabled=true;b.textContent='동영상 불러오는 중…';try{await movie(u)}catch(e){if(b.isConnected){b.disabled=false;b.textContent='▶ 동영상 재생'}toast(e.message);return}}
  for(const n of document.querySelectorAll('button[data-movie]'))if(n.dataset.movie===u)n.outerHTML=movieHtml(u,MV[u],n===b)}
@@ -377,7 +382,7 @@ function renderRoom(keep){
     (R.menu==='body'&&i===merged.length-1?'<button class="delbtn edit" data-pedit>수정</button><button class="delbtn" data-postdel>'+(R.ask?'정말 삭제':'삭제')+'</button>':'');
    const ln='<div class="ln"'+lp+'>'+body+menu+(last&&m.d?'<span class="tm">'+clock(m.d)+'</span>':'')+'</div>';
    h+=m.mine?'<div class="m mine'+(first?' first':'')+'"><div class="col">'+ln+'</div></div>':
-    '<div class="m'+(first?' first':'')+'"><div class="avc">'+(first?(m.c?cAv(m):avSpan(roomAvIdx,m.w)):'')+'</div><div class="col">'+(first?'<div class="nm">'+esc(m.w)+(i<merged.length||m.isAuthor?'<i>글쓴이</i>':'')+'</div>':'')+ln+'</div></div>';
+    '<div class="m'+(first?' first':'')+'"><div class="avc">'+(first?(m.c?cAv(m):avSpan(roomAvIdx,m.w)):'')+'</div><div class="col">'+(first?'<div class="nm">'+esc(m.w)+(i<merged.length||m.isAuthor?'<i>(글쓴이)</i>':'')+'</div>':'')+ln+'</div></div>';
   });
   if(r.cerr)h+='<div class="sys err"><span>'+esc(r.cerr)+'</span></div>';
   else if(!r.comments)h+='<div class="sys"><span>댓글 불러오는 중…</span></div>';
@@ -559,7 +564,7 @@ function renderWrite(){
  const blk=x=>typeof x==='string'?bub(x):x.video?'<video class="media" src="'+x.url+'" controls aria-label="'+esc(x.name)+'"></video>':'<img class="media" src="'+x.url+'" alt="'+esc(x.name)+'">';
  el.innerHTML='<div class="rhead"><button class="ib back" data-wcancel aria-label="글쓰기 닫기">'+I.back+'</button>'+meAv()+'<span class="tt"><b>새 글</b><span>'+esc(gname(g))+'에 올리기</span></span><button class="pub" data-pub'+(w.busy?' disabled':'')+'>'+(w.busy?'등록 중…':'등록')+'</button></div>'+
   '<div class="wtitle"><label for="wtitle">제목</label>'+(heads.length?'<select id="whead" aria-label="말머리">'+heads.map(h=>'<option value="'+esc(h.id)+'"'+(String(h.id)===String(w.head)?' selected':'')+'>'+esc(h.name)+'</option>').join('')+'</select>':'')+'<input id="wtitle" maxlength="40" placeholder="제목 입력" aria-label="제목" value="'+esc(w.title)+'"></div>'+
-  '<div class="scroll" id="wscroll"><div class="msgs">'+(w.blocks.length?'<div class="m first"><div class="avc">'+meAv()+'</div><div class="col"><div class="nm">'+esc(D.me.name)+'<i>글쓴이</i></div>'+
+  '<div class="scroll" id="wscroll"><div class="msgs">'+(w.blocks.length?'<div class="m first"><div class="avc">'+meAv()+'</div><div class="col"><div class="nm">'+esc(D.me.name)+'<i>(글쓴이)</i></div>'+
    w.blocks.map((x,i)=>'<div class="ln blk">'+blk(x)+'<button class="del" data-del="'+i+'" aria-label="이 말풍선 삭제">✕</button></div>').join('')+'</div></div>':'<div class="sys"><span>아래에 쓰고 전송하면 본문에 들어갑니다</span></div>')+
   (w.err?'<div class="sys err" role="alert"><span>'+esc(w.err)+'</span></div>':'')+'</div></div>'+
   '<form class="inp" id="wform"><label class="wlab" for="wbody">본문</label><textarea id="wbody" placeholder="본문 입력">'+esc(w.text)+'</textarea>'+
@@ -616,6 +621,7 @@ async function openPost(no,fresh,given){
  const inList=given||R.list?.posts.find(p=>p.id===no),meta=inList||R.room?.meta;if(!meta)return;
  const gk=inList?R.g:R.room.g,pins=(gk===R.g&&R.list?.posts||[]).filter(p=>p.notice),seq=++R.roomSeq,g=gal(gk);if(!g)return;
  if(!fresh)R.orig=false;R.rmenu=false;
+ staleMovies();
  R.room={g:gk,no,meta,pinIdx:Math.max(0,pins.indexOf(meta)),post:null,comments:null,total:null,cpage:1};
  renderRoom(fresh);renderPane();
  try{const c=R.pc[gk+'/'+no],post=!fresh&&c&&Date.now()-c.at<120000?c.post:await dc.readPost(g,no);if(seq!==R.roomSeq)return;R.room.post=post;renderRoom(fresh);
@@ -691,6 +697,7 @@ document.addEventListener('click',e=>{
  const b=e.target.closest('button');if(!b)return;const d=b.dataset;
  if(d.movie){playMovie(b);return}
  if(d.mvbig!=null){openBig(b);return}
+ if(d.mvplay!=null){b.closest('.mvw')?.querySelector('video')?.play().catch(()=>{});return}
  if(d.yt){playYt(b);return}
  if(d.ytbig){openBigYt(b);return}
  if(d.view){R.view=d.view;R.ov='';renderPane()}

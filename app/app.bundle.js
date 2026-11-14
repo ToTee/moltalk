@@ -1290,7 +1290,7 @@
   var MV = {};
   var MVP = {};
   var MVT = /* @__PURE__ */ new Set();
-  var movieHtml = (u, m, auto) => '<span class="mvw"><video class="media mv" controls playsinline preload="' + (auto ? "metadata" : "none") + '"' + (auto ? " autoplay" : "") + ' src="' + esc(m.src) + '"' + (m.poster ? ' poster="' + esc(m.poster) + '"' : "") + ' data-page="' + esc(u) + '"></video><button class="mvbig" data-mvbig aria-label="\uB3D9\uC601\uC0C1 \uD06C\uAC8C \uBCF4\uAE30">\uD06C\uAC8C</button></span>';
+  var movieHtml = (u, m, auto) => '<span class="mvw"><video class="media mv" controls playsinline preload="' + (auto ? "metadata" : "none") + '"' + (auto ? " autoplay" : "") + ' src="' + esc(m.src) + '"' + (m.poster ? ' poster="' + esc(m.poster) + '"' : "") + ' data-page="' + esc(u) + '"></video><button class="mvplay" data-mvplay aria-label="\uB3D9\uC601\uC0C1 \uC7AC\uC0DD">\u25B6</button><button class="mvbig" data-mvbig aria-label="\uB3D9\uC601\uC0C1 \uD06C\uAC8C \uBCF4\uAE30">\uD06C\uAC8C</button></span>';
   var bigFrom = null;
   function openBig(b) {
     const v = b.closest(".mvw")?.querySelector("video");
@@ -1334,10 +1334,23 @@
     box.innerHTML = "";
     box.hidden = true;
   }
-  var movie = (u) => MVP[u] || (MVP[u] = dc.readMovie(u).then((m) => MV[u] = m).catch((e) => {
+  var movie = (u) => MVP[u] || (MVP[u] = dc.readMovie(u).then((m) => MV[u] = { ...m, at: Date.now() }).catch((e) => {
     delete MVP[u];
     throw e;
   }));
+  function staleMovies() {
+    for (const u of Object.keys(MV)) if (Date.now() - MV[u].at > 6e4) {
+      delete MV[u];
+      delete MVP[u];
+      MVT.delete(u);
+    }
+  }
+  document.addEventListener("play", (e) => {
+    e.target.closest?.(".mvw")?.classList.add("playing");
+  }, true);
+  document.addEventListener("pause", (e) => {
+    e.target.closest?.(".mvw")?.classList.remove("playing");
+  }, true);
   async function playMovie(b) {
     const u = b.dataset.movie;
     if (b.disabled) return;
@@ -1473,7 +1486,7 @@
         const lp2 = m.c ? m.c.deleted ? "" : ' data-lp="msg" data-cid="' + m.c.id + '"' : myPost ? ' data-lp="msg" data-cid="body"' : "";
         const menu = m.c ? R.menu === m.c.id && m.lastBlock ? '<button class="delbtn edit" data-reply="' + m.c.id + '">\uB2F5\uC7A5</button>' + (m.c.mine || myPost ? '<button class="delbtn" data-cdel="' + m.c.id + '">\uC0AD\uC81C</button>' : "") : "" : R.menu === "body" && i === merged.length - 1 ? '<button class="delbtn edit" data-pedit>\uC218\uC815</button><button class="delbtn" data-postdel>' + (R.ask ? "\uC815\uB9D0 \uC0AD\uC81C" : "\uC0AD\uC81C") + "</button>" : "";
         const ln = '<div class="ln"' + lp2 + ">" + body + menu + (last && m.d ? '<span class="tm">' + clock(m.d) + "</span>" : "") + "</div>";
-        h += m.mine ? '<div class="m mine' + (first ? " first" : "") + '"><div class="col">' + ln + "</div></div>" : '<div class="m' + (first ? " first" : "") + '"><div class="avc">' + (first ? m.c ? cAv(m) : avSpan(roomAvIdx, m.w) : "") + '</div><div class="col">' + (first ? '<div class="nm">' + esc(m.w) + (i < merged.length || m.isAuthor ? "<i>\uAE00\uC4F4\uC774</i>" : "") + "</div>" : "") + ln + "</div></div>";
+        h += m.mine ? '<div class="m mine' + (first ? " first" : "") + '"><div class="col">' + ln + "</div></div>" : '<div class="m' + (first ? " first" : "") + '"><div class="avc">' + (first ? m.c ? cAv(m) : avSpan(roomAvIdx, m.w) : "") + '</div><div class="col">' + (first ? '<div class="nm">' + esc(m.w) + (i < merged.length || m.isAuthor ? "<i>(\uAE00\uC4F4\uC774)</i>" : "") + "</div>" : "") + ln + "</div></div>";
       });
       if (r.cerr) h += '<div class="sys err"><span>' + esc(r.cerr) + "</span></div>";
       else if (!r.comments) h += '<div class="sys"><span>\uB313\uAE00 \uBD88\uB7EC\uC624\uB294 \uC911\u2026</span></div>';
@@ -1830,7 +1843,7 @@
     el.className = "room";
     $("#app").classList.add("in-room");
     const blk = (x) => typeof x === "string" ? bub(x) : x.video ? '<video class="media" src="' + x.url + '" controls aria-label="' + esc(x.name) + '"></video>' : '<img class="media" src="' + x.url + '" alt="' + esc(x.name) + '">';
-    el.innerHTML = '<div class="rhead"><button class="ib back" data-wcancel aria-label="\uAE00\uC4F0\uAE30 \uB2EB\uAE30">' + I.back + "</button>" + meAv() + '<span class="tt"><b>\uC0C8 \uAE00</b><span>' + esc(gname(g)) + '\uC5D0 \uC62C\uB9AC\uAE30</span></span><button class="pub" data-pub' + (w.busy ? " disabled" : "") + ">" + (w.busy ? "\uB4F1\uB85D \uC911\u2026" : "\uB4F1\uB85D") + '</button></div><div class="wtitle"><label for="wtitle">\uC81C\uBAA9</label>' + (heads.length ? '<select id="whead" aria-label="\uB9D0\uBA38\uB9AC">' + heads.map((h) => '<option value="' + esc(h.id) + '"' + (String(h.id) === String(w.head) ? " selected" : "") + ">" + esc(h.name) + "</option>").join("") + "</select>" : "") + '<input id="wtitle" maxlength="40" placeholder="\uC81C\uBAA9 \uC785\uB825" aria-label="\uC81C\uBAA9" value="' + esc(w.title) + '"></div><div class="scroll" id="wscroll"><div class="msgs">' + (w.blocks.length ? '<div class="m first"><div class="avc">' + meAv() + '</div><div class="col"><div class="nm">' + esc(D.me.name) + "<i>\uAE00\uC4F4\uC774</i></div>" + w.blocks.map((x, i) => '<div class="ln blk">' + blk(x) + '<button class="del" data-del="' + i + '" aria-label="\uC774 \uB9D0\uD48D\uC120 \uC0AD\uC81C">\u2715</button></div>').join("") + "</div></div>" : '<div class="sys"><span>\uC544\uB798\uC5D0 \uC4F0\uACE0 \uC804\uC1A1\uD558\uBA74 \uBCF8\uBB38\uC5D0 \uB4E4\uC5B4\uAC11\uB2C8\uB2E4</span></div>') + (w.err ? '<div class="sys err" role="alert"><span>' + esc(w.err) + "</span></div>" : "") + '</div></div><form class="inp" id="wform"><label class="wlab" for="wbody">\uBCF8\uBB38</label><textarea id="wbody" placeholder="\uBCF8\uBB38 \uC785\uB825">' + esc(w.text) + "</textarea>" + (w.pending.length ? '<div class="pend">' + w.pending.map((x, i) => '<span class="pthumb">' + (x.video ? '<video src="' + x.url + '" muted aria-label="' + esc(x.name) + '"></video>' : '<img src="' + x.url + '" alt="' + esc(x.name) + '">') + '<button type="button" class="del" data-pdel="' + i + '" aria-label="\uCCA8\uBD80 \uCDE8\uC18C">\u2715</button></span>').join("") + "</div>" : "") + (w.menu ? '<div class="amenu"><button type="button" data-pick="image">\uC0AC\uC9C4</button><button type="button" data-pick="video">\uB3D9\uC601\uC0C1</button></div>' : "") + '<div class="bar"><button type="button" class="ib" data-attach aria-expanded="' + !!w.menu + '" aria-label="\uC0AC\uC9C4\xB7\uB3D9\uC601\uC0C1 \uCCA8\uBD80">' + I.plus + '</button><span></span><button class="send ok">\uC804\uC1A1</button></div><input type="file" id="pick" multiple hidden></form>' + (w.busy ? '<div class="wprog" id="wprog" role="status" aria-live="polite">' + progHtml(w.prog) + "</div>" : "");
+    el.innerHTML = '<div class="rhead"><button class="ib back" data-wcancel aria-label="\uAE00\uC4F0\uAE30 \uB2EB\uAE30">' + I.back + "</button>" + meAv() + '<span class="tt"><b>\uC0C8 \uAE00</b><span>' + esc(gname(g)) + '\uC5D0 \uC62C\uB9AC\uAE30</span></span><button class="pub" data-pub' + (w.busy ? " disabled" : "") + ">" + (w.busy ? "\uB4F1\uB85D \uC911\u2026" : "\uB4F1\uB85D") + '</button></div><div class="wtitle"><label for="wtitle">\uC81C\uBAA9</label>' + (heads.length ? '<select id="whead" aria-label="\uB9D0\uBA38\uB9AC">' + heads.map((h) => '<option value="' + esc(h.id) + '"' + (String(h.id) === String(w.head) ? " selected" : "") + ">" + esc(h.name) + "</option>").join("") + "</select>" : "") + '<input id="wtitle" maxlength="40" placeholder="\uC81C\uBAA9 \uC785\uB825" aria-label="\uC81C\uBAA9" value="' + esc(w.title) + '"></div><div class="scroll" id="wscroll"><div class="msgs">' + (w.blocks.length ? '<div class="m first"><div class="avc">' + meAv() + '</div><div class="col"><div class="nm">' + esc(D.me.name) + "<i>(\uAE00\uC4F4\uC774)</i></div>" + w.blocks.map((x, i) => '<div class="ln blk">' + blk(x) + '<button class="del" data-del="' + i + '" aria-label="\uC774 \uB9D0\uD48D\uC120 \uC0AD\uC81C">\u2715</button></div>').join("") + "</div></div>" : '<div class="sys"><span>\uC544\uB798\uC5D0 \uC4F0\uACE0 \uC804\uC1A1\uD558\uBA74 \uBCF8\uBB38\uC5D0 \uB4E4\uC5B4\uAC11\uB2C8\uB2E4</span></div>') + (w.err ? '<div class="sys err" role="alert"><span>' + esc(w.err) + "</span></div>" : "") + '</div></div><form class="inp" id="wform"><label class="wlab" for="wbody">\uBCF8\uBB38</label><textarea id="wbody" placeholder="\uBCF8\uBB38 \uC785\uB825">' + esc(w.text) + "</textarea>" + (w.pending.length ? '<div class="pend">' + w.pending.map((x, i) => '<span class="pthumb">' + (x.video ? '<video src="' + x.url + '" muted aria-label="' + esc(x.name) + '"></video>' : '<img src="' + x.url + '" alt="' + esc(x.name) + '">') + '<button type="button" class="del" data-pdel="' + i + '" aria-label="\uCCA8\uBD80 \uCDE8\uC18C">\u2715</button></span>').join("") + "</div>" : "") + (w.menu ? '<div class="amenu"><button type="button" data-pick="image">\uC0AC\uC9C4</button><button type="button" data-pick="video">\uB3D9\uC601\uC0C1</button></div>' : "") + '<div class="bar"><button type="button" class="ib" data-attach aria-expanded="' + !!w.menu + '" aria-label="\uC0AC\uC9C4\xB7\uB3D9\uC601\uC0C1 \uCCA8\uBD80">' + I.plus + '</button><span></span><button class="send ok">\uC804\uC1A1</button></div><input type="file" id="pick" multiple hidden></form>' + (w.busy ? '<div class="wprog" id="wprog" role="status" aria-live="polite">' + progHtml(w.prog) + "</div>" : "");
     const sc = $("#wscroll");
     sc.scrollTop = sc.scrollHeight;
   }
@@ -1974,6 +1987,7 @@
     if (!g) return;
     if (!fresh) R.orig = false;
     R.rmenu = false;
+    staleMovies();
     R.room = { g: gk, no, meta, pinIdx: Math.max(0, pins.indexOf(meta)), post: null, comments: null, total: null, cpage: 1 };
     renderRoom(fresh);
     renderPane();
@@ -2188,6 +2202,11 @@
     }
     if (d.mvbig != null) {
       openBig(b);
+      return;
+    }
+    if (d.mvplay != null) {
+      b.closest(".mvw")?.querySelector("video")?.play().catch(() => {
+      });
       return;
     }
     if (d.yt) {
