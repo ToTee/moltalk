@@ -44,8 +44,15 @@ body{display:flex;flex-direction:column}
 #ptr svg{width:14px;height:14px}
 #ptr.turn svg{animation:ptrspin .7s linear infinite}
 @keyframes ptrspin{to{transform:rotate(360deg)}}
-/* 스크롤 막대는 PC와 휴대폰 모두 보이지 않게 합니다(휠·끌기로는 그대로 움직입니다). */
+/* 스크롤 막대: 휴대폰은 보이지 않게 하고, PC는 마우스를 올렸을 때만 오른쪽 끝에 가늘고 반투명한 막대가 나옵니다. */
 *::-webkit-scrollbar{display:none}
+@media (pointer:fine),(pointer:none),(min-width:601px){
+  .scroll::-webkit-scrollbar{display:block;width:10px}
+  .scroll::-webkit-scrollbar-track{background:transparent}
+  .scroll::-webkit-scrollbar-thumb{background-color:transparent;border:2px solid transparent;background-clip:padding-box;border-radius:5px;min-height:36px}
+  .scroll:hover::-webkit-scrollbar-thumb{background-color:rgba(0,0,0,.26)}
+  .scroll::-webkit-scrollbar-thumb:hover{background-color:rgba(0,0,0,.42)}
+}
 .av{flex:none;width:44px;height:44px;border-radius:40%;display:grid;place-items:center;color:#23303b;font-weight:700;font-size:17px;overflow:hidden}
 .av svg{width:64%;height:64%}
 .av img{width:100%;height:100%;object-fit:cover;display:block}
@@ -147,6 +154,9 @@ body{display:flex;flex-direction:column}
 .m .nm{font-size:12px;color:#3d4852;margin-bottom:4px}
 .m .nm i{font-style:normal;color:#3a4550;margin-left:4px}
 .m .ln{display:flex;align-items:flex-end;gap:5px}
+/* 시각이 붙지 않는 줄도 시각이 붙는 줄만큼 옆을 비워, 긴 말풍선이 화면 끝까지 닿지 않게 합니다. */
+.m .ln:not(.blk):not(:has(.tm)){padding-right:60px}
+.m.mine .ln:not(.blk):not(:has(.tm)){padding-right:0;padding-left:60px}
 .ln.blk{margin-top:4px}
 .bub{background:#fff;border-radius:4px;padding:7px 10px;font-size:13.5px;white-space:pre-wrap;word-break:break-word;min-width:0;user-select:text}
 .bub:empty::before{content:"\200b"}
@@ -159,7 +169,27 @@ body{display:flex;flex-direction:column}
 .q{border-bottom:1px solid rgba(0,0,0,.1);padding-bottom:5px;margin-bottom:5px;font-size:12px;color:#666}
 .q b{display:block;color:#333;font-weight:700}
 .q span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
-.more{display:flex;justify-content:space-between;align-items:center;border-top:1px solid rgba(0,0,0,.1);margin-top:8px;padding-top:7px;color:#555}
+/* 채팅방 오른쪽 위 메뉴 */
+.rdim{position:absolute;inset:0;z-index:6;background:rgba(0,0,0,.12);cursor:default}
+.rpop{position:absolute;right:10px;top:58px;z-index:7;background:#fff;border-radius:8px;box-shadow:0 6px 22px rgba(0,0,0,.24);width:204px;padding:6px 0}
+.win .rpop{top:84px}
+.rpop button{display:flex;align-items:center;width:100%;min-height:44px;padding:0 16px;font-size:14px}
+.rpop button:first-child{font-weight:700}
+.rpop button:hover{background:var(--hover)}
+.rpop button:disabled{color:#aaa;cursor:default}
+/* 원본 보기: 글쓴이가 꾸민 모양 그대로(흰 바탕) */
+.orig{position:absolute;inset:0;z-index:8;background:#fff;display:flex;flex-direction:column}
+.win .orig{padding-top:26px}
+.ohead{display:flex;align-items:center;gap:2px;padding:10px 6px 6px;border-bottom:1px solid var(--line);flex:none}
+.ohead b{flex:1;min-width:0;font-size:16px}
+.ohead small{display:block;font-weight:400;font-size:11px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.oin{padding:14px 16px 28px;font-size:14px;line-height:1.6;word-break:break-word;overflow-wrap:anywhere;user-select:text}
+.oin *{max-width:100%}
+.oin img,.oin video{height:auto;cursor:zoom-in}
+.oin a{color:#1558b0;text-decoration:underline}
+.oin p{margin:0}
+.oin table{border-collapse:collapse}
+.oin .embed{background:#f2f2f3;margin:6px 0}
 .media{max-width:min(240px,100%);max-height:320px;border-radius:4px;display:block;background:#dfe6ec;cursor:zoom-in}
 video.media{cursor:auto}
 .dcon1{width:84px;height:84px;object-fit:contain;display:block}

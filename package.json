@@ -1,6 +1,6 @@
 {
   "name": "yangjitalk",
-  "version": "0.1.20",
+  "version": "0.1.21",
   "description": "디시인사이드를 메신저 화면으로 보는 비공식 열람 앱",
   "private": true,
   "type": "module",
@@ -14,13 +14,38 @@
   "build": {
     "appId": "io.github.yangjitalk",
     "productName": "양지톡",
-    "directories": {"output": "release", "buildResources": "build"},
-    "files": ["app/**", "desktop/**", "package.json"],
-    "win": {"target": [{"target": "nsis", "arch": ["x64"]}], "icon": "build/icon.png", "artifactName": "YangjiTalk-Setup-${version}.exe"},
-    "nsis": {"oneClick": true, "perMachine": false, "createDesktopShortcut": true, "createStartMenuShortcut": true, "shortcutName": "양지톡", "runAfterFinish": true}
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "app/**",
+      "desktop/**",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "artifactName": "YangjiTalk-Setup-${version}.exe"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "양지톡",
+      "runAfterFinish": true
+    }
   },
   "devDependencies": {
-    "electron": "^33.4.11",
+    "electron": "^45.3.2",
     "electron-builder": "^25.1.8",
     "esbuild": "^0.24.2",
     "linkedom": "0.18.14"

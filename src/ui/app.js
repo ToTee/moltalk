@@ -217,7 +217,7 @@ document.addEventListener('scroll',e=>{const t=e.target;if(t.id==='cscroll'&&t.s
 /* ---------- 채팅방(본문 + 댓글) ---------- */
 /* 글 속의 주소는 누르면 기기의 브라우저로 열리는 링크가 됩니다. */
 const linkify=t=>t.split(/(https?:\/\/[^\s<>"']+)/).map((s,i)=>i%2?'<a class="lk" href="'+esc(s)+'" data-url="'+esc(s)+'">'+esc(s)+'</a>':esc(s)).join('');
-const bub=(t,q='')=>'<div class="bub">'+q+linkify(t)+(t.length>280||t.split('\n').length>8?'<div class="more" aria-hidden="true"><span>전체보기</span>'+I.next+'</div>':'')+'</div>';
+const bub=(t,q='')=>'<div class="bub">'+q+linkify(t)+'</div>';
 const conVideo=(src,alt)=>'<video class="dcon1" autoplay loop muted playsinline src="'+esc(src)+'" aria-label="'+esc(alt||'디시콘')+'"></video>';
 /* 디시콘 주소는 그림일 수도 영상일 수도 있습니다. 그림으로 못 읽으면 영상으로 한 번 바꿔 봅니다. */
 document.addEventListener('error',e=>{const n=e.target;if(n.tagName==='IMG'&&n.classList.contains('dcon1')&&n.isConnected)n.outerHTML=conVideo(n.dataset.mp4||n.src,n.alt)},true);
@@ -233,7 +233,7 @@ function renderRoom(keep){
  if(R.write)return renderWrite();
  const el=$('#room'),r=R.room;
  if(!r){el.innerHTML='';$('#app').classList.remove('in-room');return}
- const g=gal(r.g),p=r.post,meta=r.meta,top=keep?$('#rscroll')?.scrollTop||0:0,draft=keep?$('#room textarea')?.value||'':'';
+ const g=gal(r.g),p=r.post,meta=r.meta,top=keep?$('#rscroll')?.scrollTop||0:0,otop=keep?$('#room .orig .scroll')?.scrollTop||0:0,draft=keep?$('#room textarea')?.value||'':'';
  el.className='room';$('#app').classList.add('in-room');
  const title=meta.notice?noticeName(g,r.pinIdx,meta):meta.title,author=who(p||meta);
  let h='';
@@ -266,12 +266,16 @@ function renderRoom(keep){
  }else h=r.err?'<div class="sys err"><span>'+esc(r.err)+'</span></div><div class="sys"><button data-rreload>다시 시도</button></div>':'<div class="sys"><span>불러오는 중…</span></div>';
  const people=p?new Set([author,...(r.comments||[]).map(who)]).size:1;
  el.innerHTML='<div class="rhead"><button class="ib back" data-back aria-label="목록으로">'+I.back+'</button>'+userAv(author)+'<span class="tt"><b>'+esc(title)+'</b><span>'+esc(gname(g))+' · 참여 '+people+'명</span></span>'+
-  '<button class="ib" data-rreload aria-label="새로고침">'+I.refresh+'</button><button class="ib" data-url="'+esc(postUrl(g,r.no))+'" aria-label="디시에서 열기">'+I.menu+'</button></div>'+
+  '<button class="ib" data-rreload aria-label="새로고침">'+I.refresh+'</button><button class="ib" data-rmenu aria-label="글 메뉴" aria-expanded="'+!!R.rmenu+'">'+I.menu+'</button></div>'+
+  /* 오른쪽 위 메뉴: 원본 모양으로 보기(글쓴이가 꾸민 그대로), 디시에서 열기 */
+  (R.rmenu?'<button class="rdim" data-rmenu aria-label="메뉴 닫기"></button><div class="rpop"><button data-orig'+(p?'':' disabled')+'>원본 모양으로 보기</button><button data-rmenu data-url="'+esc(postUrl(g,r.no))+'">디시에서 열기</button></div>':'')+
+  (R.orig&&p?'<div class="orig"><div class="ohead"><button class="ib" data-orig aria-label="채팅방으로 돌아가기">'+I.back+'</button><b>원본 보기<small>'+esc(title)+'</small></b></div><div class="scroll"><div class="oin">'+(p.html||'<p>본문이 없습니다.</p>')+'</div></div></div>':'')+
   (R.nfold?'<button class="nmini" data-nfold aria-label="공지 펼치기">'+I.horn+'</button>':'<div class="notice">'+I.horn+'<span class="tx"><div>'+((p||meta).head?'['+esc((p||meta).head)+'] ':'')+esc(meta.title)+'</div><div>'+esc(author)+' · 조회 '+((p||meta).views||0).toLocaleString()+' · 추천 '+((p||meta).up||0)+'</div></span><button class="nbtn" data-nfold aria-label="공지 접기">'+I.up+'</button></div>')+
   '<div class="scroll" id="rscroll"><div class="msgs">'+h+'</div></div>'+
   (R.cpanel?'<div class="cpanel">'+consHtml()+'</div>':'')+(R.tpanel?txtconHtml():'')+
   (R.reply?'<div class="replybar"><span>'+esc(who(R.reply))+'에게 답장</span><button class="ib" data-noreply aria-label="답장 취소">✕</button></div>':'')+
   '<form class="inp" id="cform"><textarea placeholder="메시지 입력" aria-label="댓글 입력" maxlength="200">'+esc(draft)+'</textarea><div class="bar"><button type="button" class="ib" data-url="'+esc(mView(g,r.no))+'" aria-label="디시 화면에서 열기">'+I.plus+'</button><button type="button" class="ib'+(R.cpanel?' act':'')+'" data-cpanel aria-expanded="'+R.cpanel+'" aria-label="디시콘">'+I.smile+'</button><button type="button" class="ib'+(R.tpanel?' act':'')+'" data-tpanel aria-expanded="'+R.tpanel+'" aria-label="글자콘">'+I.file+'</button><span></span><button class="send'+(draft.trim()&&!R.sending?' ok':'')+'"'+(R.sending?' disabled':'')+'>'+(R.sending?'보내는 중…':'전송')+'</button></div></form>';
+ if(otop&&$('#room .orig .scroll'))$('#room .orig .scroll').scrollTop=otop;
  const sc=$('#rscroll');if(R.toBottom){sc.scrollTop=sc.scrollHeight;R.toBottom=false}else sc.scrollTop=top;
 }
 const postUrl=(g,no)=>'https://gall.dcinside.com/'+(g.type==='minor'?'mgallery/':g.type==='mini'?'mini/':'')+'board/view/?id='+g.id+'&no='+no;
@@ -298,13 +302,13 @@ async function loadCons(){
  const g=gal(R.room?.g||R.g)||D.gals[0],no=R.room?.no||R.latest[key(g)]?.id,C=R.cons;if(!g||!no||C.busy)return;
  C.busy=true;C.err='';renderRoom(true);if(R.ov==='con')renderPane();
  const r=await drive('dcconList',{},mView(g,no));
- C.busy=false;if(r.error){C.err=r.error;C.items=null}else{C.items=r.items;C.note=r.note;if(r.user!=null){R.user=r.user;R.userKnown=true}}
+ C.busy=false;if(r.error){C.err=r.error;C.items=null}else{C.items=r.items;C.note=r.note;if(r.user!=null){R.user=r.user;R.userKnown=true;D.user=R.user;save()}}
  renderRoom(true);if(R.ov==='con')renderPane();
 }
 
 /* ---------- 로그인과 쓰기 ---------- */
 async function drive(name,args,url,opt){try{return await native.drive(url,script(name,args),opt)||{error:'응답이 없습니다.'}}catch(e){return {error:e.message}}}
-async function checkUser(){const r=await drive('state',{},mList({id:'dcbest',type:'normal'}));if(!r.error){R.user=r.user||'';R.userKnown=true}if(R.ov==='set'||R.ov==='log')renderPane();if(R.ov==='log'&&R.user&&!R.gallog[R.log])loadGallog();return R.user}
+async function checkUser(){const r=await drive('state',{},mList({id:'dcbest',type:'normal'}));if(!r.error){R.user=r.user||'';R.userKnown=true;D.user=R.user;save()}if(R.ov==='set'||R.ov==='log')renderPane();if(R.ov==='log'&&R.user&&!R.gallog[R.log])loadGallog();return R.user}
 async function login(){await native.official(LOGIN_URL,{closeOn:LOGIN_DONE});R.cons.items=null;R.gallog={};await checkUser();if(R.user)toast('로그인했습니다.');return !!R.user}
 /* 로그인이 필요하면 로그인 창을 띄운 뒤 한 번 더 시도하고, 보안 문자가 필요하면 디시 화면을 그대로 보여 줍니다. */
 async function withAuth(name,args,url,opt){
@@ -354,7 +358,7 @@ let polling=false;
 async function poll(){
  if(polling||!R.user)return;polling=true;
  for(const w of D.watch.slice(0,5)){const g=gal(w.g);if(!g)continue;if(Date.now()<pvPause)break;
-  try{await new Promise(r=>setTimeout(r,1500));const post=await dc.readPost(g,w.no);await new Promise(r=>setTimeout(r,1500));const cm=await dc.readComments(g,w.no,post.token,1);
+  try{await new Promise(r=>setTimeout(r,1500));const post=await dc.readPost(g,w.no);await new Promise(r=>setTimeout(r,1500));const cm=await readCm(g,w.no,post.token,1);
    if(cm.total>w.count){const mineIds=new Set(cm.comments.filter(c=>c.mine).map(c=>c.id));
     for(const c of cm.comments.filter(c=>!c.mine&&!c.deleted).slice(-(cm.total-w.count))){const toMe=c.parentId&&mineIds.has(c.parentId);if(!w.mine&&!toMe)continue;
      D.notis.unshift({g:w.g,no:w.no,id:g.id,mini:g.type==='mini',title:w.title,who:who(c),head:who(c)+(toMe?'님이 답글을 남겼습니다':'님이 댓글을 남겼습니다'),text:c.blocks.map(b=>b.t==='text'?b.v:b.t==='img'?'(사진)':'(디시콘)').join(' ').slice(0,100),read:false})}
@@ -426,24 +430,34 @@ async function openPost(no,fresh,given){
  /* 지금 목록에서 연 글이면 현재 갤러리, 열려 있던 방을 다시 읽는 것이면 그 방의 갤러리를 씁니다(방을 연 뒤 다른 갤러리로 옮겼을 수 있습니다). */
  const inList=given||R.list?.posts.find(p=>p.id===no),meta=inList||R.room?.meta;if(!meta)return;
  const gk=inList?R.g:R.room.g,pins=(gk===R.g&&R.list?.posts||[]).filter(p=>p.notice),seq=++R.roomSeq,g=gal(gk);if(!g)return;
+ if(!fresh)R.orig=false;R.rmenu=false;
  R.room={g:gk,no,meta,pinIdx:Math.max(0,pins.indexOf(meta)),post:null,comments:null,total:null,cpage:1};
  renderRoom(fresh);renderPane();
  try{const c=R.pc[gk+'/'+no],post=!fresh&&c&&Date.now()-c.at<120000?c.post:await dc.readPost(g,no);if(seq!==R.roomSeq)return;R.room.post=post;renderRoom(fresh);
-  try{const cm=await dc.readComments(g,no,post.token,1);if(seq!==R.roomSeq)return;R.room.comments=cm.comments;R.room.total=cm.total;
+  try{const cm=await readCm(g,no,post.token,1);if(seq!==R.roomSeq)return;R.room.comments=cm.comments;R.room.total=cm.total;
    meta.comments=Math.max(meta.comments,cm.total);D.seen[gk+'/'+no]=meta.comments;
    /* 내 글이거나 내가 댓글을 단 글은 알림 대상으로 기억해 둡니다. */
    const mine=!!R.user&&post.uid===R.user;
    if(mine||cm.comments.some(c=>c.mine)||D.watch.some(w=>w.g===gk&&w.no===no))watch(gk,no,post.title,cm.total,mine);else save()}
   catch(e){if(seq!==R.roomSeq)return;R.room.cerr=e.message}
+  /* 로그인 아이디를 아직 모르는데 "내 댓글" 표시가 있으면, 아이디를 한 번 확인해 다시 가립니다. */
+  const rm=R.room;if(!R.userKnown&&rm.comments?.some(c=>c.my))checkUser().then(()=>{if(R.room===rm){fixMine(rm.comments);renderRoom(true)}})
  }catch(e){if(seq!==R.roomSeq)return;R.room.err=e.message}
  renderRoom(true);renderPane();
 }
 async function moreComments(){
  const r=R.room;if(!r||r.cbusy)return;r.cbusy=true;renderRoom(true);
- try{const cm=await dc.readComments(gal(r.g),r.no,r.post.token,r.cpage+1),ids=new Set(r.comments.map(c=>c.id)),add=cm.comments.filter(c=>!ids.has(c.id));
+ try{const cm=await readCm(gal(r.g),r.no,r.post.token,r.cpage+1),ids=new Set(r.comments.map(c=>c.id)),add=cm.comments.filter(c=>!ids.has(c.id));
   if(add.length){r.comments.push(...add);r.cpage++}else r.noMore=true}catch(e){toast(e.message)}
  r.cbusy=false;if(R.room===r)renderRoom(true);
 }
+/* 디시는 내가 쓴 글에서는 남의 댓글에도 "내 댓글" 표시(my_cmt)를 붙입니다(글쓴이가 지울 수 있다는 뜻). 그래서 내 댓글인지는 로그인한 아이디와 댓글 아이디를 견주어 정합니다.
+   아이디를 아직 모를 때는, 표시가 붙은 댓글의 글쓴이가 여럿이면 내 댓글로 보지 않습니다. */
+const myUid=()=>R.userKnown?R.user:D.user||'';
+function fixMine(list){const u=myUid();for(const c of list)if(c.my==null)c.my=c.mine;
+ const many=new Set(list.filter(c=>c.my).map(c=>c.uid||c.ip+'/'+c.name)).size>1;
+ for(const c of list)c.mine=c.my&&(u?c.uid===u:!many)}
+async function readCm(...a){const cm=await dc.readComments(...a);fixMine(cm.comments);return cm}
 /* 친구 목록의 "최근 글" 문구와 새 글 표시를 채웁니다. 하나씩 요청하고, 1분 안에 읽은 갤러리는 건너뛰며, 막히면 멈춥니다. */
 const latestQ=[];let latestRun=false;
 async function loadLatest(list=D.gals){
@@ -503,6 +517,8 @@ document.addEventListener('click',e=>{
  else if(d.more!=null){showMore()}
  else if(d.reload!=null){loadList({fresh:true})}
  else if(d.refresh!=null){refresh()}
+ else if(d.orig!=null){R.orig=!R.orig;R.rmenu=false;renderRoom(true)}
+ else if(d.rmenu!=null){R.rmenu=!R.rmenu;renderRoom(true);if(d.url)native.open(d.url)}
  else if(d.rreload!=null){if(R.room)openPost(R.room.no,true)}
  else if(d.cmore!=null){moreComments()}
  else if(d.back!=null){R.room=null;R.roomSeq++;renderRoom();renderPane()}
@@ -537,7 +553,7 @@ document.addEventListener('click',e=>{
  else if(d.postdel!=null){if(!R.ask){R.ask=true;R.menu='body';renderRoom(true)}else removePost()}
  else if(d.pedit!=null){const room=R.room;native.official(mModify(gal(room.g),room.no)).then(()=>{if(R.room===room)openPost(room.no,true)})}
  else if(d.login!=null){login().then(()=>renderPane())}
- else if(d.logout!=null){native.logout().then(()=>{R.user='';R.cons.items=null;R.gallog={};renderPane();toast('로그아웃했습니다.')})}
+ else if(d.logout!=null){native.logout().then(()=>{R.user='';D.user='';save();R.cons.items=null;R.gallog={};renderPane();toast('로그아웃했습니다.')})}
 });
 /* 디시콘 고르기: 짧게 누르면 1개 등록, 꾹 눌러 하나를 고른 뒤 다른 것을 누르면 2개(더블콘) 등록 */
 function pickCon(i,held){
@@ -569,6 +585,7 @@ document.addEventListener('submit',async e=>{e.preventDefault();const f=e.target
 /* 뒤로 가기(안드로이드 뒤로 버튼, Esc): 열린 창을 하나씩 닫고, 닫을 것이 없으면 false를 돌려 앱이 종료 처리하게 합니다. */
 window.yjBack=()=>{if(!$('#viewer').hidden){$('#viewer').hidden=true;return true}
  if(R.write){if(!R.write.busy){R.write=null;renderRoom()}return true}
+ if(R.rmenu||R.orig){R.rmenu=R.orig=false;renderRoom(true);return true}
  if(R.cpanel||R.tpanel||R.menu!=null){R.cpanel=R.tpanel=false;R.menu=null;renderRoom(true);return true}
  if(R.ov){R.ov='';renderPane();return true}
  if(R.room){R.room=null;R.roomSeq++;renderRoom();renderPane();return true}if(R.view==='chats'){R.view='friends';renderPane();return true}return false};

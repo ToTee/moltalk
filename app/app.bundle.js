@@ -84,6 +84,80 @@
     flush();
     return out;
   }
+  var HTML_TAGS = /^(div|p|span|b|strong|i|em|u|s|strike|del|hr|h[1-6]|ul|ol|li|table|thead|tbody|tfoot|tr|td|th|blockquote|font|center|pre|sub|sup|small|big)$/;
+  var hesc = (s2) => String(s2).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  var STYLE_PROP = /^(color|background(-color)?|font(-size|-weight|-style|-family)?|text-(align|decoration|indent)|line-height|letter-spacing|margin(-(top|right|bottom|left))?|padding(-(top|right|bottom|left))?|border(-(top|right|bottom|left))?(-(width|style|color))?|border-(radius|collapse|spacing)|(min-|max-)?(width|height)|display|vertical-align|white-space|word-break|float|clear|overflow|opacity|box-sizing|list-style(-type)?|table-layout)$/;
+  var cleanStyle = (s2) => String(s2 || "").split(";").map((x) => x.trim()).filter((x) => {
+    const i = x.indexOf(":");
+    if (i < 1) return false;
+    const v = x.slice(i + 1);
+    return STYLE_PROP.test(x.slice(0, i).trim().toLowerCase()) && !/[\\@<>]/.test(v) && !v.replace(/\b(rgba?|hsla?|calc)\(/gi, "").includes("(");
+  }).join(";");
+  function toHtml(root) {
+    let out = "";
+    const attrs = (c) => {
+      let a = "";
+      const st = cleanStyle(c.getAttribute("style"));
+      if (st) a += ' style="' + hesc(st) + '"';
+      for (const k of ["align", "color", "size", "width", "height", "colspan", "rowspan", "bgcolor", "border", "cellpadding", "cellspacing"]) {
+        const v = c.getAttribute(k);
+        if (v && /^[#\w%.\- ]{1,30}$/.test(v)) a += " " + k + '="' + hesc(v) + '"';
+      }
+      return a;
+    };
+    const ok = (u) => /^https:\/\//.test(u);
+    const walk = (node) => {
+      for (const c of node.childNodes) {
+        if (c.nodeType === 3) {
+          out += hesc(c.textContent);
+          continue;
+        }
+        if (c.nodeType !== 1) continue;
+        const tag = c.tagName.toLowerCase();
+        if (tag === "script" || tag === "style") continue;
+        if (tag === "br") {
+          out += "<br>";
+          continue;
+        }
+        if (tag === "img") {
+          const src = abs(c.getAttribute("data-original") || c.getAttribute("data-src") || c.getAttribute("src") || "");
+          if (ok(src)) out += '<img loading="lazy" src="' + hesc(src) + '" alt="' + hesc(c.getAttribute("alt") || "\uBCF8\uBB38 \uC0AC\uC9C4") + '"' + attrs(c) + " data-zoom>";
+          continue;
+        }
+        if (tag === "video") {
+          const file = abs(c.getAttribute("src") || c.querySelector("source")?.getAttribute("src") || ""), pic = abs(c.getAttribute("data-src") || ""), poster = abs(c.getAttribute("poster") || "");
+          if (/dccon/.test(c.getAttribute("class") || "") && ok(pic)) out += '<img loading="lazy" src="' + hesc(pic) + '" alt="' + hesc(c.getAttribute("title") || "\uB514\uC2DC\uCF58") + '">';
+          else if (ok(file)) out += '<video controls preload="none" src="' + hesc(file) + '"' + (ok(poster) ? ' poster="' + hesc(poster) + '"' : "") + "></video>";
+          continue;
+        }
+        if (tag === "iframe" || tag === "embed") {
+          const src = abs(c.getAttribute("src") || "");
+          if (/^https?:\/\//.test(src)) out += '<button class="embed" data-url="' + hesc(src) + '">\uB3D9\uC601\uC0C1\xB7\uC678\uBD80 \uCF58\uD150\uCE20 \uC5F4\uAE30</button>';
+          continue;
+        }
+        if (tag === "a") {
+          const href = abs(c.getAttribute("href") || ""), link = /^https?:\/\//.test(href);
+          out += link ? '<a href="' + hesc(href) + '" data-url="' + hesc(href) + '"' + attrs(c) + ">" : "<span" + attrs(c) + ">";
+          walk(c);
+          out += link ? "</a>" : "</span>";
+          continue;
+        }
+        if (HTML_TAGS.test(tag)) {
+          if (tag === "hr") {
+            out += "<hr" + attrs(c) + ">";
+            continue;
+          }
+          out += "<" + tag + attrs(c) + ">";
+          walk(c);
+          out += "</" + tag + ">";
+          continue;
+        }
+        walk(c);
+      }
+    };
+    walk(root);
+    return out;
+  }
   function writer(node) {
     return { name: node?.getAttribute("data-nick") || "\u3147\u3147", uid: node?.getAttribute("data-uid") || "", ip: node?.getAttribute("data-ip") || "" };
   }
@@ -144,6 +218,7 @@
       down: num(text("#recommend_view_down_" + no)),
       commentCount: num(text(".gallview_head .gall_comment")),
       blocks,
+      html: root ? toHtml(root) : "",
       token: doc.querySelector('input[name="e_s_n_o"]')?.getAttribute("value") || ""
     };
   }
@@ -909,7 +984,7 @@
     if (t.id === "cscroll" && t.scrollTop + t.clientHeight > t.scrollHeight - 200) showMore(true);
   }, true);
   var linkify = (t) => t.split(/(https?:\/\/[^\s<>"']+)/).map((s2, i) => i % 2 ? '<a class="lk" href="' + esc(s2) + '" data-url="' + esc(s2) + '">' + esc(s2) + "</a>" : esc(s2)).join("");
-  var bub = (t, q = "") => '<div class="bub">' + q + linkify(t) + (t.length > 280 || t.split("\n").length > 8 ? '<div class="more" aria-hidden="true"><span>\uC804\uCCB4\uBCF4\uAE30</span>' + I.next + "</div>" : "") + "</div>";
+  var bub = (t, q = "") => '<div class="bub">' + q + linkify(t) + "</div>";
   var conVideo = (src, alt) => '<video class="dcon1" autoplay loop muted playsinline src="' + esc(src) + '" aria-label="' + esc(alt || "\uB514\uC2DC\uCF58") + '"></video>';
   document.addEventListener("error", (e) => {
     const n = e.target;
@@ -931,7 +1006,7 @@
       $("#app").classList.remove("in-room");
       return;
     }
-    const g = gal(r.g), p = r.post, meta = r.meta, top = keep ? $("#rscroll")?.scrollTop || 0 : 0, draft = keep ? $("#room textarea")?.value || "" : "";
+    const g = gal(r.g), p = r.post, meta = r.meta, top = keep ? $("#rscroll")?.scrollTop || 0 : 0, otop = keep ? $("#room .orig .scroll")?.scrollTop || 0 : 0, draft = keep ? $("#room textarea")?.value || "" : "";
     el.className = "room";
     $("#app").classList.add("in-room");
     const title = meta.notice ? noticeName(g, r.pinIdx, meta) : meta.title, author = who(p || meta);
@@ -974,7 +1049,9 @@
       else if (r.total > r.comments.length && !r.noMore) h += '<div class="sys"><button data-cmore>' + (r.cbusy ? "\uBD88\uB7EC\uC624\uB294 \uC911\u2026" : "\uB313\uAE00 \uB354 \uBCF4\uAE30") + "</button></div>";
     } else h = r.err ? '<div class="sys err"><span>' + esc(r.err) + '</span></div><div class="sys"><button data-rreload>\uB2E4\uC2DC \uC2DC\uB3C4</button></div>' : '<div class="sys"><span>\uBD88\uB7EC\uC624\uB294 \uC911\u2026</span></div>';
     const people = p ? (/* @__PURE__ */ new Set([author, ...(r.comments || []).map(who)])).size : 1;
-    el.innerHTML = '<div class="rhead"><button class="ib back" data-back aria-label="\uBAA9\uB85D\uC73C\uB85C">' + I.back + "</button>" + userAv(author) + '<span class="tt"><b>' + esc(title) + "</b><span>" + esc(gname(g)) + " \xB7 \uCC38\uC5EC " + people + '\uBA85</span></span><button class="ib" data-rreload aria-label="\uC0C8\uB85C\uACE0\uCE68">' + I.refresh + '</button><button class="ib" data-url="' + esc(postUrl(g, r.no)) + '" aria-label="\uB514\uC2DC\uC5D0\uC11C \uC5F4\uAE30">' + I.menu + "</button></div>" + (R.nfold ? '<button class="nmini" data-nfold aria-label="\uACF5\uC9C0 \uD3BC\uCE58\uAE30">' + I.horn + "</button>" : '<div class="notice">' + I.horn + '<span class="tx"><div>' + ((p || meta).head ? "[" + esc((p || meta).head) + "] " : "") + esc(meta.title) + "</div><div>" + esc(author) + " \xB7 \uC870\uD68C " + ((p || meta).views || 0).toLocaleString() + " \xB7 \uCD94\uCC9C " + ((p || meta).up || 0) + '</div></span><button class="nbtn" data-nfold aria-label="\uACF5\uC9C0 \uC811\uAE30">' + I.up + "</button></div>") + '<div class="scroll" id="rscroll"><div class="msgs">' + h + "</div></div>" + (R.cpanel ? '<div class="cpanel">' + consHtml() + "</div>" : "") + (R.tpanel ? txtconHtml() : "") + (R.reply ? '<div class="replybar"><span>' + esc(who(R.reply)) + '\uC5D0\uAC8C \uB2F5\uC7A5</span><button class="ib" data-noreply aria-label="\uB2F5\uC7A5 \uCDE8\uC18C">\u2715</button></div>' : "") + '<form class="inp" id="cform"><textarea placeholder="\uBA54\uC2DC\uC9C0 \uC785\uB825" aria-label="\uB313\uAE00 \uC785\uB825" maxlength="200">' + esc(draft) + '</textarea><div class="bar"><button type="button" class="ib" data-url="' + esc(mView(g, r.no)) + '" aria-label="\uB514\uC2DC \uD654\uBA74\uC5D0\uC11C \uC5F4\uAE30">' + I.plus + '</button><button type="button" class="ib' + (R.cpanel ? " act" : "") + '" data-cpanel aria-expanded="' + R.cpanel + '" aria-label="\uB514\uC2DC\uCF58">' + I.smile + '</button><button type="button" class="ib' + (R.tpanel ? " act" : "") + '" data-tpanel aria-expanded="' + R.tpanel + '" aria-label="\uAE00\uC790\uCF58">' + I.file + '</button><span></span><button class="send' + (draft.trim() && !R.sending ? " ok" : "") + '"' + (R.sending ? " disabled" : "") + ">" + (R.sending ? "\uBCF4\uB0B4\uB294 \uC911\u2026" : "\uC804\uC1A1") + "</button></div></form>";
+    el.innerHTML = '<div class="rhead"><button class="ib back" data-back aria-label="\uBAA9\uB85D\uC73C\uB85C">' + I.back + "</button>" + userAv(author) + '<span class="tt"><b>' + esc(title) + "</b><span>" + esc(gname(g)) + " \xB7 \uCC38\uC5EC " + people + '\uBA85</span></span><button class="ib" data-rreload aria-label="\uC0C8\uB85C\uACE0\uCE68">' + I.refresh + '</button><button class="ib" data-rmenu aria-label="\uAE00 \uBA54\uB274" aria-expanded="' + !!R.rmenu + '">' + I.menu + "</button></div>" + /* 오른쪽 위 메뉴: 원본 모양으로 보기(글쓴이가 꾸민 그대로), 디시에서 열기 */
+    (R.rmenu ? '<button class="rdim" data-rmenu aria-label="\uBA54\uB274 \uB2EB\uAE30"></button><div class="rpop"><button data-orig' + (p ? "" : " disabled") + '>\uC6D0\uBCF8 \uBAA8\uC591\uC73C\uB85C \uBCF4\uAE30</button><button data-rmenu data-url="' + esc(postUrl(g, r.no)) + '">\uB514\uC2DC\uC5D0\uC11C \uC5F4\uAE30</button></div>' : "") + (R.orig && p ? '<div class="orig"><div class="ohead"><button class="ib" data-orig aria-label="\uCC44\uD305\uBC29\uC73C\uB85C \uB3CC\uC544\uAC00\uAE30">' + I.back + "</button><b>\uC6D0\uBCF8 \uBCF4\uAE30<small>" + esc(title) + '</small></b></div><div class="scroll"><div class="oin">' + (p.html || "<p>\uBCF8\uBB38\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.</p>") + "</div></div></div>" : "") + (R.nfold ? '<button class="nmini" data-nfold aria-label="\uACF5\uC9C0 \uD3BC\uCE58\uAE30">' + I.horn + "</button>" : '<div class="notice">' + I.horn + '<span class="tx"><div>' + ((p || meta).head ? "[" + esc((p || meta).head) + "] " : "") + esc(meta.title) + "</div><div>" + esc(author) + " \xB7 \uC870\uD68C " + ((p || meta).views || 0).toLocaleString() + " \xB7 \uCD94\uCC9C " + ((p || meta).up || 0) + '</div></span><button class="nbtn" data-nfold aria-label="\uACF5\uC9C0 \uC811\uAE30">' + I.up + "</button></div>") + '<div class="scroll" id="rscroll"><div class="msgs">' + h + "</div></div>" + (R.cpanel ? '<div class="cpanel">' + consHtml() + "</div>" : "") + (R.tpanel ? txtconHtml() : "") + (R.reply ? '<div class="replybar"><span>' + esc(who(R.reply)) + '\uC5D0\uAC8C \uB2F5\uC7A5</span><button class="ib" data-noreply aria-label="\uB2F5\uC7A5 \uCDE8\uC18C">\u2715</button></div>' : "") + '<form class="inp" id="cform"><textarea placeholder="\uBA54\uC2DC\uC9C0 \uC785\uB825" aria-label="\uB313\uAE00 \uC785\uB825" maxlength="200">' + esc(draft) + '</textarea><div class="bar"><button type="button" class="ib" data-url="' + esc(mView(g, r.no)) + '" aria-label="\uB514\uC2DC \uD654\uBA74\uC5D0\uC11C \uC5F4\uAE30">' + I.plus + '</button><button type="button" class="ib' + (R.cpanel ? " act" : "") + '" data-cpanel aria-expanded="' + R.cpanel + '" aria-label="\uB514\uC2DC\uCF58">' + I.smile + '</button><button type="button" class="ib' + (R.tpanel ? " act" : "") + '" data-tpanel aria-expanded="' + R.tpanel + '" aria-label="\uAE00\uC790\uCF58">' + I.file + '</button><span></span><button class="send' + (draft.trim() && !R.sending ? " ok" : "") + '"' + (R.sending ? " disabled" : "") + ">" + (R.sending ? "\uBCF4\uB0B4\uB294 \uC911\u2026" : "\uC804\uC1A1") + "</button></div></form>";
+    if (otop && $("#room .orig .scroll")) $("#room .orig .scroll").scrollTop = otop;
     const sc = $("#rscroll");
     if (R.toBottom) {
       sc.scrollTop = sc.scrollHeight;
@@ -1017,6 +1094,8 @@
       if (r.user != null) {
         R.user = r.user;
         R.userKnown = true;
+        D.user = R.user;
+        save();
       }
     }
     renderRoom(true);
@@ -1034,6 +1113,8 @@
     if (!r.error) {
       R.user = r.user || "";
       R.userKnown = true;
+      D.user = R.user;
+      save();
     }
     if (R.ov === "set" || R.ov === "log") renderPane();
     if (R.ov === "log" && R.user && !R.gallog[R.log]) loadGallog();
@@ -1166,7 +1247,7 @@
         await new Promise((r) => setTimeout(r, 1500));
         const post = await dc.readPost(g, w.no);
         await new Promise((r) => setTimeout(r, 1500));
-        const cm = await dc.readComments(g, w.no, post.token, 1);
+        const cm = await readCm(g, w.no, post.token, 1);
         if (cm.total > w.count) {
           const mineIds = new Set(cm.comments.filter((c) => c.mine).map((c) => c.id));
           for (const c of cm.comments.filter((c2) => !c2.mine && !c2.deleted).slice(-(cm.total - w.count))) {
@@ -1333,6 +1414,8 @@
     if (!meta) return;
     const gk = inList ? R.g : R.room.g, pins = (gk === R.g && R.list?.posts || []).filter((p) => p.notice), seq = ++R.roomSeq, g = gal(gk);
     if (!g) return;
+    if (!fresh) R.orig = false;
+    R.rmenu = false;
     R.room = { g: gk, no, meta, pinIdx: Math.max(0, pins.indexOf(meta)), post: null, comments: null, total: null, cpage: 1 };
     renderRoom(fresh);
     renderPane();
@@ -1342,7 +1425,7 @@
       R.room.post = post;
       renderRoom(fresh);
       try {
-        const cm = await dc.readComments(g, no, post.token, 1);
+        const cm = await readCm(g, no, post.token, 1);
         if (seq !== R.roomSeq) return;
         R.room.comments = cm.comments;
         R.room.total = cm.total;
@@ -1355,6 +1438,13 @@
         if (seq !== R.roomSeq) return;
         R.room.cerr = e.message;
       }
+      const rm = R.room;
+      if (!R.userKnown && rm.comments?.some((c2) => c2.my)) checkUser().then(() => {
+        if (R.room === rm) {
+          fixMine(rm.comments);
+          renderRoom(true);
+        }
+      });
     } catch (e) {
       if (seq !== R.roomSeq) return;
       R.room.err = e.message;
@@ -1368,7 +1458,7 @@
     r.cbusy = true;
     renderRoom(true);
     try {
-      const cm = await dc.readComments(gal(r.g), r.no, r.post.token, r.cpage + 1), ids = new Set(r.comments.map((c) => c.id)), add = cm.comments.filter((c) => !ids.has(c.id));
+      const cm = await readCm(gal(r.g), r.no, r.post.token, r.cpage + 1), ids = new Set(r.comments.map((c) => c.id)), add = cm.comments.filter((c) => !ids.has(c.id));
       if (add.length) {
         r.comments.push(...add);
         r.cpage++;
@@ -1378,6 +1468,18 @@
     }
     r.cbusy = false;
     if (R.room === r) renderRoom(true);
+  }
+  var myUid = () => R.userKnown ? R.user : D.user || "";
+  function fixMine(list) {
+    const u = myUid();
+    for (const c of list) if (c.my == null) c.my = c.mine;
+    const many = new Set(list.filter((c) => c.my).map((c) => c.uid || c.ip + "/" + c.name)).size > 1;
+    for (const c of list) c.mine = c.my && (u ? c.uid === u : !many);
+  }
+  async function readCm(...a) {
+    const cm = await dc.readComments(...a);
+    fixMine(cm.comments);
+    return cm;
   }
   var latestQ = [];
   var latestRun = false;
@@ -1580,6 +1682,14 @@
       loadList({ fresh: true });
     } else if (d.refresh != null) {
       refresh();
+    } else if (d.orig != null) {
+      R.orig = !R.orig;
+      R.rmenu = false;
+      renderRoom(true);
+    } else if (d.rmenu != null) {
+      R.rmenu = !R.rmenu;
+      renderRoom(true);
+      if (d.url) native.open(d.url);
     } else if (d.rreload != null) {
       if (R.room) openPost(R.room.no, true);
     } else if (d.cmore != null) {
@@ -1743,6 +1853,8 @@
     } else if (d.logout != null) {
       native.logout().then(() => {
         R.user = "";
+        D.user = "";
+        save();
         R.cons.items = null;
         R.gallog = {};
         renderPane();
@@ -1866,6 +1978,11 @@
         R.write = null;
         renderRoom();
       }
+      return true;
+    }
+    if (R.rmenu || R.orig) {
+      R.rmenu = R.orig = false;
+      renderRoom(true);
       return true;
     }
     if (R.cpanel || R.tpanel || R.menu != null) {

@@ -43,6 +43,39 @@ export function toBlocks(root){
  walk(root);flush();return out;
 }
 
+// 본문을 글쓴이가 꾸민 모양 그대로 보여 주기 위한 HTML을 만듭니다("원본 보기" 화면용).
+// 허용한 태그와 꾸밈만 다시 써서 내보냅니다: 스크립트·이벤트 속성·class·id는 버리고, 화면을 덮을 수 있는 배치(position 등)와 url()이 든 꾸밈도 버립니다.
+const HTML_TAGS=/^(div|p|span|b|strong|i|em|u|s|strike|del|hr|h[1-6]|ul|ol|li|table|thead|tbody|tfoot|tr|td|th|blockquote|font|center|pre|sub|sup|small|big)$/;
+const hesc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+/* 꾸밈은 글자·색·여백·테두리·크기처럼 모양만 바꾸는 속성만 남깁니다. 값에 든 함수는 색과 계산(rgb, hsl, calc)만 받아, 바깥 주소를 불러오는 꾸밈이 남지 않게 합니다. */
+const STYLE_PROP=/^(color|background(-color)?|font(-size|-weight|-style|-family)?|text-(align|decoration|indent)|line-height|letter-spacing|margin(-(top|right|bottom|left))?|padding(-(top|right|bottom|left))?|border(-(top|right|bottom|left))?(-(width|style|color))?|border-(radius|collapse|spacing)|(min-|max-)?(width|height)|display|vertical-align|white-space|word-break|float|clear|overflow|opacity|box-sizing|list-style(-type)?|table-layout)$/;
+const cleanStyle=s=>String(s||'').split(';').map(x=>x.trim()).filter(x=>{const i=x.indexOf(':');if(i<1)return false;const v=x.slice(i+1);
+ return STYLE_PROP.test(x.slice(0,i).trim().toLowerCase())&&!/[\\@<>]/.test(v)&&!v.replace(/\b(rgba?|hsla?|calc)\(/gi,'').includes('(')}).join(';');
+export function toHtml(root){
+ let out='';
+ const attrs=c=>{let a='';const st=cleanStyle(c.getAttribute('style'));if(st)a+=' style="'+hesc(st)+'"';
+  for(const k of ['align','color','size','width','height','colspan','rowspan','bgcolor','border','cellpadding','cellspacing']){const v=c.getAttribute(k);if(v&&/^[#\w%.\- ]{1,30}$/.test(v))a+=' '+k+'="'+hesc(v)+'"'}
+  return a};
+ const ok=u=>/^https:\/\//.test(u);
+ const walk=node=>{for(const c of node.childNodes){
+  if(c.nodeType===3){out+=hesc(c.textContent);continue}
+  if(c.nodeType!==1)continue;
+  const tag=c.tagName.toLowerCase();
+  if(tag==='script'||tag==='style')continue;
+  if(tag==='br'){out+='<br>';continue}
+  if(tag==='img'){const src=abs(c.getAttribute('data-original')||c.getAttribute('data-src')||c.getAttribute('src')||'');if(ok(src))out+='<img loading="lazy" src="'+hesc(src)+'" alt="'+hesc(c.getAttribute('alt')||'본문 사진')+'"'+attrs(c)+' data-zoom>';continue}
+  if(tag==='video'){const file=abs(c.getAttribute('src')||c.querySelector('source')?.getAttribute('src')||''),pic=abs(c.getAttribute('data-src')||''),poster=abs(c.getAttribute('poster')||'');
+   if(/dccon/.test(c.getAttribute('class')||'')&&ok(pic))out+='<img loading="lazy" src="'+hesc(pic)+'" alt="'+hesc(c.getAttribute('title')||'디시콘')+'">';
+   else if(ok(file))out+='<video controls preload="none" src="'+hesc(file)+'"'+(ok(poster)?' poster="'+hesc(poster)+'"':'')+'></video>';
+   continue}
+  if(tag==='iframe'||tag==='embed'){const src=abs(c.getAttribute('src')||'');if(/^https?:\/\//.test(src))out+='<button class="embed" data-url="'+hesc(src)+'">동영상·외부 콘텐츠 열기</button>';continue}
+  if(tag==='a'){const href=abs(c.getAttribute('href')||''),link=/^https?:\/\//.test(href);out+=link?'<a href="'+hesc(href)+'" data-url="'+hesc(href)+'"'+attrs(c)+'>':'<span'+attrs(c)+'>';walk(c);out+=link?'</a>':'</span>';continue}
+  if(HTML_TAGS.test(tag)){if(tag==='hr'){out+='<hr'+attrs(c)+'>';continue}out+='<'+tag+attrs(c)+'>';walk(c);out+='</'+tag+'>';continue}
+  walk(c);
+ }};
+ walk(root);return out;
+}
+
 function writer(node){return {name:node?.getAttribute('data-nick')||'ㅇㅇ',uid:node?.getAttribute('data-uid')||'',ip:node?.getAttribute('data-ip')||''}}
 
 export function parseList(doc){
@@ -74,7 +107,7 @@ export function parseView(doc,no){
  if(tail?.t==='text'){tail.v=tail.v.replace(/\n?\s*-\s*dc\s+(official\s+)?app\s*$/i,'').trim();if(!tail.v)blocks.pop()}
  return {id:Number(no),title,head:text('.title_headtext').replace(/^\[|\]$/g,''),...writer(doc.querySelector('.gallview_head .gall_writer')),
   time:date?.getAttribute('title')||date?.textContent.trim()||'',views:num(text('.gallview_head .gall_count')),up:num(text('#recommend_view_up_'+no)),down:num(text('#recommend_view_down_'+no)),
-  commentCount:num(text('.gallview_head .gall_comment')),blocks,token:doc.querySelector('input[name="e_s_n_o"]')?.getAttribute('value')||''};
+  commentCount:num(text('.gallview_head .gall_comment')),blocks,html:root?toHtml(root):'',token:doc.querySelector('input[name="e_s_n_o"]')?.getAttribute('value')||''};
 }
 
 export function parseComments(data,parse){

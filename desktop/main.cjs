@@ -2,7 +2,9 @@
 const {app,BrowserWindow,Menu,Tray,desktopCapturer,ipcMain,net,screen,session,shell}=require('electron');
 const path=require('path');
 const fs=require('fs');
-const UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
+/* 브라우저 버전은 실제 엔진 버전을 그대로 씁니다. 꾸며 낸 옛 버전을 쓰면 '사람인지 확인'이 오래된 브라우저로 보고 실패할 수 있습니다. */
+const CHROME=process.versions.chrome.split('.')[0];
+const UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/'+CHROME+'.0.0.0 Safari/537.36';
 const dcHost=h=>/(^|\.)dcinside\.(com|co\.kr)$/.test(h);
 const dcUrl=u=>{try{const x=new URL(u);return x.protocol==='https:'&&!x.username&&!x.password&&dcHost(x.hostname)?x:null}catch{return null}};
 let win=null;
@@ -78,7 +80,7 @@ ipcMain.handle('http',async(event,url,opt={})=>{
 ipcMain.handle('open',(event,url)=>{try{const x=new URL(url);if(/^https?:$/.test(x.protocol)&&!x.username&&!x.password)shell.openExternal(x.href)}catch{}});
 
 // 쓰기·삭제·로그인은 디시 공식 모바일 화면을 보조 창에서 열어 처리합니다. 로그인 쿠키는 같은 세션을 함께 씁니다.
-const MOBILE_UA='Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36';
+const MOBILE_UA='Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/'+CHROME+'.0.0.0 Mobile Safari/537.36';
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 function helperWindow(show){
  const w=new BrowserWindow({width:440,height:780,show,parent:win,title:'디시인사이드',autoHideMenuBar:true,webPreferences:{contextIsolation:true,nodeIntegration:false,sandbox:true}});
