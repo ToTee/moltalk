@@ -5,17 +5,18 @@ const {app,BrowserWindow}=require('electron');
 if(!process.env.P_GPU)app.disableHardwareAcceleration();
 const MOBILE_UA='Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/'+(process.env.P_OLDUA?'130':process.versions.chrome.split('.')[0])+'.0.0.0 Mobile Safari/537.36';
 const REAL_UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/'+process.versions.chrome.split('.')[0]+'.0.0.0 Safari/537.36';
+setTimeout(()=>{console.log('TIMEOUT stage='+stage);app.exit(0)},70000);let stage='start';
 app.whenReady().then(async()=>{
  const w=new BrowserWindow({width:440,height:780,show:!!process.env.P_SHOW,webPreferences:{contextIsolation:true,nodeIntegration:false,sandbox:true}});
  w.webContents.setUserAgent(process.env.P_UA==='real'?REAL_UA:MOBILE_UA);
- const t0=Date.now(),logs=[];w.webContents.on('console-message',(e,l,m)=>{const s=String(typeof m==='string'?m:e.message);if(/turnstile/i.test(s))logs.push(((Date.now()-t0)/1000).toFixed(1)+'s '+s.slice(0,160))});
+ const t0=Date.now(),logs=[];w.webContents.on('console-message',(e,l,m)=>{const s=String(typeof m==='string'?m:e.message);if(/turnstile|cloudflare/i.test(s))logs.push(((Date.now()-t0)/1000).toFixed(1)+'s '+s.slice(0,160))});
  /* P_EMU=1: 크롬 개발자 도구의 '기기 모드'와 같은 방법으로, 브라우저가 알리는 정보(종류·터치·화면)를 휴대폰으로 일관되게 맞춥니다. */
- if(process.env.P_EMU){const d=w.webContents.debugger,V=process.versions.chrome.split('.')[0];d.attach('1.3');
+ if(process.env.P_EMU){stage='emu';await w.loadURL('about:blank');const d=w.webContents.debugger,V=process.versions.chrome.split('.')[0];d.attach('1.3');
   await d.sendCommand('Emulation.setUserAgentOverride',{userAgent:MOBILE_UA,platform:'Linux armv81',userAgentMetadata:{brands:[{brand:'Chromium',version:V},{brand:'Not?A_Brand',version:'99'}],fullVersionList:[{brand:'Chromium',version:process.versions.chrome},{brand:'Not?A_Brand',version:'99.0.0.0'}],platform:'Android',platformVersion:'14.0.0',architecture:'',model:'Pixel 8',mobile:true,bitness:'',wow64:false}});
   await d.sendCommand('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:5});
   await d.sendCommand('Emulation.setDeviceMetricsOverride',{width:412,height:780,deviceScaleFactor:2.625,mobile:true,screenWidth:412,screenHeight:915});}
- await w.loadURL(process.env.P_URL).catch(e=>logs.push('load: '+e.message));
- const out=await w.webContents.executeJavaScript(`(async()=>{
+ stage='load';await w.loadURL(process.env.P_URL).catch(e=>logs.push('load: '+e.message));
+ stage='script';const out=await w.webContents.executeJavaScript(`(async()=>{
   const wait=ms=>new Promise(r=>setTimeout(r,ms));
   const slot=document.querySelector('#dc-turnstile, .dc-ts-slot'),ts=window.dcTs;
   const env={url:location.href,ua:navigator.userAgent.slice(0,60),uaData:navigator.userAgentData?navigator.userAgentData.platform+'/mobile='+navigator.userAgentData.mobile+'/'+navigator.userAgentData.brands.map(b=>b.brand+b.version).join(','):null,platform:navigator.platform,touch:navigator.maxTouchPoints,vis:document.visibilityState,
@@ -27,6 +28,6 @@ app.whenReady().then(async()=>{
   const seen=[];for(let i=0;i<50&&!token();i++){if(seen[seen.length-1]!==ts.state)seen.push(ts.state);await wait(500)}
   return {env,states:seen,final:ts.state,token:token().length};
  })()`,true).catch(e=>({error:e.message}));
- console.log(JSON.stringify({gpu:!!process.env.P_GPU,uaMode:process.env.P_UA||'mobile',shown:!!process.env.P_SHOW,out,logs:logs.slice(0,6)},null,1));
+ console.log(JSON.stringify({gpu:!!process.env.P_GPU,uaMode:process.env.P_UA||'mobile',shown:!!process.env.P_SHOW,out,logs:logs.slice(0,12).map(x=>x.slice(0,90))},null,1));
  app.quit();
 });

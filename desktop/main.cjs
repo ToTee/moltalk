@@ -93,11 +93,24 @@ function helperWindow(show){
  w.webContents.on('will-navigate',(e,u)=>{if(!dcUrl(u))e.preventDefault()});
  return w;
 }
+/* 보조 창은 디시 모바일 화면을 엽니다. 브라우저 이름만 휴대폰으로 알리면 나머지 정보(운영체제, 터치 여부, 마우스 입력)는 윈도우 그대로라
+   서로 맞지 않고, '사람인지 확인'이 이를 비정상으로 보고 실패합니다(실패 번호 600010). 크롬 개발자 도구의 '기기 모드'와 같은 방법으로
+   알리는 정보를 휴대폰으로 일관되게 맞추고, 마우스로 누른 것이 터치로 전달되게 합니다. 확인 상자를 누르는 것은 여전히 사용자입니다. */
+async function asPhone(w){
+ try{
+  await w.loadURL('about:blank');
+  const d=w.webContents.debugger,full=process.versions.chrome;d.attach('1.3');
+  await d.sendCommand('Emulation.setUserAgentOverride',{userAgent:MOBILE_UA,platform:'Linux armv81',userAgentMetadata:{brands:[{brand:'Chromium',version:CHROME},{brand:'Not?A_Brand',version:'99'}],fullVersionList:[{brand:'Chromium',version:full},{brand:'Not?A_Brand',version:'99.0.0.0'}],platform:'Android',platformVersion:'14.0.0',architecture:'',model:'Pixel 8',mobile:true,bitness:'',wow64:false}});
+  await d.sendCommand('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:5});
+  await d.sendCommand('Emulation.setEmitTouchEventsForMouse',{enabled:true,configuration:'mobile'});
+ }catch(e){diag('phone-mode-fail',e.message)}
+}
 // 공식 화면을 보이지 않는 창에서 열고 스크립트를 실행해 결과를 돌려줍니다. 화면이 다른 주소로 넘어가면(글 등록 완료 등) 그 주소를 돌려줍니다.
 ipcMain.handle('drive',async(event,url,code,opt={})=>{
  if(!dcUrl(url)||typeof code!=='string')throw Error('디시인사이드 주소만 열 수 있습니다.');
  const w=helperWindow(false);let timer;const wcId=w.webContents.id;hiddenJobs.add(wcId);
  try{
+  await asPhone(w);
   await w.loadURL(url).catch(()=>{});
   if(!dcUrl(w.webContents.getURL()))return {error:'화면을 열지 못했습니다.'};
   const nav=new Promise(res=>w.webContents.once('did-navigate',(e,u)=>res({navigated:u})));
@@ -123,7 +136,7 @@ ipcMain.handle('official',(event,url,opt={})=>new Promise(resolve=>{
  const finish=v=>{if(done)return;done=true;resolve(v);if(!w.isDestroyed())w.destroy()};
  if(typeof opt.closeOn==='string')w.webContents.on('did-navigate',(e,u)=>{if(u.startsWith(opt.closeOn))setTimeout(()=>finish(true),600)});
  w.on('closed',()=>finish(false));
- w.loadURL(url).catch(()=>{});
+ asPhone(w).then(()=>{if(!w.isDestroyed())w.loadURL(url).catch(()=>{})});
 }));
 ipcMain.handle('logout',async()=>{await session.defaultSession.clearStorageData({storages:['cookies']});return true});
 
