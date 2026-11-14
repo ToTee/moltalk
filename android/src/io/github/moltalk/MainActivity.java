@@ -398,7 +398,7 @@ public class MainActivity extends Activity {
         if (on) lp.setMargins(Math.round(16 * d), 0, Math.round(16 * d), 0);
         helperBox.setLayoutParams(lp);
         helperDim.setVisibility(on ? View.VISIBLE : View.GONE);
-        helperTitle.setText(on ? "사람인지 확인" : "디시인사이드");
+        helperTitle.setText(on ? "확인" : "디시인사이드"); // 사람인지 확인과 보안 문자 입력이 함께 쓰는 창이라 제목은 "확인"으로 둡니다.
     }
 
     private static final String CANCELLED ="{\"error\":\"창을 닫아 등록을 취소했습니다.\"}";

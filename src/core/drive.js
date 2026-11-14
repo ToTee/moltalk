@@ -41,7 +41,7 @@ function helpers(){
  const reveal=(on,host)=>{
   let tip=document.querySelector('#yj-tip'),st=document.querySelector('#yj-human');
   if(on){
-   if(!st){st=document.createElement('style');st.id='yj-human';st.textContent='html,body{background:#fff!important;overflow:hidden!important}body *{visibility:hidden!important}.yj-host,.yj-host *,#yj-tip{visibility:visible!important}.yj-host{position:fixed!important;left:0!important;right:0!important;top:56%!important;transform:translateY(-50%)!important;display:flex!important;justify-content:center!important;margin:0!important;z-index:2147483646!important}';document.head.appendChild(st)}
+   if(!st){st=document.createElement('style');st.id='yj-human';st.textContent='html,body{background:#fff!important;overflow:hidden!important}body *{visibility:hidden!important}.yj-host,.yj-host *,#yj-tip,#yj-tip *{visibility:visible!important}.yj-host{position:fixed!important;left:0!important;right:0!important;top:56%!important;transform:translateY(-50%)!important;display:flex!important;justify-content:center!important;margin:0!important;z-index:2147483646!important}';document.head.appendChild(st)}
    if(host)host.classList.add('yj-host');
    if(!tip){tip=document.createElement('div');tip.id='yj-tip';tip.textContent='확인을 누르면 자동으로 등록됩니다.';tip.style.cssText='position:fixed;left:0;right:0;top:0;z-index:2147483647;color:#444;font-size:14px;line-height:1.4;padding:14px 14px 0;text-align:center';document.body.appendChild(tip)}
   }else{
@@ -75,7 +75,7 @@ function helpers(){
   if(!host||host===root||host===document.body||!host.querySelector('img'))return null;
   reveal(true,host);
   const tip=document.querySelector('#yj-tip');let ok=false;
-  if(tip){tip.textContent='그림의 글자를 입력하고 확인을 누르면 등록됩니다. ';const b=document.createElement('button');b.type='button';b.textContent='확인';b.style.cssText='margin-left:6px;padding:6px 16px;border:0;border-radius:4px;background:#fee500;color:#111;font-size:14px;font-weight:700';b.onclick=()=>{ok=true};tip.appendChild(b)}
+  if(tip){tip.textContent='그림의 글자를 아래 칸에 입력하고 확인을 누르면 등록됩니다.';const b=document.createElement('button');b.type='button';b.textContent='확인';b.style.cssText='display:block;margin:10px auto 0;padding:8px 28px;border:0;border-radius:4px;background:#fee500;color:#111;font-size:15px;font-weight:700';b.onclick=()=>{ok=true};tip.appendChild(b)}
   inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();ok=true}});
   try{inp.focus()}catch(e){}
   await until(()=>ok&&inp.value.trim(),170000);reveal(false);

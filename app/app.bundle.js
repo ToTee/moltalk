@@ -405,7 +405,7 @@
         if (!st) {
           st = document.createElement("style");
           st.id = "yj-human";
-          st.textContent = "html,body{background:#fff!important;overflow:hidden!important}body *{visibility:hidden!important}.yj-host,.yj-host *,#yj-tip{visibility:visible!important}.yj-host{position:fixed!important;left:0!important;right:0!important;top:56%!important;transform:translateY(-50%)!important;display:flex!important;justify-content:center!important;margin:0!important;z-index:2147483646!important}";
+          st.textContent = "html,body{background:#fff!important;overflow:hidden!important}body *{visibility:hidden!important}.yj-host,.yj-host *,#yj-tip,#yj-tip *{visibility:visible!important}.yj-host{position:fixed!important;left:0!important;right:0!important;top:56%!important;transform:translateY(-50%)!important;display:flex!important;justify-content:center!important;margin:0!important;z-index:2147483646!important}";
           document.head.appendChild(st);
         }
         if (host) host.classList.add("yj-host");
@@ -457,11 +457,11 @@
       const tip = document.querySelector("#yj-tip");
       let ok = false;
       if (tip) {
-        tip.textContent = "\uADF8\uB9BC\uC758 \uAE00\uC790\uB97C \uC785\uB825\uD558\uACE0 \uD655\uC778\uC744 \uB204\uB974\uBA74 \uB4F1\uB85D\uB429\uB2C8\uB2E4. ";
+        tip.textContent = "\uADF8\uB9BC\uC758 \uAE00\uC790\uB97C \uC544\uB798 \uCE78\uC5D0 \uC785\uB825\uD558\uACE0 \uD655\uC778\uC744 \uB204\uB974\uBA74 \uB4F1\uB85D\uB429\uB2C8\uB2E4.";
         const b = document.createElement("button");
         b.type = "button";
         b.textContent = "\uD655\uC778";
-        b.style.cssText = "margin-left:6px;padding:6px 16px;border:0;border-radius:4px;background:#fee500;color:#111;font-size:14px;font-weight:700";
+        b.style.cssText = "display:block;margin:10px auto 0;padding:8px 28px;border:0;border-radius:4px;background:#fee500;color:#111;font-size:15px;font-weight:700";
         b.onclick = () => {
           ok = true;
         };

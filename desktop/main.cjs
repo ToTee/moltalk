@@ -119,7 +119,7 @@ ipcMain.handle('drive',async(event,url,code,opt={})=>{
     /* 사진·동영상 올리기 진행 상황: 작업을 맡긴 앱 화면에 그대로 전합니다. */
     if(typeof m==='string'&&m.startsWith('__YJ_PROG__')){if(!event.sender.isDestroyed())event.sender.send('drive-progress',m.slice(11));return}
     if(m==='__YJ_SHOW__'||m==='__YJ_HIDE__')diag('human',m);
-    if(m==='__YJ_SHOW__'){w.setContentSize(380,230);w.center();w.setTitle('사람인지 확인');w.show();arm(200000)}else if(m==='__YJ_HIDE__'){w.hide();arm(limit)}});
+    if(m==='__YJ_SHOW__'){w.setContentSize(380,260);w.center();w.setTitle('확인');w.show();arm(200000)}else if(m==='__YJ_HIDE__'){w.hide();arm(limit)}});
   });
   const closed=new Promise(res=>w.once('closed',()=>res({error:'창을 닫아 등록을 취소했습니다.'})));
   const run=w.webContents.executeJavaScript(code,true).catch(async err=>{await sleep(2500);return {error:'처리 중 오류가 났습니다: '+err.message}});
