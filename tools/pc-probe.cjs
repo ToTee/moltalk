@@ -3,10 +3,13 @@
 const {app,BrowserWindow}=require('electron');
 app.commandLine.appendSwitch('disable-gpu-compositing');
 const UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/'+process.versions.chrome.split('.')[0]+'.0.0.0 Safari/537.36';
+if(process.env.P_ONEUA)app.userAgentFallback=UA;
 setTimeout(()=>{console.log('TIMEOUT');app.exit(0)},150000);
 app.whenReady().then(async()=>{
  const w=new BrowserWindow({width:1100,height:800,show:!!process.env.P_SHOW,webPreferences:{contextIsolation:true,nodeIntegration:false,sandbox:true}});
- w.webContents.setUserAgent(UA);
+ /* P_ONEUA=1: 창뿐 아니라 앱 전체가 같은 브라우저 이름을 쓰게 합니다(보조 작업·워커 포함). */
+ if(!process.env.P_ONEUA)w.webContents.setUserAgent(UA);
+ if(process.env.P_SHOW){w.setAlwaysOnTop(true);w.center();w.setTitle('양지톡 시험 창');w.show();w.focus();w.flashFrame(true)}
  const t0=Date.now(),logs=[];w.webContents.on('console-message',e=>{const s=String(e.message||'');if(/turnstile|cloudflare/i.test(s))logs.push(((Date.now()-t0)/1000).toFixed(1)+'s '+s.slice(0,100))});
  await w.loadURL(process.env.P_URL).catch(e=>logs.push('load: '+e.message));
  const out=await w.webContents.executeJavaScript(`(async()=>{window.__ask=${process.env.P_SHOW?1:0};

@@ -5,10 +5,12 @@ const {app,BrowserWindow}=require('electron');
 if(process.env.P_GPU==='nocomp')app.commandLine.appendSwitch('disable-gpu-compositing');else if(!process.env.P_GPU)app.disableHardwareAcceleration();
 const MOBILE_UA='Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/'+(process.env.P_OLDUA?'130':process.versions.chrome.split('.')[0])+'.0.0.0 Mobile Safari/537.36';
 const REAL_UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/'+process.versions.chrome.split('.')[0]+'.0.0.0 Safari/537.36';
-setTimeout(()=>{console.log('TIMEOUT stage='+stage);app.exit(0)},70000);let stage='start';
+setTimeout(()=>{console.log('TIMEOUT stage='+stage);app.exit(0)},150000);let stage='start';
+if(process.env.P_ONEUA)app.userAgentFallback=MOBILE_UA;
 app.whenReady().then(async()=>{
  const w=new BrowserWindow({width:440,height:780,show:!!process.env.P_SHOW,webPreferences:{contextIsolation:true,nodeIntegration:false,sandbox:true}});
- w.webContents.setUserAgent(process.env.P_UA==='real'?REAL_UA:MOBILE_UA);
+ if(!process.env.P_ONEUA)w.webContents.setUserAgent(process.env.P_UA==='real'?REAL_UA:MOBILE_UA);
+ if(process.env.P_ASK){w.setAlwaysOnTop(true);w.center();w.setTitle('양지톡 시험 창');w.show();w.focus()}
  const t0=Date.now(),logs=[];w.webContents.on('console-message',(e,l,m)=>{const s=String(typeof m==='string'?m:e.message);if(/turnstile|cloudflare/i.test(s))logs.push(((Date.now()-t0)/1000).toFixed(1)+'s '+s.slice(0,160))});
  /* P_EMU=1: 크롬 개발자 도구의 '기기 모드'와 같은 방법으로, 브라우저가 알리는 정보(종류·터치·화면)를 휴대폰으로 일관되게 맞춥니다. */
  if(process.env.P_EMU){stage='emu';await w.loadURL('about:blank');const d=w.webContents.debugger,V=process.versions.chrome.split('.')[0];d.attach('1.3');
@@ -17,7 +19,7 @@ app.whenReady().then(async()=>{
   await d.sendCommand('Emulation.setDeviceMetricsOverride',{width:412,height:780,deviceScaleFactor:2.625,mobile:true,screenWidth:412,screenHeight:915});}
  stage='load';await w.loadURL(process.env.P_URL).catch(e=>logs.push('load: '+e.message));
  stage='script';if(process.env.P_REVEAL){w.webContents.on('console-message',(e,l,m)=>{const s=String(typeof m==='string'?m:e.message);if(s==='__YJ_SHOW__'){if(process.env.P_REVEAL!=='noresize')w.setContentSize(380,230);w.center();w.show();logs.push(((Date.now()-t0)/1000).toFixed(1)+'s SHOWN')}})}
- const out=await w.webContents.executeJavaScript(`(async()=>{window.__reveal=${JSON.stringify(process.env.P_REVEAL||'')};
+ const out=await w.webContents.executeJavaScript(`(async()=>{window.__reveal=${JSON.stringify(process.env.P_REVEAL||'')};window.__ask=${process.env.P_ASK?1:0};
   const wait=ms=>new Promise(r=>setTimeout(r,ms));
   const slot=document.querySelector('#dc-turnstile, .dc-ts-slot'),ts=window.dcTs;
   const env={url:location.href,ua:navigator.userAgent.slice(0,60),uaData:navigator.userAgentData?navigator.userAgentData.platform+'/mobile='+navigator.userAgentData.mobile+'/'+navigator.userAgentData.brands.map(b=>b.brand+b.version).join(','):null,platform:navigator.platform,touch:navigator.maxTouchPoints,vis:document.visibilityState,
@@ -27,6 +29,10 @@ app.whenReady().then(async()=>{
   window.dcTsLoad();window.dcTsUse(root);
   const token=()=>{try{return window.turnstile&&ts.id!==null&&window.turnstile.getResponse(ts.id)||''}catch(e){return ''}};
   const seen=[];
+  if(window.__ask){const tip=document.createElement('div');tip.textContent='양지톡 시험용 창입니다. [사람인지 확인] 상자를 한 번만 눌러 주세요. 아무것도 등록되지 않고, 누르면 잠시 뒤 저절로 닫힙니다.';tip.style.cssText='position:fixed;left:0;right:0;top:0;z-index:2147483647;background:#fee500;color:#111;font:700 14px/1.5 sans-serif;padding:10px 12px;text-align:center';document.body.appendChild(tip);
+   for(let i=0;i<40&&ts.state!=='interactive'&&!token();i++)await wait(500);(ts.host||slot).scrollIntoView({block:'center'});
+   let last=null,endAt=0;const s0=Date.now();for(let i=0;i<200;i++){const s=String(ts.state);if(last!==s){last=s;seen.push(s+'@'+((Date.now()-s0)/1000).toFixed(0))}if(token()&&!endAt)endAt=i+2;if(/error/.test(s)&&!endAt)endAt=i+8;if(endAt&&i>=endAt)break;await wait(500)}
+   return {env:{ua:env.ua,uaData:env.uaData,platform:env.platform},states:seen,final:ts.state,token:token().length}}
   if(window.__reveal){
    /* 앱이 하는 것과 같은 순서: 확인 상자가 '눌러야 함' 상태가 되면 나머지 화면을 가리고 창을 보여 줍니다. 아무것도 누르지 않습니다. */
    for(let i=0;i<40&&ts.state!=='interactive'&&ts.state!=='error'&&!token();i++)await wait(500);
