@@ -1907,7 +1907,7 @@
         const c = R.cache[key(g) + "|"];
         if (c) c.at = 0;
       }
-      toast("\uCD5C\uADFC \uAE00\uC744 \uB2E4\uC2DC \uC77D\uB294 \uC911\uC785\uB2C8\uB2E4.");
+      toast("\uCD5C\uADFC \uAE00 \uC0C8\uB85C \uC77D\uB294 \uC911");
       loadLatest();
     }
     return true;
@@ -1942,15 +1942,15 @@
       ptrSet(0);
       return;
     }
-    pull.d = Math.min(90, dy / 2);
+    pull.d = Math.min(70, dy / 2);
     ptrSet(pull.d);
   }, { passive: true });
   var pullEnd = () => {
     if (!pull) return;
-    const go = pull.d >= 60;
+    const go = pull.d >= 50;
     pull = null;
     if (go && refresh()) {
-      ptrSet(60, true);
+      ptrSet(46, true);
       setTimeout(() => ptrSet(0), 700);
     } else ptrSet(0);
   };

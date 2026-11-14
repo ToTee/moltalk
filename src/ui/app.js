@@ -579,7 +579,7 @@ function refresh(){
  if(R.write||R.ov||Date.now()-refreshAt<3000)return false;refreshAt=Date.now();
  if(R.room)openPost(R.room.no,true);
  else if(R.view==='chats'){if(!gal(R.g))return false;loadList({fresh:true})}
- else{if(!D.gals.length)return false;for(const g of D.gals){const c=R.cache[key(g)+'|'];if(c)c.at=0}toast('최근 글을 다시 읽는 중입니다.');loadLatest()}
+ else{if(!D.gals.length)return false;for(const g of D.gals){const c=R.cache[key(g)+'|'];if(c)c.at=0}toast('최근 글 새로 읽는 중');loadLatest()}
  return true;
 }
 document.addEventListener('keydown',e=>{if(e.key==='Escape')window.yjBack();
@@ -591,8 +591,8 @@ const ptrSet=(y,spin)=>{ptr.classList.toggle('spin',!!spin);ptr.classList.toggle
 document.addEventListener('touchstart',e=>{const s=e.target.closest('#fscroll,#cscroll,#rscroll');pull=s&&s.scrollTop<=0&&e.touches.length===1?{s,x:e.touches[0].clientX,y:e.touches[0].clientY,d:0}:null},{passive:true});
 document.addEventListener('touchmove',e=>{if(!pull)return;const t=e.touches[0],dx=t.clientX-pull.x,dy=t.clientY-pull.y;
  if(!pull.d&&(dy<0||Math.abs(dx)>Math.abs(dy))||pull.s.scrollTop>0){pull=null;ptrSet(0);return}
- pull.d=Math.min(90,dy/2);ptrSet(pull.d)},{passive:true});
-const pullEnd=()=>{if(!pull)return;const go=pull.d>=60;pull=null;if(go&&refresh()){ptrSet(60,true);setTimeout(()=>ptrSet(0),700)}else ptrSet(0)};
+ pull.d=Math.min(70,dy/2);ptrSet(pull.d)},{passive:true});
+const pullEnd=()=>{if(!pull)return;const go=pull.d>=50;pull=null;if(go&&refresh()){ptrSet(46,true);setTimeout(()=>ptrSet(0),700)}else ptrSet(0)};
 document.addEventListener('touchend',pullEnd);document.addEventListener('touchcancel',()=>{pull=null;ptrSet(0)});
 
 /* 0.1.6~0.1.8은 친구 목록에 디시 흥한 갤러리 20개를 자동으로 넣었습니다. 그 기능을 없애면서, 그때 들어간 갤러리를 한 번 치웁니다.

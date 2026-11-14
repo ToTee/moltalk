@@ -39,9 +39,9 @@ body{display:flex;flex-direction:column}
 .ib.act{background:var(--mine)}
 .scroll{flex:1;overflow-y:auto;overflow-x:hidden;min-height:0;overscroll-behavior-y:contain}
 /* 휴대폰에서 아래로 당길 때 위에서 내려오는 새로고침 표시 */
-#ptr{position:fixed;left:50%;top:-34px;z-index:60;width:36px;height:36px;display:grid;place-items:center;border-radius:50%;background:#fff;color:#3a4550;box-shadow:0 2px 8px rgba(0,0,0,.22);opacity:0;transform:translate(-50%,0);transition:transform .2s,opacity .2s;pointer-events:none}
+#ptr{position:fixed;left:50%;top:-26px;z-index:60;width:24px;height:24px;display:grid;place-items:center;border-radius:50%;background:#fff;color:#3a4550;box-shadow:0 1px 4px rgba(0,0,0,.2);opacity:0;transform:translate(-50%,0);transition:transform .2s,opacity .2s;pointer-events:none}
 #ptr.drag{transition:none}
-#ptr svg{width:20px;height:20px}
+#ptr svg{width:14px;height:14px}
 #ptr.spin svg{animation:ptrspin .7s linear infinite}
 @keyframes ptrspin{to{transform:rotate(360deg)}}
 /* 스크롤 막대는 PC와 휴대폰 모두 보이지 않게 합니다(휠·끌기로는 그대로 움직입니다). */
