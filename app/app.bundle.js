@@ -1221,7 +1221,31 @@
   var MV = {};
   var MVP = {};
   var MVT = /* @__PURE__ */ new Set();
-  var movieHtml = (u, m, auto) => '<video class="media mv" controls playsinline preload="' + (auto ? "metadata" : "none") + '"' + (auto ? " autoplay" : "") + ' src="' + esc(m.src) + '"' + (m.poster ? ' poster="' + esc(m.poster) + '"' : "") + ' data-page="' + esc(u) + '"></video>';
+  var movieHtml = (u, m, auto) => '<span class="mvw"><video class="media mv" controls playsinline preload="' + (auto ? "metadata" : "none") + '"' + (auto ? " autoplay" : "") + ' src="' + esc(m.src) + '"' + (m.poster ? ' poster="' + esc(m.poster) + '"' : "") + ' data-page="' + esc(u) + '"></video><button class="mvbig" data-mvbig aria-label="\uB3D9\uC601\uC0C1 \uD06C\uAC8C \uBCF4\uAE30">\uD06C\uAC8C</button></span>';
+  var bigFrom = null;
+  function openBig(b) {
+    const v = b.closest(".mvw")?.querySelector("video");
+    if (!v) return;
+    const at = v.currentTime || 0, box = $("#viewer");
+    v.pause();
+    bigFrom = v;
+    box.innerHTML = '<video controls autoplay playsinline src="' + esc(v.currentSrc || v.src) + '"' + (v.poster ? ' poster="' + esc(v.poster) + '"' : "") + '></video><button class="vclose" aria-label="\uD06C\uAC8C \uBCF4\uAE30 \uB2EB\uAE30">\u2715</button>';
+    const big = box.querySelector("video");
+    if (at > 0) big.addEventListener("loadedmetadata", () => {
+      big.currentTime = at;
+    }, { once: true });
+    box.hidden = false;
+  }
+  function closeViewer() {
+    const box = $("#viewer"), big = box.querySelector("video");
+    if (big && bigFrom?.isConnected) try {
+      bigFrom.currentTime = big.currentTime;
+    } catch {
+    }
+    bigFrom = null;
+    box.innerHTML = "";
+    box.hidden = true;
+  }
   var movie = (u) => MVP[u] || (MVP[u] = dc.readMovie(u).then((m) => MV[u] = m).catch((e) => {
     delete MVP[u];
     throw e;
@@ -1269,7 +1293,7 @@
   }
   document.addEventListener("error", (e) => {
     const n = e.target;
-    if (n.tagName === "VIDEO" && n.classList.contains("mv") && n.isConnected) n.outerHTML = '<button class="embed" data-url="' + esc(n.dataset.page) + '">\uB3D9\uC601\uC0C1\uC744 \uC7AC\uC0DD\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4. \uB514\uC2DC\uC5D0\uC11C \uC5F4\uAE30</button>';
+    if (n.tagName === "VIDEO" && n.classList.contains("mv") && n.isConnected) (n.closest(".mvw") || n).outerHTML = '<button class="embed" data-url="' + esc(n.dataset.page) + '">\uB3D9\uC601\uC0C1\uC744 \uC7AC\uC0DD\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4. \uB514\uC2DC\uC5D0\uC11C \uC5F4\uAE30</button>';
   }, true);
   var conVideo = (src, alt) => '<video class="dcon1" autoplay loop muted playsinline src="' + esc(src) + '" aria-label="' + esc(alt || "\uB514\uC2DC\uCF58") + '"></video>';
   document.addEventListener("error", (e) => {
@@ -2039,7 +2063,7 @@
   document.addEventListener("click", (e) => {
     if (dragged || lpSkip) return;
     if (e.target.closest("#viewer")) {
-      $("#viewer").hidden = true;
+      if (e.target.tagName !== "VIDEO") closeViewer();
       return;
     }
     const z = e.target.closest("[data-zoom]");
@@ -2064,6 +2088,10 @@
     const d = b.dataset;
     if (d.movie) {
       playMovie(b);
+      return;
+    }
+    if (d.mvbig != null) {
+      openBig(b);
       return;
     }
     if (d.view) {
@@ -2457,7 +2485,7 @@
   });
   window.yjBack = () => {
     if (!$("#viewer").hidden) {
-      $("#viewer").hidden = true;
+      closeViewer();
       return true;
     }
     if (!gask.hidden) {

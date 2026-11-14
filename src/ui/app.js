@@ -289,7 +289,14 @@ const bub=(t,q='')=>'<div class="bub">'+q+linkify(t)+'</div>';
    기기에서 재생하지 못하면 디시 화면으로 여는 단추로 바꿉니다. */
 const MV={},MVP={},MVT=new Set();
 /* 눌러서 틀 때(auto)만 영상을 내려받기 시작합니다. 미리 보기 그림만 보여 줄 때는 영상을 받지 않습니다. */
-const movieHtml=(u,m,auto)=>'<video class="media mv" controls playsinline preload="'+(auto?'metadata':'none')+'"'+(auto?' autoplay':'')+' src="'+esc(m.src)+'"'+(m.poster?' poster="'+esc(m.poster)+'"':'')+' data-page="'+esc(u)+'"></video>';
+const movieHtml=(u,m,auto)=>'<span class="mvw"><video class="media mv" controls playsinline preload="'+(auto?'metadata':'none')+'"'+(auto?' autoplay':'')+' src="'+esc(m.src)+'"'+(m.poster?' poster="'+esc(m.poster)+'"':'')+' data-page="'+esc(u)+'"></video><button class="mvbig" data-mvbig aria-label="동영상 크게 보기">크게</button></span>';
+/* 크게 보기: 앱 창을 가득 채우는 화면에서 같은 영상을 보던 자리부터 이어서 틉니다. 닫으면 본문 영상도 그 자리로 맞춥니다. */
+let bigFrom=null;
+function openBig(b){const v=b.closest('.mvw')?.querySelector('video');if(!v)return;const at=v.currentTime||0,box=$('#viewer');v.pause();bigFrom=v;
+ box.innerHTML='<video controls autoplay playsinline src="'+esc(v.currentSrc||v.src)+'"'+(v.poster?' poster="'+esc(v.poster)+'"':'')+'></video><button class="vclose" aria-label="크게 보기 닫기">✕</button>';
+ const big=box.querySelector('video');if(at>0)big.addEventListener('loadedmetadata',()=>{big.currentTime=at},{once:true});box.hidden=false}
+function closeViewer(){const box=$('#viewer'),big=box.querySelector('video');if(big&&bigFrom?.isConnected)try{bigFrom.currentTime=big.currentTime}catch{}
+ bigFrom=null;box.innerHTML='';box.hidden=true}
 /* 같은 영상을 두 번 읽지 않게, 읽는 중인 요청을 함께 씁니다. */
 const movie=u=>MVP[u]||(MVP[u]=dc.readMovie(u).then(m=>MV[u]=m).catch(e=>{delete MVP[u];throw e}));
 async function playMovie(b){const u=b.dataset.movie;if(b.disabled)return;
@@ -305,7 +312,7 @@ function thumbMovies(){let n=0;
   /* 하나씩 차례로 읽고, 보내기 직전에 디시가 막고 있는지 다시 봅니다(앞 요청이 막혔으면 뒤 요청은 보내지 않습니다). */
   thumbQ=thumbQ.then(async()=>{if(Date.now()<pvPause)return;try{await movie(u)}catch{return}
    for(const x of document.querySelectorAll('#room button[data-movie]'))if(x.dataset.movie===u&&!x.disabled)x.outerHTML=movieHtml(u,MV[u])})}}
-document.addEventListener('error',e=>{const n=e.target;if(n.tagName==='VIDEO'&&n.classList.contains('mv')&&n.isConnected)n.outerHTML='<button class="embed" data-url="'+esc(n.dataset.page)+'">동영상을 재생하지 못했습니다. 디시에서 열기</button>'},true);
+document.addEventListener('error',e=>{const n=e.target;if(n.tagName==='VIDEO'&&n.classList.contains('mv')&&n.isConnected)(n.closest('.mvw')||n).outerHTML='<button class="embed" data-url="'+esc(n.dataset.page)+'">동영상을 재생하지 못했습니다. 디시에서 열기</button>'},true);
 const conVideo=(src,alt)=>'<video class="dcon1" autoplay loop muted playsinline src="'+esc(src)+'" aria-label="'+esc(alt||'디시콘')+'"></video>';
 /* 디시콘 주소는 그림일 수도 영상일 수도 있습니다. 그림으로 못 읽으면 영상으로 한 번 바꿔 봅니다. */
 document.addEventListener('error',e=>{const n=e.target;if(n.tagName==='IMG'&&n.classList.contains('dcon1')&&n.isConnected)n.outerHTML=conVideo(n.dataset.mp4||n.src,n.alt)},true);
@@ -662,12 +669,13 @@ function longPress(t){
 
 document.addEventListener('click',e=>{
  if(dragged||lpSkip)return;
- if(e.target.closest('#viewer')){$('#viewer').hidden=true;return}
+ if(e.target.closest('#viewer')){if(e.target.tagName!=='VIDEO')closeViewer();return}
  const z=e.target.closest('[data-zoom]');if(z){$('#viewer').innerHTML='<img src="'+esc(z.src)+'" alt="">';$('#viewer').hidden=false;return}
  if(R.menu!=null&&!e.target.closest('[data-reply],[data-cdel],[data-postdel],[data-pedit]')){R.menu=null;R.ask=false;renderRoom(true)}
  const a=e.target.closest('a[data-url]');if(a){e.preventDefault();native.open(a.dataset.url);return}
  const b=e.target.closest('button');if(!b)return;const d=b.dataset;
  if(d.movie){playMovie(b);return}
+ if(d.mvbig!=null){openBig(b);return}
  if(d.view){R.view=d.view;R.ov='';renderPane()}
  else if(d.stab!=null){R.stab=d.stab;R.saved=false;if(d.ov)R.ov=d.ov;renderPane();if(d.stab==='계정'&&!R.userKnown)checkUser()}
  else if(d.ov!=null){R.ov=R.ov===d.ov?'':d.ov;if(d.ov==='set')R.stab='';
@@ -759,7 +767,7 @@ document.addEventListener('submit',async e=>{e.preventDefault();const f=e.target
  else if(f.id==='cform'){const text=f.querySelector('textarea').value.trim();if(text&&await sendToRoom('comment',{text})){const t=$('#cform textarea');if(t){t.value='';t.form.querySelector('.send').classList.remove('ok')}}}
  else if(f.id==='wform')sendDraft()});
 /* 뒤로 가기(안드로이드 뒤로 버튼, Esc): 열린 창을 하나씩 닫고, 닫을 것이 없으면 false를 돌려 앱이 종료 처리하게 합니다. */
-window.yjBack=()=>{if(!$('#viewer').hidden){$('#viewer').hidden=true;return true}
+window.yjBack=()=>{if(!$('#viewer').hidden){closeViewer();return true}
  if(!gask.hidden){gaskClose(null);return true}
  if(R.write){if(!R.write.busy){R.write=null;renderRoom()}return true}
  if(R.rmenu||R.orig){R.rmenu=R.orig=false;renderRoom(true);return true}
