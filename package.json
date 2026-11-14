@@ -1,0 +1,27 @@
+{
+  "name": "yangjitalk",
+  "version": "0.1.0",
+  "description": "디시인사이드를 메신저 화면으로 보는 비공식 열람 앱",
+  "private": true,
+  "type": "module",
+  "main": "desktop/main.cjs",
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "start": "node tools/build.mjs && electron .",
+    "build:exe": "node tools/build.mjs && electron-builder --win portable",
+    "build:apk": "node android/build-apk.mjs"
+  },
+  "build": {
+    "appId": "io.github.yangjitalk",
+    "productName": "양지톡",
+    "directories": {"output": "release", "buildResources": "build"},
+    "files": ["app/**", "desktop/**", "package.json"],
+    "win": {"target": [{"target": "portable", "arch": ["x64"]}], "icon": "build/icon.png", "artifactName": "YangjiTalk-${version}.exe"}
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8",
+    "esbuild": "^0.24.2",
+    "linkedom": "0.18.14"
+  }
+}

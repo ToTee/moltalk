@@ -1,0 +1,6 @@
+﻿tmp/
+release/
+node_modules/
+android/out/
+android-tools/
+*.keystore
