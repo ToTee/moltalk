@@ -11,7 +11,7 @@
   }
   var MOVIE = /^https:\/\/gall\.dcinside\.com\/board\/movie\/movie_view\?no=\d+$/;
   var ytId = (src) => (String(src || "").match(/^https?:\/\/(?:www\.|m\.)?(?:youtube(?:-nocookie)?\.com\/(?:embed|v|shorts)\/|youtu\.be\/)([\w-]{11})(?:[?&#/]|$)/) || [])[1] || "";
-  var ytButton = (id) => '<button class="ytb" data-yt="' + id + '" aria-label="\uC720\uD29C\uBE0C \uC601\uC0C1 \uC7AC\uC0DD"><img loading="lazy" src="https://i.ytimg.com/vi/' + id + '/hqdefault.jpg" alt=""><i>\u25B6</i></button>';
+  var ytButton = (id) => '<button class="ytb" data-yt="' + id + '" aria-label="\uC720\uD29C\uBE0C \uC601\uC0C1 \uC7AC\uC0DD"><img loading="lazy" src="https://i.ytimg.com/vi/' + id + '/hqdefault.jpg" alt=""><i></i></button>';
   function parseMovie(doc) {
     const v = doc.querySelector("video#dc_mv") || doc.querySelector("video"), src = abs(v?.querySelector("source")?.getAttribute("src") || v?.getAttribute("src") || ""), poster = abs(v?.getAttribute("poster") || "");
     if (!/^https:\/\//.test(src)) throw Error("\uB3D9\uC601\uC0C1 \uC8FC\uC18C\uB97C \uCC3E\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.");
@@ -1290,13 +1290,15 @@
   var MV = {};
   var MVP = {};
   var MVT = /* @__PURE__ */ new Set();
-  var movieHtml = (u, m, auto) => '<span class="mvw"><video class="media mv" controls playsinline preload="' + (auto ? "metadata" : "none") + '"' + (auto ? " autoplay" : "") + ' src="' + esc(m.src) + '"' + (m.poster ? ' poster="' + esc(m.poster) + '"' : "") + ' data-page="' + esc(u) + '"></video><button class="mvplay" data-mvplay aria-label="\uB3D9\uC601\uC0C1 \uC7AC\uC0DD">\u25B6</button><button class="mvbig" data-mvbig aria-label="\uB3D9\uC601\uC0C1 \uD06C\uAC8C \uBCF4\uAE30">\uD06C\uAC8C</button></span>';
+  var movieHtml = (u, m, auto) => '<span class="mvw"><video class="media mv"' + (auto ? " controls autoplay" : "") + ' playsinline preload="' + (auto ? "metadata" : "none") + '" src="' + esc(m.src) + '"' + (m.poster ? ' poster="' + esc(m.poster) + '"' : "") + ' data-page="' + esc(u) + '"></video><button class="mvplay" data-mvplay aria-label="\uB3D9\uC601\uC0C1 \uC7AC\uC0DD"></button><button class="mvbig" data-mvbig aria-label="\uB3D9\uC601\uC0C1 \uD06C\uAC8C \uBCF4\uAE30">\uD06C\uAC8C</button></span>';
   var bigFrom = null;
   function openBig(b) {
-    const v = b.closest(".mvw")?.querySelector("video");
+    const w = b.closest(".mvw"), v = w?.querySelector("video");
     if (!v) return;
     const at = v.currentTime || 0, box = $("#viewer");
     v.pause();
+    v.controls = true;
+    w.classList.add("started");
     bigFrom = v;
     box.innerHTML = '<video controls autoplay playsinline src="' + esc(v.currentSrc || v.src) + '"' + (v.poster ? ' poster="' + esc(v.poster) + '"' : "") + '></video><button class="vclose" aria-label="\uD06C\uAC8C \uBCF4\uAE30 \uB2EB\uAE30">\u2715</button>';
     const big = box.querySelector("video");
@@ -1345,12 +1347,23 @@
       MVT.delete(u);
     }
   }
+  var startMv = (v) => {
+    if (!v) return;
+    v.controls = true;
+    v.play().catch(() => {
+    });
+  };
   document.addEventListener("play", (e) => {
-    e.target.closest?.(".mvw")?.classList.add("playing");
+    const w = e.target.closest?.(".mvw");
+    if (w) {
+      w.classList.add("started");
+      e.target.controls = true;
+    }
   }, true);
-  document.addEventListener("pause", (e) => {
-    e.target.closest?.(".mvw")?.classList.remove("playing");
-  }, true);
+  document.addEventListener("click", (e) => {
+    const v = e.target.closest?.("video.mv");
+    if (v && !v.controls) startMv(v);
+  });
   async function playMovie(b) {
     const u = b.dataset.movie;
     if (b.disabled) return;
@@ -2205,8 +2218,7 @@
       return;
     }
     if (d.mvplay != null) {
-      b.closest(".mvw")?.querySelector("video")?.play().catch(() => {
-      });
+      startMv(b.closest(".mvw")?.querySelector("video"));
       return;
     }
     if (d.yt) {

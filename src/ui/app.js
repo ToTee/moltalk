@@ -289,10 +289,11 @@ const bub=(t,q='')=>'<div class="bub">'+q+linkify(t)+'</div>';
    기기에서 재생하지 못하면 디시 화면으로 여는 단추로 바꿉니다. */
 const MV={},MVP={},MVT=new Set();
 /* 눌러서 틀 때(auto)만 영상을 내려받기 시작합니다. 미리 보기 그림만 보여 줄 때는 영상을 받지 않습니다. */
-const movieHtml=(u,m,auto)=>'<span class="mvw"><video class="media mv" controls playsinline preload="'+(auto?'metadata':'none')+'"'+(auto?' autoplay':'')+' src="'+esc(m.src)+'"'+(m.poster?' poster="'+esc(m.poster)+'"':'')+' data-page="'+esc(u)+'"></video><button class="mvplay" data-mvplay aria-label="동영상 재생">▶</button><button class="mvbig" data-mvbig aria-label="동영상 크게 보기">크게</button></span>';
+/* 재생 전에는 조작 막대 없이 미리 보기 그림과 작은 재생 단추만 보여 줍니다(브라우저가 그리는 큰 재생 단추가 함께 나오지 않게). 재생을 시작하면 조작 막대를 켭니다. */
+const movieHtml=(u,m,auto)=>'<span class="mvw"><video class="media mv"'+(auto?' controls autoplay':'')+' playsinline preload="'+(auto?'metadata':'none')+'" src="'+esc(m.src)+'"'+(m.poster?' poster="'+esc(m.poster)+'"':'')+' data-page="'+esc(u)+'"></video><button class="mvplay" data-mvplay aria-label="동영상 재생"></button><button class="mvbig" data-mvbig aria-label="동영상 크게 보기">크게</button></span>';
 /* 크게 보기: 앱 창을 가득 채우는 화면에서 같은 영상을 보던 자리부터 이어서 틉니다. 닫으면 본문 영상도 그 자리로 맞춥니다. */
 let bigFrom=null;
-function openBig(b){const v=b.closest('.mvw')?.querySelector('video');if(!v)return;const at=v.currentTime||0,box=$('#viewer');v.pause();bigFrom=v;
+function openBig(b){const w=b.closest('.mvw'),v=w?.querySelector('video');if(!v)return;const at=v.currentTime||0,box=$('#viewer');v.pause();v.controls=true;w.classList.add('started');bigFrom=v;
  box.innerHTML='<video controls autoplay playsinline src="'+esc(v.currentSrc||v.src)+'"'+(v.poster?' poster="'+esc(v.poster)+'"':'')+'></video><button class="vclose" aria-label="크게 보기 닫기">✕</button>';
  const big=box.querySelector('video');if(at>0)big.addEventListener('loadedmetadata',()=>{big.currentTime=at},{once:true});box.hidden=false}
 /* 유튜브(쇼츠 포함): 미리 보기 그림을 누르면 그 자리에서 유튜브 재생기를 엽니다. [크게]를 누르면 앱 창을 가득 채운 재생기로 옮깁니다.
@@ -312,8 +313,9 @@ const movie=u=>MVP[u]||(MVP[u]=dc.readMovie(u).then(m=>MV[u]={...m,at:Date.now()
 /* 방금 올린 영상은 디시가 처리(인코딩)를 끝내면 미리 보기 그림과 영상 주소가 바뀝니다. 채팅방을 열거나 새로 고칠 때, 읽은 지 1분이 지난 영상 정보는 버리고 다시 읽게 합니다. */
 function staleMovies(){for(const u of Object.keys(MV))if(Date.now()-MV[u].at>60000){delete MV[u];delete MVP[u];MVT.delete(u)}}
 /* 재생 단추: 브라우저가 영상 한가운데에 그리는 큰 단추 대신 작은 단추를 씁니다. 재생 중에는 숨깁니다. */
-document.addEventListener('play',e=>{e.target.closest?.('.mvw')?.classList.add('playing')},true);
-document.addEventListener('pause',e=>{e.target.closest?.('.mvw')?.classList.remove('playing')},true);
+const startMv=v=>{if(!v)return;v.controls=true;v.play().catch(()=>{})};
+document.addEventListener('play',e=>{const w=e.target.closest?.('.mvw');if(w){w.classList.add('started');e.target.controls=true}},true);
+document.addEventListener('click',e=>{const v=e.target.closest?.('video.mv');if(v&&!v.controls)startMv(v)});
 async function playMovie(b){const u=b.dataset.movie;if(b.disabled)return;
  if(!MV[u]){b.disabled=true;b.textContent='동영상 불러오는 중…';try{await movie(u)}catch(e){if(b.isConnected){b.disabled=false;b.textContent='▶ 동영상 재생'}toast(e.message);return}}
  for(const n of document.querySelectorAll('button[data-movie]'))if(n.dataset.movie===u)n.outerHTML=movieHtml(u,MV[u],n===b)}
@@ -697,7 +699,7 @@ document.addEventListener('click',e=>{
  const b=e.target.closest('button');if(!b)return;const d=b.dataset;
  if(d.movie){playMovie(b);return}
  if(d.mvbig!=null){openBig(b);return}
- if(d.mvplay!=null){b.closest('.mvw')?.querySelector('video')?.play().catch(()=>{});return}
+ if(d.mvplay!=null){startMv(b.closest('.mvw')?.querySelector('video'));return}
  if(d.yt){playYt(b);return}
  if(d.ytbig){openBigYt(b);return}
  if(d.view){R.view=d.view;R.ov='';renderPane()}

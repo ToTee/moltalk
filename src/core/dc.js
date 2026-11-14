@@ -18,7 +18,7 @@ const MOVIE=/^https:\/\/gall\.dcinside\.com\/board\/movie\/movie_view\?no=\d+$/;
 /* 본문에 넣은 유튜브 영상(쇼츠 포함)의 주소에서 영상 번호(11자)를 꺼냅니다. 유튜브 주소가 아니면 빈 글자입니다. */
 export const ytId=src=>(String(src||'').match(/^https?:\/\/(?:www\.|m\.)?(?:youtube(?:-nocookie)?\.com\/(?:embed|v|shorts)\/|youtu\.be\/)([\w-]{11})(?:[?&#/]|$)/)||[])[1]||'';
 /* 유튜브 영상 자리: 미리 보기 그림과 재생 단추. 누르면 앱이 그 자리에서 유튜브 재생기를 엽니다. */
-export const ytButton=id=>'<button class="ytb" data-yt="'+id+'" aria-label="유튜브 영상 재생"><img loading="lazy" src="https://i.ytimg.com/vi/'+id+'/hqdefault.jpg" alt=""><i>▶</i></button>';
+export const ytButton=id=>'<button class="ytb" data-yt="'+id+'" aria-label="유튜브 영상 재생"><img loading="lazy" src="https://i.ytimg.com/vi/'+id+'/hqdefault.jpg" alt=""><i></i></button>';
 /* 재생 창 화면에서 실제 영상 주소와 미리 보기 그림 주소를 꺼냅니다. */
 export function parseMovie(doc){
  const v=doc.querySelector('video#dc_mv')||doc.querySelector('video'),src=abs(v?.querySelector('source')?.getAttribute('src')||v?.getAttribute('src')||''),poster=abs(v?.getAttribute('poster')||'');
