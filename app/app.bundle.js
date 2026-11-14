@@ -1353,7 +1353,7 @@
   }
   var latestQ = [];
   var latestRun = false;
-  async function loadLatest(list = D.favs.map(gal).filter(Boolean)) {
+  async function loadLatest(list = D.gals) {
     latestQ.push(...list.filter((g) => !latestQ.includes(g)));
     if (latestRun) return;
     latestRun = true;
@@ -1839,20 +1839,16 @@
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") window.yjBack();
   });
-  async function seedFriends() {
-    if (D.seeded) return;
+  async function unseedFriends() {
+    if (!D.seeded || D.unseeded) return;
     try {
       const r = await native.http("https://json2.dcinside.com/json1/ranking_gallery.php?jsoncallback=cb", { headers: { Referer: "https://gall.dcinside.com/" } });
-      const list = JSON.parse(r.text.trim().replace(/^cb\(/, "").replace(/\)\s*;?$/, ""));
-      let n = 0;
-      for (const x of list) {
-        if (n >= 20) break;
-        const g = { id: String(x.id || ""), type: "normal", name: String(x.ko_name || "").trim() };
-        if (!/^[A-Za-z0-9_]{1,80}$/.test(g.id) || !g.name || gal(key(g))) continue;
-        D.gals.push(g);
-        n++;
-      }
-      D.seeded = true;
+      const hot = new Set(JSON.parse(r.text.trim().replace(/^cb\(/, "").replace(/\)\s*;?$/, "")).map((x) => String(x.id || ""))), used = Object.keys(D.seen);
+      D.gals = D.gals.filter((g) => {
+        const k = key(g);
+        return !(g.type === "normal" && hot.has(g.id) && !D.favs.includes(k) && D.top[k] == null && k !== R.g && !used.some((s2) => s2.startsWith(k + "/")));
+      });
+      D.unseeded = true;
       save();
       if (R.view === "friends" && !R.ov) renderPane();
     } catch {
@@ -1860,6 +1856,5 @@
   }
   renderPane();
   renderRoom();
-  seedFriends();
-  loadLatest().then(checkUser);
+  unseedFriends().then(() => loadLatest()).then(checkUser);
 })();

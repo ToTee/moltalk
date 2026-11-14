@@ -434,8 +434,7 @@ async function moreComments(){
 }
 /* 친구 목록의 "최근 글" 문구와 새 글 표시를 채웁니다. 하나씩 요청하고, 1분 안에 읽은 갤러리는 건너뛰며, 막히면 멈춥니다. */
 const latestQ=[];let latestRun=false;
-/* 최근 글과 새 글 표시는 즐겨찾기만 확인합니다(친구 목록 전체를 읽으면 요청이 너무 많아집니다). */
-async function loadLatest(list=D.favs.map(gal).filter(Boolean)){
+async function loadLatest(list=D.gals){
  latestQ.push(...list.filter(g=>!latestQ.includes(g)));if(latestRun)return;latestRun=true;
  const queue=latestQ,work=async()=>{for(let g;(g=queue.shift());){const k=key(g),c=R.cache[k+'|'];if(Date.now()<pvPause){queue.length=0;break}if(c&&Date.now()-c.at<60000)continue;try{const res=await dc.listPosts(g),t=res.posts.find(p=>!p.notice);if(!t)continue;
    R.latest[k]={id:t.id,title:t.title};R.cache[k+'|']={list:{posts:res.posts,heads:res.heads,page:1,more:true},at:Date.now()};
@@ -558,13 +557,14 @@ window.yjBack=()=>{if(!$('#viewer').hidden){$('#viewer').hidden=true;return true
  if(R.room){R.room=null;R.roomSeq++;renderRoom();renderPane();return true}if(R.view==='chats'){R.view='friends';renderPane();return true}return false};
 document.addEventListener('keydown',e=>{if(e.key==='Escape')window.yjBack()});
 
-/* 처음 한 번, 친구 목록이 비어 보이지 않게 디시의 흥한 갤러리 순위에서 20개를 채워 넣습니다. 이후에는 다시 넣지 않으며, 지운 갤러리가 되살아나지 않습니다. */
-async function seedFriends(){
- if(D.seeded)return;
+/* 0.1.6~0.1.8은 친구 목록에 디시 흥한 갤러리 20개를 자동으로 넣었습니다. 그 기능을 없애면서, 그때 들어간 갤러리를 한 번 치웁니다.
+   흥한 갤러리 순위에 있고, 즐겨찾기가 아니고, 한 번도 열어 본 적 없는 정식 갤러리만 지웁니다. 직접 추가해 쓰던 갤러리는 남습니다. */
+async function unseedFriends(){
+ if(!D.seeded||D.unseeded)return;
  try{const r=await native.http('https://json2.dcinside.com/json1/ranking_gallery.php?jsoncallback=cb',{headers:{Referer:'https://gall.dcinside.com/'}});
-  const list=JSON.parse(r.text.trim().replace(/^cb\(/,'').replace(/\)\s*;?$/,''));let n=0;
-  for(const x of list){if(n>=20)break;const g={id:String(x.id||''),type:'normal',name:String(x.ko_name||'').trim()};if(!/^[A-Za-z0-9_]{1,80}$/.test(g.id)||!g.name||gal(key(g)))continue;D.gals.push(g);n++}
-  D.seeded=true;save();if(R.view==='friends'&&!R.ov)renderPane();
+  const hot=new Set(JSON.parse(r.text.trim().replace(/^cb\(/,'').replace(/\)\s*;?$/,'')).map(x=>String(x.id||''))),used=Object.keys(D.seen);
+  D.gals=D.gals.filter(g=>{const k=key(g);return !(g.type==='normal'&&hot.has(g.id)&&!D.favs.includes(k)&&D.top[k]==null&&k!==R.g&&!used.some(s=>s.startsWith(k+'/')))});
+  D.unseeded=true;save();if(R.view==='friends'&&!R.ov)renderPane();
  }catch{}
 }
-renderPane();renderRoom();seedFriends();loadLatest().then(checkUser);
+renderPane();renderRoom();unseedFriends().then(()=>loadLatest()).then(checkUser);
