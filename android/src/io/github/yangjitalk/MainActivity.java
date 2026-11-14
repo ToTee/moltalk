@@ -362,7 +362,38 @@ public class MainActivity extends Activity {
         }
     }
 
+    /* ---------- 몰톡으로 설정 옮기기 ----------
+       앱 이름이 몰톡으로 바뀌면서 새 앱으로 따로 깔리게 되어, 여기 저장된 친구·사진·이름을 몰톡에 건넵니다. 이 앱의 설정은 지우지 않습니다. */
+    private boolean moveAsked;
+    private void askMove() {
+        if (moveAsked || isFinishing()) return;
+        moveAsked = true;
+        new android.app.AlertDialog.Builder(this).setTitle("몰톡으로 옮기기")
+            .setMessage("양지톡은 '몰톡'으로 이름이 바뀌었습니다.\n여기 저장된 친구·사진·이름을 몰톡으로 옮길까요?\n\n몰톡이 먼저 설치되어 있어야 합니다. 이 앱의 설정은 지워지지 않습니다.")
+            .setPositiveButton("옮기기", (d, w) -> doMove()).setNegativeButton("나중에", null).show();
+    }
+    private void doMove() {
+        main.evaluateJavascript("localStorage.getItem('yangjitalk-v1')", v -> {
+            try {
+                Object o = new org.json.JSONTokener(v == null ? "null" : v).nextValue();
+                if (!(o instanceof String) || ((String) o).length() < 2) { tell("옮길 설정이 없습니다."); return; }
+                java.io.File dir = new java.io.File(getCacheDir(), "export");
+                dir.mkdirs();
+                try (OutputStream out = new java.io.FileOutputStream(new java.io.File(dir, "settings.json"))) { out.write(((String) o).getBytes(StandardCharsets.UTF_8)); }
+                Intent i = new Intent("io.github.moltalk.IMPORT").setClassName("io.github.moltalk", "io.github.moltalk.MainActivity")
+                    .setData(Uri.parse("content://io.github.yangjitalk.export/settings.json")).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                startActivity(i);
+            } catch (android.content.ActivityNotFoundException e) {
+                tell("몰톡이 없거나 예전 버전입니다. 몰톡 최신 버전을 설치한 뒤 양지톡을 다시 열어 주세요.");
+            } catch (Exception e) {
+                tell("옮기지 못했습니다: " + e.getMessage());
+            }
+        });
+    }
+    private void tell(String text) { android.widget.Toast.makeText(this, text, android.widget.Toast.LENGTH_LONG).show(); }
+
     private class MainClient extends WebViewClient {
+        @Override public void onPageFinished(WebView view, String url) { ui.postDelayed(MainActivity.this::askMove, 700); }
         @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
             return true; // 화면은 다른 주소로 이동하지 않습니다.
         }

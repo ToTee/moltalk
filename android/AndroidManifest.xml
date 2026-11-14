@@ -2,6 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="io.github.yangjitalk" android:versionCode="1" android:versionName="0.1.0">
     <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="35"/>
     <uses-permission android:name="android.permission.INTERNET"/>
+    <queries><package android:name="io.github.moltalk"/></queries>
     <application android:label="양지톡" android:icon="@mipmap/ic_launcher" android:allowBackup="false" android:usesCleartextTraffic="false" android:theme="@android:style/Theme.DeviceDefault.Light.NoActionBar">
         <activity android:name=".MainActivity" android:exported="true" android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|uiMode" android:windowSoftInputMode="adjustResize">
             <intent-filter>
@@ -9,5 +10,6 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <provider android:name=".ExportProvider" android:authorities="io.github.yangjitalk.export" android:exported="false" android:grantUriPermissions="true"/>
     </application>
 </manifest>
