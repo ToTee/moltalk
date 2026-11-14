@@ -140,6 +140,7 @@ public class MainActivity extends Activity {
         // 새 댓글 알림을 띄우려면 안드로이드 13부터는 허락을 받아야 합니다. 처음 한 번 묻습니다.
         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != android.content.pm.PackageManager.PERMISSION_GRANTED)
             requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, 7);
+        if (saved == null) handleImport(getIntent());
     }
 
     /** 새 댓글 알림을 기기 알림 창에 띄웁니다. 누르면 앱이 열립니다. */
@@ -476,6 +477,45 @@ public class MainActivity extends Activity {
         }
         if (jobId != null && jobShown) { finishJob(CANCELLED); return; }
         main.evaluateJavascript("!!(window.yjBack&&window.yjBack())", handled -> { if (!"true".equals(handled)) finish(); });
+    }
+
+    /* ---------- 예전 앱(양지톡)의 설정 가져오기 ----------
+       양지톡이 "옮기기"를 누르면 설정 파일의 읽기 권한과 함께 이 화면을 엽니다. 다른 앱이 흉내 낼 수도 있으므로 반드시 물어본 뒤에만 바꿉니다. */
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        handleImport(intent);
+    }
+    private void handleImport(Intent intent) {
+        if (intent == null || !"io.github.moltalk.IMPORT".equals(intent.getAction()) || intent.getData() == null) return;
+        Uri src = intent.getData();
+        intent.setAction(null); // 화면을 돌리는 등으로 다시 만들어질 때 또 묻지 않게 합니다.
+        pool.execute(() -> {
+            String json;
+            try (InputStream in = getContentResolver().openInputStream(src)) {
+                ByteArrayOutputStream buf = new ByteArrayOutputStream();
+                byte[] b = new byte[65536];
+                for (int n; (n = in.read(b)) > 0; ) { buf.write(b, 0, n); if (buf.size() > 30000000) throw new Exception("too large"); }
+                json = new String(buf.toByteArray(), StandardCharsets.UTF_8);
+                JSONObject d = new JSONObject(json);
+                if (d.optJSONArray("gals") == null) throw new Exception("not settings");
+            } catch (Exception e) {
+                ui.post(() -> android.widget.Toast.makeText(this, "설정을 읽지 못했습니다.", android.widget.Toast.LENGTH_LONG).show());
+                return;
+            }
+            final String data = json;
+            // 앱이 막 켜진 경우 화면이 다 뜬 뒤에 묻습니다(화면이 뜨기 전에는 설정을 저장할 자리가 없습니다).
+            ui.postDelayed(() -> {
+                if (isFinishing()) return;
+                new android.app.AlertDialog.Builder(this).setTitle("설정 가져오기")
+                    .setMessage("양지톡의 친구·사진·이름을 가져올까요?\n지금 몰톡에 있는 설정은 가져온 것으로 바뀝니다. 로그인은 몰톡에서 다시 해야 합니다.")
+                    .setNegativeButton("취소", null)
+                    .setPositiveButton("가져오기", (dlg, w) -> main.evaluateJavascript(
+                        "(function(j){try{localStorage.setItem('moltalk-v1',j);localStorage.removeItem('yangjitalk-v1');setTimeout(function(){location.reload()},0);return 'ok'}catch(e){return 'err'}})(" + JSONObject.quote(data) + ")",
+                        r -> android.widget.Toast.makeText(this, "\"ok\"".equals(r) ? "설정을 가져왔습니다." : "설정을 저장하지 못했습니다.", android.widget.Toast.LENGTH_LONG).show()))
+                    .show();
+            }, 1500);
+        });
     }
 
     @Override
