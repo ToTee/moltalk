@@ -786,7 +786,7 @@
       return '<button class="row' + (k === R.g ? " sel" : "") + '" data-g="' + esc(k) + '" data-lp="gal">' + (R.updated[k] ? '<i class="dot"></i>' : "") + galAv(g) + '<span class="tx"><b>' + esc(gname(g)) + "</b>" + (st ? '<span class="st">' + esc(st) + "</span>" : "") + "</span></button>";
     };
     const favs = D.favs.map(gal).filter(Boolean), upd = D.gals.filter((g) => R.updated[key(g)]), all = [...D.gals].sort((a, b) => gname(a).localeCompare(gname(b), "ko"));
-    return '<div class="head fr"><h2>\uCE5C\uAD6C</h2><button class="who m-only" data-ov="log" aria-label="\uB0B4 \uD504\uB85C\uD544 \uC5F4\uAE30">' + meAv() + "<span>" + esc(D.me.name) + '</span></button><button class="ib" data-ov="find" aria-label="\uAC24\uB7EC\uB9AC \uAC80\uC0C9">' + I.search + '</button><button class="ib" data-ov="find" aria-label="\uAC24\uB7EC\uB9AC \uCD94\uAC00">' + I.plusGal + "</button>" + cogM + '</div><div class="scroll" id="fscroll"><button class="adb m-only" data-url="https://blinkarea.synology.me/" aria-label="\uAD11\uACE0: \uBE14\uCE74\uC774\uBE0C \uC5F4\uAE30"><span class="tx"><b>\uBE14\uB799\uD551\uD06C\uC758 \uBAA8\uB4E0 \uAE30\uB85D, \uBE14\uCE74\uC774\uBE0C</b><span>\uC0AC\uC9C4\xB7\uC601\uC0C1\xB7\uC74C\uC6D0 \uAE30\uB85D\uC744 \uD55C\uACF3\uC5D0\uC11C</span><i>\uC9C0\uAE08 \uAD6C\uACBD\uD558\uAE30 \u203A</i></span><span class="logo"><b>\uBE14\uCE74\uC774\uBE0C</b><i>BLINK AREA</i></span><em>AD</em></button><div class="me">' + meAv() + "<span><b>" + esc(D.me.name) + "</b><span>" + esc(D.me.status) + '</span></span><button class="pill" data-ov="log">\uD504\uB85C\uD544</button></div>' + (favs.length ? '<div class="sec"><span>\uC990\uACA8\uCC3E\uAE30 &nbsp;' + favs.length + "</span>" + I.down + '</div><div class="favs">' + favs.map((g) => '<button class="fav" data-g="' + esc(key(g)) + '" data-lp="gal" title="' + esc(gname(g)) + '">' + (R.updated[key(g)] ? '<i class="dot"></i>' : "") + galAv(g) + "<span>" + esc(gname(g)) + "</span></button>").join("") + "</div>" : "") + (upd.length ? '<div class="upd"><div class="sec"><span>\uC5C5\uB370\uC774\uD2B8\uD55C \uCE5C\uAD6C &nbsp;' + upd.length + "</span>" + I.down + "</div>" + upd.map(row).join("") + "</div>" : "") + '<div class="sec" style="margin-top:6px"><span>\uCE5C\uAD6C &nbsp;' + D.gals.length + "</span>" + I.down + "</div>" + (all.length ? all.map(row).join("") : '<div class="empty">\uC544\uC9C1 \uCD94\uAC00\uD55C \uAC24\uB7EC\uB9AC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.<br><button class="pill" data-ov="find">\uAC24\uB7EC\uB9AC \uCD94\uAC00</button></div>') + "</div>";
+    return '<div class="head fr"><h2>\uCE5C\uAD6C</h2><button class="who m-only" data-ov="log" aria-label="\uB0B4 \uD504\uB85C\uD544 \uC5F4\uAE30">' + meAv() + "<span>" + esc(D.me.name) + '</span></button><button class="ib" data-ov="find" aria-label="\uAC24\uB7EC\uB9AC \uAC80\uC0C9">' + I.search + '</button><button class="ib" data-ov="find" aria-label="\uAC24\uB7EC\uB9AC \uCD94\uAC00">' + I.plusGal + '</button><button class="ib d-only" data-refresh aria-label="\uC0C8\uB85C\uACE0\uCE68 (F5)" title="\uC0C8\uB85C\uACE0\uCE68 (F5)">' + I.refresh + "</button>" + cogM + '</div><div class="scroll" id="fscroll"><button class="adb m-only" data-url="https://blinkarea.synology.me/" aria-label="\uAD11\uACE0: \uBE14\uCE74\uC774\uBE0C \uC5F4\uAE30"><span class="tx"><b>\uBE14\uB799\uD551\uD06C\uC758 \uBAA8\uB4E0 \uAE30\uB85D, \uBE14\uCE74\uC774\uBE0C</b><span>\uC0AC\uC9C4\xB7\uC601\uC0C1\xB7\uC74C\uC6D0 \uAE30\uB85D\uC744 \uD55C\uACF3\uC5D0\uC11C</span><i>\uC9C0\uAE08 \uAD6C\uACBD\uD558\uAE30 \u203A</i></span><span class="logo"><b>\uBE14\uCE74\uC774\uBE0C</b><i>BLINK AREA</i></span><em>AD</em></button><div class="me">' + meAv() + "<span><b>" + esc(D.me.name) + "</b><span>" + esc(D.me.status) + '</span></span><button class="pill" data-ov="log">\uD504\uB85C\uD544</button></div>' + (favs.length ? '<div class="sec"><span>\uC990\uACA8\uCC3E\uAE30 &nbsp;' + favs.length + "</span>" + I.down + '</div><div class="favs">' + favs.map((g) => '<button class="fav" data-g="' + esc(key(g)) + '" data-lp="gal" title="' + esc(gname(g)) + '">' + (R.updated[key(g)] ? '<i class="dot"></i>' : "") + galAv(g) + "<span>" + esc(gname(g)) + "</span></button>").join("") + "</div>" : "") + (upd.length ? '<div class="upd"><div class="sec"><span>\uC5C5\uB370\uC774\uD2B8\uD55C \uCE5C\uAD6C &nbsp;' + upd.length + "</span>" + I.down + "</div>" + upd.map(row).join("") + "</div>" : "") + '<div class="sec" style="margin-top:6px"><span>\uCE5C\uAD6C &nbsp;' + D.gals.length + "</span>" + I.down + "</div>" + (all.length ? all.map(row).join("") : '<div class="empty">\uC544\uC9C1 \uCD94\uAC00\uD55C \uAC24\uB7EC\uB9AC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.<br><button class="pill" data-ov="find">\uAC24\uB7EC\uB9AC \uCD94\uAC00</button></div>') + "</div>";
   }
   var PLAIN = ["\uC804\uCCB4", "\uC548\uC77D\uC74C", "ChatGPT"];
   function chatsHtml() {
@@ -809,7 +809,7 @@
     const shownPins = posts.filter((p) => p.notice), allRest = posts.filter((p) => !p.notice), rest = allRest.slice(0, R.shown);
     R.hidden = allRest.length - rest.length;
     const body = !L ? R.listErr ? '<div class="empty">' + esc(R.listErr) + '<br><button class="pill" data-reload>\uB2E4\uC2DC \uC2DC\uB3C4</button></div>' : '<div class="spin">\uBD88\uB7EC\uC624\uB294 \uC911\u2026</div>' : (R.pinOpen ? shownPins : shownPins.slice(0, 1)).map(rowHtml).join("") + (shownPins.length > 1 ? '<button class="pintog" data-pintog aria-expanded="' + R.pinOpen + '" aria-label="' + (R.pinOpen ? "\uACF5\uC9C0 \uC811\uAE30" : "\uACF5\uC9C0 " + (shownPins.length - 1) + "\uAC1C \uB354 \uBCF4\uAE30") + '"></button>' : "") + (rest.length ? rest.map(rowHtml).join("") : '<div class="empty">\uC774 \uD0ED\uC5D0\uB294 \uC544\uC9C1 \uAE00\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.</div>') + (R.hidden > 0 || L.more && !(plain && R.head) ? '<button class="more-row" data-more>' + (R.listBusy ? "\uBD88\uB7EC\uC624\uB294 \uC911\u2026" : "\uC774\uC804 \uAE00 \uB354 \uBCF4\uAE30") + "</button>" : "");
-    return '<div class="head"><h2>\uCC44\uD305 <small>\u25BC</small></h2><button class="ib' + (R.filterOn ? " act" : "") + '" data-filter aria-label="\uAE00 \uAC80\uC0C9">' + I.search + '</button><button class="ib" data-write aria-label="\uAE00\uC4F0\uAE30">' + I.write + "</button>" + cogM + "</div>" + (R.filterOn ? '<div class="searchbar"><input id="filter" placeholder="\uBD88\uB7EC\uC628 \uAE00 \uC81C\uBAA9\uC5D0\uC11C \uCC3E\uAE30" value="' + esc(R.filter) + '"></div>' : "") + '<div class="chips" id="chips">' + tabs.map((t) => '<button class="chip' + (String(t.id) === String(R.head) ? " on" : "") + '" data-h="' + esc(t.id) + '">' + esc(t.name) + "</button>").join("") + '<button class="chip ico' + (R.pinOpen ? " on" : "") + '" data-pintog aria-pressed="' + R.pinOpen + '" aria-label="' + (R.pinOpen ? "\uACF5\uC9C0 \uC811\uAE30" : "\uACF5\uC9C0 \uBAA8\uB450 \uBCF4\uAE30") + '">' + I.listp + (!R.pinOpen && pins.length > 1 ? '<i class="cdot"></i>' : "") + '</button></div><div class="scroll" id="cscroll">' + body + "</div>";
+    return '<div class="head"><h2>\uCC44\uD305 <small>\u25BC</small></h2><button class="ib' + (R.filterOn ? " act" : "") + '" data-filter aria-label="\uAE00 \uAC80\uC0C9">' + I.search + '</button><button class="ib" data-write aria-label="\uAE00\uC4F0\uAE30">' + I.write + '</button><button class="ib d-only" data-refresh aria-label="\uC0C8\uB85C\uACE0\uCE68 (F5)" title="\uC0C8\uB85C\uACE0\uCE68 (F5)">' + I.refresh + "</button>" + cogM + "</div>" + (R.filterOn ? '<div class="searchbar"><input id="filter" placeholder="\uBD88\uB7EC\uC628 \uAE00 \uC81C\uBAA9\uC5D0\uC11C \uCC3E\uAE30" value="' + esc(R.filter) + '"></div>' : "") + '<div class="chips" id="chips">' + tabs.map((t) => '<button class="chip' + (String(t.id) === String(R.head) ? " on" : "") + '" data-h="' + esc(t.id) + '">' + esc(t.name) + "</button>").join("") + '<button class="chip ico' + (R.pinOpen ? " on" : "") + '" data-pintog aria-pressed="' + R.pinOpen + '" aria-label="' + (R.pinOpen ? "\uACF5\uC9C0 \uC811\uAE30" : "\uACF5\uC9C0 \uBAA8\uB450 \uBCF4\uAE30") + '">' + I.listp + (!R.pinOpen && pins.length > 1 ? '<i class="cdot"></i>' : "") + '</button></div><div class="scroll" id="cscroll">' + body + "</div>";
   }
   function overlayHtml() {
     const x = '<button class="ib" data-ov="" aria-label="\uB2EB\uAE30">\u2715</button>';
@@ -1578,6 +1578,8 @@
       showMore();
     } else if (d.reload != null) {
       loadList({ fresh: true });
+    } else if (d.refresh != null) {
+      refresh();
     } else if (d.rreload != null) {
       if (R.room) openPost(R.room.no, true);
     } else if (d.cmore != null) {
@@ -1891,8 +1893,71 @@
     }
     return false;
   };
+  var refreshAt = 0;
+  function refresh() {
+    if (R.write || R.ov || Date.now() - refreshAt < 3e3) return false;
+    refreshAt = Date.now();
+    if (R.room) openPost(R.room.no, true);
+    else if (R.view === "chats") {
+      if (!gal(R.g)) return false;
+      loadList({ fresh: true });
+    } else {
+      if (!D.gals.length) return false;
+      for (const g of D.gals) {
+        const c = R.cache[key(g) + "|"];
+        if (c) c.at = 0;
+      }
+      toast("\uCD5C\uADFC \uAE00\uC744 \uB2E4\uC2DC \uC77D\uB294 \uC911\uC785\uB2C8\uB2E4.");
+      loadLatest();
+    }
+    return true;
+  }
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") window.yjBack();
+    else if (e.key === "F5" || e.ctrlKey && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "r") {
+      e.preventDefault();
+      refresh();
+    }
+  });
+  var ptr = document.createElement("div");
+  ptr.id = "ptr";
+  ptr.innerHTML = I.refresh;
+  document.body.append(ptr);
+  var pull = null;
+  var ptrSet = (y, spin) => {
+    ptr.classList.toggle("spin", !!spin);
+    ptr.classList.toggle("drag", !spin && y > 0);
+    ptr.style.transform = "translate(-50%," + y + "px) rotate(" + y * 4 + "deg)";
+    ptr.style.opacity = y ? Math.min(1, y / 40) : 0;
+  };
+  document.addEventListener("touchstart", (e) => {
+    const s2 = e.target.closest("#fscroll,#cscroll,#rscroll");
+    pull = s2 && s2.scrollTop <= 0 && e.touches.length === 1 ? { s: s2, x: e.touches[0].clientX, y: e.touches[0].clientY, d: 0 } : null;
+  }, { passive: true });
+  document.addEventListener("touchmove", (e) => {
+    if (!pull) return;
+    const t = e.touches[0], dx = t.clientX - pull.x, dy = t.clientY - pull.y;
+    if (!pull.d && (dy < 0 || Math.abs(dx) > Math.abs(dy)) || pull.s.scrollTop > 0) {
+      pull = null;
+      ptrSet(0);
+      return;
+    }
+    pull.d = Math.min(90, dy / 2);
+    ptrSet(pull.d);
+  }, { passive: true });
+  var pullEnd = () => {
+    if (!pull) return;
+    const go = pull.d >= 60;
+    pull = null;
+    if (go && refresh()) {
+      ptrSet(60, true);
+      setTimeout(() => ptrSet(0), 700);
+    } else ptrSet(0);
+  };
+  document.addEventListener("touchend", pullEnd);
+  document.addEventListener("touchcancel", () => {
+    pull = null;
+    ptrSet(0);
   });
   async function unseedFriends() {
     if (!D.seeded || D.unseeded) return;

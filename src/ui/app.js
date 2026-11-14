@@ -97,7 +97,7 @@ function friendsHtml(){
  const row=g=>{const k=key(g),st=D.aliasOn?alias(g).stat:R.latest[k]?.title||'';
   return '<button class="row'+(k===R.g?' sel':'')+'" data-g="'+esc(k)+'" data-lp="gal">'+(R.updated[k]?'<i class="dot"></i>':'')+galAv(g)+'<span class="tx"><b>'+esc(gname(g))+'</b>'+(st?'<span class="st">'+esc(st)+'</span>':'')+'</span></button>'};
  const favs=D.favs.map(gal).filter(Boolean),upd=D.gals.filter(g=>R.updated[key(g)]),all=[...D.gals].sort((a,b)=>gname(a).localeCompare(gname(b),'ko'));
- return '<div class="head fr"><h2>친구</h2><button class="who m-only" data-ov="log" aria-label="내 프로필 열기">'+meAv()+'<span>'+esc(D.me.name)+'</span></button><button class="ib" data-ov="find" aria-label="갤러리 검색">'+I.search+'</button><button class="ib" data-ov="find" aria-label="갤러리 추가">'+I.plusGal+'</button>'+cogM+'</div>'+
+ return '<div class="head fr"><h2>친구</h2><button class="who m-only" data-ov="log" aria-label="내 프로필 열기">'+meAv()+'<span>'+esc(D.me.name)+'</span></button><button class="ib" data-ov="find" aria-label="갤러리 검색">'+I.search+'</button><button class="ib" data-ov="find" aria-label="갤러리 추가">'+I.plusGal+'</button><button class="ib d-only" data-refresh aria-label="새로고침 (F5)" title="새로고침 (F5)">'+I.refresh+'</button>'+cogM+'</div>'+
   '<div class="scroll" id="fscroll">'+
   /* 휴대폰 친구 화면 맨 위의 광고 칸: 누르면 블카이브를 기기의 브라우저로 엽니다. */
   '<button class="adb m-only" data-url="https://blinkarea.synology.me/" aria-label="광고: 블카이브 열기"><span class="tx"><b>블랙핑크의 모든 기록, 블카이브</b><span>사진·영상·음원 기록을 한곳에서</span><i>지금 구경하기 ›</i></span><span class="logo"><b>블카이브</b><i>BLINK AREA</i></span><em>AD</em></button>'+
@@ -135,7 +135,7 @@ function chatsHtml(){
   (R.pinOpen?shownPins:shownPins.slice(0,1)).map(rowHtml).join('')+(shownPins.length>1?'<button class="pintog" data-pintog aria-expanded="'+R.pinOpen+'" aria-label="'+(R.pinOpen?'공지 접기':'공지 '+(shownPins.length-1)+'개 더 보기')+'"></button>':'')+
   (rest.length?rest.map(rowHtml).join(''):'<div class="empty">이 탭에는 아직 글이 없습니다.</div>')+
   (R.hidden>0||(L.more&&!(plain&&R.head))?'<button class="more-row" data-more>'+(R.listBusy?'불러오는 중…':'이전 글 더 보기')+'</button>':'');
- return '<div class="head"><h2>채팅 <small>▼</small></h2><button class="ib'+(R.filterOn?' act':'')+'" data-filter aria-label="글 검색">'+I.search+'</button><button class="ib" data-write aria-label="글쓰기">'+I.write+'</button>'+cogM+'</div>'+
+ return '<div class="head"><h2>채팅 <small>▼</small></h2><button class="ib'+(R.filterOn?' act':'')+'" data-filter aria-label="글 검색">'+I.search+'</button><button class="ib" data-write aria-label="글쓰기">'+I.write+'</button><button class="ib d-only" data-refresh aria-label="새로고침 (F5)" title="새로고침 (F5)">'+I.refresh+'</button>'+cogM+'</div>'+
   (R.filterOn?'<div class="searchbar"><input id="filter" placeholder="불러온 글 제목에서 찾기" value="'+esc(R.filter)+'"></div>':'')+
   '<div class="chips" id="chips">'+tabs.map(t=>'<button class="chip'+(String(t.id)===String(R.head)?' on':'')+'" data-h="'+esc(t.id)+'">'+esc(t.name)+'</button>').join('')+
   '<button class="chip ico'+(R.pinOpen?' on':'')+'" data-pintog aria-pressed="'+R.pinOpen+'" aria-label="'+(R.pinOpen?'공지 접기':'공지 모두 보기')+'">'+I.listp+(!R.pinOpen&&pins.length>1?'<i class="cdot"></i>':'')+'</button></div>'+
@@ -502,6 +502,7 @@ document.addEventListener('click',e=>{
  else if(d.nfold!=null){R.nfold=!R.nfold;renderRoom(true)}
  else if(d.more!=null){showMore()}
  else if(d.reload!=null){loadList({fresh:true})}
+ else if(d.refresh!=null){refresh()}
  else if(d.rreload!=null){if(R.room)openPost(R.room.no,true)}
  else if(d.cmore!=null){moreComments()}
  else if(d.back!=null){R.room=null;R.roomSeq++;renderRoom();renderPane()}
@@ -571,7 +572,28 @@ window.yjBack=()=>{if(!$('#viewer').hidden){$('#viewer').hidden=true;return true
  if(R.cpanel||R.tpanel||R.menu!=null){R.cpanel=R.tpanel=false;R.menu=null;renderRoom(true);return true}
  if(R.ov){R.ov='';renderPane();return true}
  if(R.room){R.room=null;R.roomSeq++;renderRoom();renderPane();return true}if(R.view==='chats'){R.view='friends';renderPane();return true}return false};
-document.addEventListener('keydown',e=>{if(e.key==='Escape')window.yjBack()});
+/* ---------- 새로고침 ---------- */
+/* 지금 보이는 화면을 다시 읽습니다: 열려 있는 글, 글 목록, 친구 목록의 최근 글 순서로 봅니다. 디시가 막지 않도록 3초 안에는 다시 받지 않습니다. */
+let refreshAt=0;
+function refresh(){
+ if(R.write||R.ov||Date.now()-refreshAt<3000)return false;refreshAt=Date.now();
+ if(R.room)openPost(R.room.no,true);
+ else if(R.view==='chats'){if(!gal(R.g))return false;loadList({fresh:true})}
+ else{if(!D.gals.length)return false;for(const g of D.gals){const c=R.cache[key(g)+'|'];if(c)c.at=0}toast('최근 글을 다시 읽는 중입니다.');loadLatest()}
+ return true;
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')window.yjBack();
+ else if(e.key==='F5'||(e.ctrlKey&&!e.shiftKey&&!e.altKey&&e.key.toLowerCase()==='r')){e.preventDefault();refresh()}});
+/* 휴대폰: 목록이 맨 위일 때 아래로 당겼다 놓으면 새로고침합니다. */
+const ptr=document.createElement('div');ptr.id='ptr';ptr.innerHTML=I.refresh;document.body.append(ptr);
+let pull=null;
+const ptrSet=(y,spin)=>{ptr.classList.toggle('spin',!!spin);ptr.classList.toggle('drag',!spin&&y>0);ptr.style.transform='translate(-50%,'+y+'px) rotate('+y*4+'deg)';ptr.style.opacity=y?Math.min(1,y/40):0};
+document.addEventListener('touchstart',e=>{const s=e.target.closest('#fscroll,#cscroll,#rscroll');pull=s&&s.scrollTop<=0&&e.touches.length===1?{s,x:e.touches[0].clientX,y:e.touches[0].clientY,d:0}:null},{passive:true});
+document.addEventListener('touchmove',e=>{if(!pull)return;const t=e.touches[0],dx=t.clientX-pull.x,dy=t.clientY-pull.y;
+ if(!pull.d&&(dy<0||Math.abs(dx)>Math.abs(dy))||pull.s.scrollTop>0){pull=null;ptrSet(0);return}
+ pull.d=Math.min(90,dy/2);ptrSet(pull.d)},{passive:true});
+const pullEnd=()=>{if(!pull)return;const go=pull.d>=60;pull=null;if(go&&refresh()){ptrSet(60,true);setTimeout(()=>ptrSet(0),700)}else ptrSet(0)};
+document.addEventListener('touchend',pullEnd);document.addEventListener('touchcancel',()=>{pull=null;ptrSet(0)});
 
 /* 0.1.6~0.1.8은 친구 목록에 디시 흥한 갤러리 20개를 자동으로 넣었습니다. 그 기능을 없애면서, 그때 들어간 갤러리를 한 번 치웁니다.
    흥한 갤러리 순위에 있고, 즐겨찾기가 아니고, 한 번도 열어 본 적 없는 정식 갤러리만 지웁니다. 직접 추가해 쓰던 갤러리는 남습니다. */
