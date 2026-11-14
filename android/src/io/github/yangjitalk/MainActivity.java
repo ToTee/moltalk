@@ -336,6 +336,13 @@ public class MainActivity extends Activity {
             // 화면 전체가 디시 밖으로 나가는 것만 막습니다. '사람인지 확인' 상자처럼 화면 안에 들어가는 틀은 그대로 둡니다.
             return request.isForMainFrame() && !dcUrl(request.getUrl().toString());
         }
+        /** 숨겨서 진행하는 작업은 광고·통계 같은 바깥 요청을 받지 않아 화면이 빨리 열립니다. 디시와 '사람인지 확인'(클라우드플레어)만 통과시킵니다. */
+        @Override public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+            if (jobVisible) return null;
+            String host = request.getUrl().getHost();
+            if (host == null || dcUrl(request.getUrl().toString()) || host.equals("challenges.cloudflare.com")) return null;
+            return new WebResourceResponse("text/plain", "utf-8", new java.io.ByteArrayInputStream(new byte[0]));
+        }
         @Override public void onPageFinished(WebView view, String url) {
             if (jobId == null || url == null || url.startsWith("about:")) return;
             if (jobVisible) {

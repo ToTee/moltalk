@@ -172,8 +172,12 @@ const SCRIPTS={
  // 글쓰기: 글과 사진을 보낸 순서대로 본문에 넣고 등록합니다. 등록되면 화면이 글 목록으로 넘어갑니다.
  async write(a,h){
   if(!h.user())return {need:'login'};
-  const subject=document.querySelector('#subject'),box=document.querySelector('#textbox');
+  /* 디시 글쓰기 칸은 편집기(summernote)가 만든 .note-editable 이 실제 본문입니다. #textbox 에 넣으면 등록할 때 빈 글로 읽힙니다. */
+  const subject=document.querySelector('#subject'),box=await h.until(()=>document.querySelector('.note-editable'),8000);
   if(!subject||!box)return {error:'글쓰기 화면을 열지 못했습니다.'};
+  if(!box.textContent.trim()&&!box.querySelector('img,video,iframe'))box.innerHTML='';
+  /* 사진·영상은 편집기가 커서 자리에 넣으므로, 올리기 전에 커서를 본문 맨 끝으로 옮깁니다. */
+  const toEnd=()=>{box.focus();const r=document.createRange();r.selectNodeContents(box);r.collapse(false);const s=window.getSelection();s.removeAllRanges();s.addRange(r);try{window.jQuery('#textbox').summernote('saveRange')}catch(e){}};
   subject.value=a.title;subject.dispatchEvent(new Event('input',{bubbles:true}));
   if(a.head!==''&&a.head!=null){const pick=document.querySelector('li.swiper-slide[data-no="'+a.head+'"] a');if(pick)pick.click();const hid=document.querySelector('#headtext');if(hid)hid.value=a.head}
   const media=()=>box.querySelectorAll('img,video,.block').length;
@@ -182,15 +186,16 @@ const SCRIPTS={
    const bin=atob(b.b64),bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
    const input=document.querySelector(b.t==='video'?'#upload_movie':'#upload');if(!input)return {error:'첨부 칸을 찾지 못했습니다.'};
    const dt=new DataTransfer();dt.items.add(new File([bytes],b.name,{type:b.type}));input.files=dt.files;
-   const before=media();input.dispatchEvent(new Event('change',{bubbles:true}));
+   toEnd();const before=media();input.dispatchEvent(new Event('change',{bubbles:true}));
    if(!await h.until(()=>media()>before,b.t==='video'?240000:60000))return {error:(h.alerts.join(' ')||'첨부를 올리지 못했습니다')+': '+b.name};
    await h.wait(500);
   }
   box.dispatchEvent(new Event('input',{bubbles:true}));
   if(!await h.human(document.body))return h.HUMAN_FAIL;
   window.write_submit();
-  await h.wait(20000);
-  return {error:h.alerts.join(' ')||'등록 응답을 확인하지 못했습니다.'};
+  /* 등록되면 화면이 글 목록으로 넘어가면서 이 작업이 끝납니다. 디시가 안내 창(alert)을 띄우면 그 내용을 바로 돌려줍니다. */
+  await h.until(()=>h.alerts.length,25000);
+  return {error:h.alerts.join(' ')||'등록 응답을 확인하지 못했습니다. 글 목록에서 올라갔는지 확인해 주세요.'};
  }
 };
 

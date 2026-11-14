@@ -24,8 +24,12 @@ export function toBlocks(root){
   if(tag==='script'||tag==='style')continue;
   if(tag==='br'){buf+='\n';continue}
   if(tag==='img'){const src=abs(c.getAttribute('data-original')||c.getAttribute('data-src')||c.getAttribute('src')||'');if(/^https:\/\//.test(src)){flush();out.push({t:/dccon/.test(c.getAttribute('class')||'')?'dccon':'img',src,alt:c.getAttribute('alt')||c.getAttribute('title')||''})}continue}
-  /* 움직이는 디시콘은 본문에 영상으로 들어가고, 주소가 src 대신 data-src에만 있는 경우가 있습니다. */
-  if(tag==='video'){const con=/dccon/.test(c.getAttribute('class')||''),src=abs(c.getAttribute('src')||c.querySelector('source')?.getAttribute('src')||c.getAttribute('data-src')||'');if(/^https:\/\//.test(src)){flush();out.push(con?{t:'dccon',src,video:true,alt:c.getAttribute('title')||''}:{t:'video',src,poster:abs(c.getAttribute('poster')||'')})}continue}
+  /* 움직이는 디시콘은 영상(mp4) 태그로 들어오지만, data-src에 같은 그림의 움직이는 그림(gif) 주소가 함께 있습니다.
+     기기에 따라 영상이 재생되지 않을 수 있어 그림 주소를 먼저 쓰고, 영상 주소는 그림을 못 읽을 때만 씁니다. */
+  if(tag==='video'){const con=/dccon/.test(c.getAttribute('class')||''),file=abs(c.getAttribute('src')||c.querySelector('source')?.getAttribute('src')||''),pic=abs(c.getAttribute('data-src')||''),ok=u=>/^https:\/\//.test(u);
+   if(con){if(ok(pic)||ok(file)){flush();out.push(ok(pic)?{t:'dccon',src:pic,mp4:ok(file)&&file!==pic?file:'',alt:c.getAttribute('title')||''}:{t:'dccon',src:file,video:true,alt:c.getAttribute('title')||''})}}
+   else if(ok(file)){flush();out.push({t:'video',src:file,poster:abs(c.getAttribute('poster')||'')})}
+   continue}
   if(tag==='iframe'||tag==='embed'){const src=abs(c.getAttribute('src')||'');if(src){flush();out.push({t:'embed',src})}continue}
   const cls=c.getAttribute('class')||'';
   if(/txtdccon/.test(cls)){const v=c.textContent.trim(),inner=c.querySelector('[class*="ctxt_"]');if(v){flush();out.push({t:'txtcon',v,bg:(cls.match(/cbg_([0-9a-f]{6})/i)||[])[1]||'3b4890',fg:((inner?.getAttribute('class')||'').match(/ctxt_([0-9a-f]{6})/i)||[])[1]||'ffffff'})}continue}

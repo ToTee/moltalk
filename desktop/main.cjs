@@ -39,9 +39,17 @@ function diagSetup(){
  });
 }
 
+/* 숨겨서 진행하는 공식 화면 작업(댓글 등록 등)의 창 번호. 이 창들은 디시 밖의 광고·통계 요청을 받지 않아 빨리 열립니다. */
+const hiddenJobs=new Set();
 function setupSession(){
  const ses=session.defaultSession;
  ses.setUserAgent(UA);
+ ses.webRequest.onBeforeRequest((d,done)=>{
+  if(!hiddenJobs.has(d.webContentsId))return done({});
+  let host='';try{host=new URL(d.url).hostname}catch{}
+  const human=host==='challenges.cloudflare.com';/* '사람인지 확인' 상자는 그대로 둡니다. */
+  done({cancel:!human&&!dcUrl(d.url)});
+ });
  // 디시 이미지 서버는 Referer가 없으면 거절합니다. 화면에서 보낸 요청에 Referer를 채웁니다.
  ses.webRequest.onBeforeSendHeaders({urls:['https://*.dcinside.com/*','https://*.dcinside.co.kr/*']},(details,done)=>{
   const h=details.requestHeaders,custom=Object.keys(h).find(k=>k.toLowerCase()==='x-yj-referer');
@@ -82,7 +90,7 @@ function helperWindow(show){
 // 공식 화면을 보이지 않는 창에서 열고 스크립트를 실행해 결과를 돌려줍니다. 화면이 다른 주소로 넘어가면(글 등록 완료 등) 그 주소를 돌려줍니다.
 ipcMain.handle('drive',async(event,url,code,opt={})=>{
  if(!dcUrl(url)||typeof code!=='string')throw Error('디시인사이드 주소만 열 수 있습니다.');
- const w=helperWindow(false);let timer;
+ const w=helperWindow(false);let timer;const wcId=w.webContents.id;hiddenJobs.add(wcId);
  try{
   await w.loadURL(url).catch(()=>{});
   if(!dcUrl(w.webContents.getURL()))return {error:'화면을 열지 못했습니다.'};
@@ -97,7 +105,7 @@ ipcMain.handle('drive',async(event,url,code,opt={})=>{
   const closed=new Promise(res=>w.once('closed',()=>res({error:'창을 닫아 등록을 취소했습니다.'})));
   const run=w.webContents.executeJavaScript(code,true).catch(async err=>{await sleep(2500);return {error:'처리 중 오류가 났습니다: '+err.message}});
   return await Promise.race([run,nav,timeout,closed]);
- }finally{clearTimeout(timer);if(!w.isDestroyed())w.destroy()}
+ }finally{clearTimeout(timer);hiddenJobs.delete(wcId);if(!w.isDestroyed())w.destroy()}
 });
 // 공식 화면을 사용자에게 보여 줍니다(로그인, 보안 문자 입력 등). 창을 닫거나 closeOn 주소에 도달하면 끝납니다.
 ipcMain.handle('official',(event,url,opt={})=>new Promise(resolve=>{

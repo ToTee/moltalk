@@ -39,10 +39,15 @@
           continue;
         }
         if (tag === "video") {
-          const con = /dccon/.test(c.getAttribute("class") || ""), src = abs(c.getAttribute("src") || c.querySelector("source")?.getAttribute("src") || c.getAttribute("data-src") || "");
-          if (/^https:\/\//.test(src)) {
+          const con = /dccon/.test(c.getAttribute("class") || ""), file = abs(c.getAttribute("src") || c.querySelector("source")?.getAttribute("src") || ""), pic = abs(c.getAttribute("data-src") || ""), ok = (u) => /^https:\/\//.test(u);
+          if (con) {
+            if (ok(pic) || ok(file)) {
+              flush();
+              out.push(ok(pic) ? { t: "dccon", src: pic, mp4: ok(file) && file !== pic ? file : "", alt: c.getAttribute("title") || "" } : { t: "dccon", src: file, video: true, alt: c.getAttribute("title") || "" });
+            }
+          } else if (ok(file)) {
             flush();
-            out.push(con ? { t: "dccon", src, video: true, alt: c.getAttribute("title") || "" } : { t: "video", src, poster: abs(c.getAttribute("poster") || "") });
+            out.push({ t: "video", src: file, poster: abs(c.getAttribute("poster") || "") });
           }
           continue;
         }
@@ -469,8 +474,22 @@
     // 글쓰기: 글과 사진을 보낸 순서대로 본문에 넣고 등록합니다. 등록되면 화면이 글 목록으로 넘어갑니다.
     async write(a, h) {
       if (!h.user()) return { need: "login" };
-      const subject = document.querySelector("#subject"), box = document.querySelector("#textbox");
+      const subject = document.querySelector("#subject"), box = await h.until(() => document.querySelector(".note-editable"), 8e3);
       if (!subject || !box) return { error: "\uAE00\uC4F0\uAE30 \uD654\uBA74\uC744 \uC5F4\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4." };
+      if (!box.textContent.trim() && !box.querySelector("img,video,iframe")) box.innerHTML = "";
+      const toEnd = () => {
+        box.focus();
+        const r = document.createRange();
+        r.selectNodeContents(box);
+        r.collapse(false);
+        const s2 = window.getSelection();
+        s2.removeAllRanges();
+        s2.addRange(r);
+        try {
+          window.jQuery("#textbox").summernote("saveRange");
+        } catch (e) {
+        }
+      };
       subject.value = a.title;
       subject.dispatchEvent(new Event("input", { bubbles: true }));
       if (a.head !== "" && a.head != null) {
@@ -497,6 +516,7 @@
         const dt = new DataTransfer();
         dt.items.add(new File([bytes], b.name, { type: b.type }));
         input.files = dt.files;
+        toEnd();
         const before = media();
         input.dispatchEvent(new Event("change", { bubbles: true }));
         if (!await h.until(() => media() > before, b.t === "video" ? 24e4 : 6e4)) return { error: (h.alerts.join(" ") || "\uCCA8\uBD80\uB97C \uC62C\uB9AC\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4") + ": " + b.name };
@@ -505,8 +525,8 @@
       box.dispatchEvent(new Event("input", { bubbles: true }));
       if (!await h.human(document.body)) return h.HUMAN_FAIL;
       window.write_submit();
-      await h.wait(2e4);
-      return { error: h.alerts.join(" ") || "\uB4F1\uB85D \uC751\uB2F5\uC744 \uD655\uC778\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4." };
+      await h.until(() => h.alerts.length, 25e3);
+      return { error: h.alerts.join(" ") || "\uB4F1\uB85D \uC751\uB2F5\uC744 \uD655\uC778\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4. \uAE00 \uBAA9\uB85D\uC5D0\uC11C \uC62C\uB77C\uAC14\uB294\uC9C0 \uD655\uC778\uD574 \uC8FC\uC138\uC694." };
     }
   };
   function script(name, args = {}) {
@@ -865,13 +885,13 @@
   var conVideo = (src, alt) => '<video class="dcon1" autoplay loop muted playsinline src="' + esc(src) + '" aria-label="' + esc(alt || "\uB514\uC2DC\uCF58") + '"></video>';
   document.addEventListener("error", (e) => {
     const n = e.target;
-    if (n.tagName === "IMG" && n.classList.contains("dcon1") && n.isConnected) n.outerHTML = conVideo(n.src, n.alt);
+    if (n.tagName === "IMG" && n.classList.contains("dcon1") && n.isConnected) n.outerHTML = conVideo(n.dataset.mp4 || n.src, n.alt);
   }, true);
   function blockHtml(b, q = "") {
     if (b.t === "text") return bub(b.v, q);
     if (b.t === "img") return '<img class="media" loading="lazy" src="' + esc(b.src) + '" alt="' + esc(b.alt || "\uBCF8\uBB38 \uC0AC\uC9C4") + '" data-zoom>';
     if (b.t === "txtcon") return '<div class="tcon" style="' + tstyle(b.v, b.bg, b.fg) + '">' + esc(b.v) + "</div>";
-    if (b.t === "dccon") return b.video ? conVideo(b.src, b.alt) : '<img class="dcon1" loading="lazy" src="' + esc(b.src) + '" alt="' + esc(b.alt || "\uB514\uC2DC\uCF58") + '">';
+    if (b.t === "dccon") return b.video ? conVideo(b.src, b.alt) : '<img class="dcon1" loading="lazy" src="' + esc(b.src) + '"' + (b.mp4 ? ' data-mp4="' + esc(b.mp4) + '"' : "") + ' alt="' + esc(b.alt || "\uB514\uC2DC\uCF58") + '">';
     if (b.t === "video") return '<video class="media" controls preload="none" src="' + esc(b.src) + '"' + (b.poster ? ' poster="' + esc(b.poster) + '"' : "") + "></video>";
     return '<button class="embed" data-url="' + esc(b.src) + '">\uB3D9\uC601\uC0C1\xB7\uC678\uBD80 \uCF58\uD150\uCE20 \uC5F4\uAE30</button>';
   }
