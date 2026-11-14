@@ -13,6 +13,15 @@ export function boardUrl(g,action){
  return BASE+'/'+(g.type==='minor'?'mgallery/':g.type==='mini'?'mini/':'')+'board/'+action+'/?id='+g.id;
 }
 
+// 본문에 올린 동영상의 재생 창 주소
+const MOVIE=/^https:\/\/gall\.dcinside\.com\/board\/movie\/movie_view\?no=\d+$/;
+/* 재생 창 화면에서 실제 영상 주소와 미리 보기 그림 주소를 꺼냅니다. */
+export function parseMovie(doc){
+ const v=doc.querySelector('video#dc_mv')||doc.querySelector('video'),src=abs(v?.querySelector('source')?.getAttribute('src')||v?.getAttribute('src')||''),poster=abs(v?.getAttribute('poster')||'');
+ if(!/^https:\/\//.test(src))throw Error('동영상 주소를 찾지 못했습니다.');
+ return {src,poster:/^https:\/\//.test(poster)?poster:''};
+}
+
 // 본문·댓글 HTML을 화면에 나온 순서 그대로 글/사진/영상 블록으로 나눕니다.
 export function toBlocks(root){
  const out=[];let buf='';
@@ -34,7 +43,8 @@ export function toBlocks(root){
    continue}
   /* 트위터(X) 글: 본문에는 주소만 든 빈 칸으로 들어옵니다. 주소를 글자로 꺼내 누를 수 있게 합니다. */
   {const xu=c.getAttribute('data-x-url')||'';if(/^https:\/\//.test(xu)){if(buf&&!buf.endsWith('\n'))buf+='\n';buf+=xu+'\n';continue}}
-  if(tag==='iframe'||tag==='embed'){const src=abs(c.getAttribute('src')||'');if(src){flush();out.push({t:'embed',src})}continue}
+  /* 본문에 올린 동영상은 디시의 재생 창(movie_view) 주소로 들어옵니다. 앱 안에서 틀 수 있게 따로 표시합니다. */
+  if(tag==='iframe'||tag==='embed'){const src=abs(c.getAttribute('src')||'');if(src){flush();out.push({t:MOVIE.test(src)?'movie':'embed',src})}continue}
   const cls=c.getAttribute('class')||'';
   /* 글자콘은 본문·댓글 화면에 따라 이름표가 다릅니다(txtdccon, 댓글 응답에서는 coment_dccon_txt). 둘 다 글자콘으로 읽습니다. */
   if(/txtdccon|coment_dccon_txt/.test(cls)){const v=c.textContent.trim(),inner=c.querySelector('[class*="ctxt_"]');if(v){flush();out.push({t:'txtcon',v,bg:(cls.match(/cbg_([0-9a-f]{6})/i)||[])[1]||'3b4890',fg:((inner?.getAttribute('class')||'').match(/ctxt_([0-9a-f]{6})/i)||[])[1]||'ffffff'})}continue}
@@ -73,7 +83,7 @@ export function toHtml(root){
    if(ok(pic))out+='<img loading="lazy" src="'+hesc(pic)+'" alt="'+hesc(c.getAttribute('title')||(/dccon/.test(c.getAttribute('class')||'')?'디시콘':'움짤'))+'"'+(/dccon/.test(c.getAttribute('class')||'')?'':' data-zoom')+'>';
    else if(ok(file))out+='<video class="gifv" loop muted playsinline preload="metadata" src="'+hesc(file)+'"'+(ok(poster)?' poster="'+hesc(poster)+'"':'')+'></video>';
    continue}
-  if(tag==='iframe'||tag==='embed'){const src=abs(c.getAttribute('src')||'');if(/^https?:\/\//.test(src))out+='<button class="embed" data-url="'+hesc(src)+'">동영상·외부 콘텐츠 열기</button>';continue}
+  if(tag==='iframe'||tag==='embed'){const src=abs(c.getAttribute('src')||'');if(MOVIE.test(src))out+='<button class="embed movie" data-movie="'+hesc(src)+'">▶ 동영상 재생</button>';else if(/^https?:\/\//.test(src))out+='<button class="embed" data-url="'+hesc(src)+'">동영상·외부 콘텐츠 열기</button>';continue}
   {const xu=c.getAttribute('data-x-url')||'';if(ok(xu)){out+='<p><a href="'+hesc(xu)+'" data-url="'+hesc(xu)+'">'+hesc(xu)+'</a></p>';continue}}
   if(tag==='a'){const href=abs(c.getAttribute('href')||''),link=/^https?:\/\//.test(href);out+=link?'<a href="'+hesc(href)+'" data-url="'+hesc(href)+'"'+attrs(c)+'>':'<span'+attrs(c)+'>';walk(c);out+=link?'</a>':'</span>';continue}
   if(HTML_TAGS.test(tag)){if(tag==='hr'){out+='<hr'+attrs(c)+'>';continue}out+='<'+tag+attrs(c)+'>';walk(c);out+='</'+tag+'>';continue}
@@ -148,6 +158,8 @@ export function createDc({http,parse}){
   /* rec: 개념글만 봅니다(디시 목록의 "개념글" 탭과 같은 주소). */
   async listPosts(g,{page=1,head='',rec=false}={}){if(head!==''&&!/^\d{1,6}$/.test(String(head)))throw Error('잘못된 말머리입니다.');return parseList(parse(await get(boardUrl(g,'lists')+'&page='+Math.max(1,page|0)+(head!==''?'&search_head='+head:'')+(rec?'&exception_mode=recommend':''))))},
   async readPost(g,no){if(!/^\d+$/.test(String(no)))throw Error('잘못된 글 번호입니다.');return parseView(parse(await get(boardUrl(g,'view')+'&no='+no)),no)},
+  /* 본문 동영상: 재생 단추를 눌렀을 때만 재생 창 화면을 한 번 읽습니다. */
+  async readMovie(url){if(!MOVIE.test(String(url)))throw Error('잘못된 동영상 주소입니다.');return parseMovie(parse(await get(url)))},
   async readComments(g,no,token,page=1){
    const r=await http(BASE+'/board/comment/',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded; charset=UTF-8','X-Requested-With':'XMLHttpRequest',Referer:boardUrl(g,'view')+'&no='+no},
     body:new URLSearchParams({id:g.id,no:String(no),cmt_id:g.id,cmt_no:String(no),e_s_n_o:token,comment_page:String(page),sort:'D',prevCnt:'0',_GALLTYPE_:GTYPE[g.type]}).toString()});

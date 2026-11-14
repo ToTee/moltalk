@@ -290,6 +290,13 @@ public class MainActivity extends Activity {
             String safe = "(()=>{try{return JSON.parse(" + JSONObject.quote(json == null ? "null" : json) + ")}catch(e){return {error:'응답을 해석하지 못했습니다.'}}})()";
             ui.post(() -> { if (id != null && id.equals(jobToken) && jobId != null && !jobVisible) finishJob(safe); });
         }
+        /** 사진·동영상 올리기 진행 상황을 앱 화면에 전합니다. 공식 화면에서 온 글자는 문자열로 감싸서만 넘깁니다. */
+        @JavascriptInterface public void progress(String token, String json) {
+            ui.post(() -> {
+                if (jobId == null || token == null || !token.equals(jobToken) || json == null || json.length() > 500) return;
+                main.evaluateJavascript("window.__yjProgress&&window.__yjProgress(" + JSONObject.quote(json) + ")", null);
+            });
+        }
         /** '사람인지 확인'처럼 직접 눌러야 하는 일이 생기면 숨겨 둔 공식 화면을 잠깐 보여 줍니다. */
         @JavascriptInterface public void show(String token, boolean on) {
             ui.post(() -> {
@@ -375,7 +382,7 @@ public class MainActivity extends Activity {
                 jobInjectedUrl = url;
                 // 결과를 돌려줄 때는 작업마다 새로 만든 표식을 함께 보내야 합니다. 화면 안에 끼워진 다른 사이트의 틀은 이 표식을 볼 수 없습니다.
                 String id = JSONObject.quote(jobToken);
-                view.evaluateJavascript("window.__yjShow=on=>YJD.show(" + id + ",!!on);(async()=>{try{const r=await (" + jobCode + ");YJD.done(" + id + ",JSON.stringify(r===undefined?null:r))}catch(e){YJD.done(" + id + ",JSON.stringify({error:'처리 중 오류가 났습니다: '+(e&&e.message||e)}))}})()", null);
+                view.evaluateJavascript("window.__yjShow=on=>YJD.show(" + id + ",!!on);window.__yjProg=s=>YJD.progress(" + id + ",String(s));(async()=>{try{const r=await (" + jobCode + ");YJD.done(" + id + ",JSON.stringify(r===undefined?null:r))}catch(e){YJD.done(" + id + ",JSON.stringify({error:'처리 중 오류가 났습니다: '+(e&&e.message||e)}))}})()", null);
             } else if (!url.equals(jobInjectedUrl)) {
                 // 스크립트 실행 뒤 화면이 다른 주소로 넘어갔습니다(글 등록 완료 등).
                 try { finishJob(new JSONObject().put("navigated", url).toString()); } catch (Exception e) { finishJob("{\"navigated\":\"\"}"); }

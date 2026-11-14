@@ -113,6 +113,8 @@ ipcMain.handle('drive',async(event,url,code,opt={})=>{
    w.webContents.on('console-message',(e,level,message)=>{const m=typeof message==='string'?message:e&&e.message;
     /* '사람인지 확인'이 실패하면 클라우드플레어가 실패 번호를 콘솔에 남깁니다. 원인을 찾을 수 있게 진단 기록에 적어 둡니다(글 내용은 적지 않습니다). */
     if(/turnstile|cloudflare/i.test(String(m||'')))diag('human',String(m).slice(0,300));
+    /* 사진·동영상 올리기 진행 상황: 작업을 맡긴 앱 화면에 그대로 전합니다. */
+    if(typeof m==='string'&&m.startsWith('__YJ_PROG__')){if(!event.sender.isDestroyed())event.sender.send('drive-progress',m.slice(11));return}
     if(m==='__YJ_SHOW__'||m==='__YJ_HIDE__')diag('human',m);
     if(m==='__YJ_SHOW__'){w.setContentSize(380,230);w.center();w.setTitle('사람인지 확인');w.show();arm(200000)}else if(m==='__YJ_HIDE__'){w.hide();arm(limit)}});
   });

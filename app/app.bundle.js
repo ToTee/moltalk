@@ -9,6 +9,12 @@
     if (!GTYPE[g.type]) throw Error("\uC9C0\uC6D0\uD558\uC9C0 \uC54A\uB294 \uAC24\uB7EC\uB9AC \uC885\uB958\uC785\uB2C8\uB2E4.");
     return BASE + "/" + (g.type === "minor" ? "mgallery/" : g.type === "mini" ? "mini/" : "") + "board/" + action + "/?id=" + g.id;
   }
+  var MOVIE = /^https:\/\/gall\.dcinside\.com\/board\/movie\/movie_view\?no=\d+$/;
+  function parseMovie(doc) {
+    const v = doc.querySelector("video#dc_mv") || doc.querySelector("video"), src = abs(v?.querySelector("source")?.getAttribute("src") || v?.getAttribute("src") || ""), poster = abs(v?.getAttribute("poster") || "");
+    if (!/^https:\/\//.test(src)) throw Error("\uB3D9\uC601\uC0C1 \uC8FC\uC18C\uB97C \uCC3E\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.");
+    return { src, poster: /^https:\/\//.test(poster) ? poster : "" };
+  }
   function toBlocks(root) {
     const out = [];
     let buf = "";
@@ -66,7 +72,7 @@
           const src = abs(c.getAttribute("src") || "");
           if (src) {
             flush();
-            out.push({ t: "embed", src });
+            out.push({ t: MOVIE.test(src) ? "movie" : "embed", src });
           }
           continue;
         }
@@ -143,7 +149,8 @@
         }
         if (tag === "iframe" || tag === "embed") {
           const src = abs(c.getAttribute("src") || "");
-          if (/^https?:\/\//.test(src)) out += '<button class="embed" data-url="' + hesc(src) + '">\uB3D9\uC601\uC0C1\xB7\uC678\uBD80 \uCF58\uD150\uCE20 \uC5F4\uAE30</button>';
+          if (MOVIE.test(src)) out += '<button class="embed movie" data-movie="' + hesc(src) + '">\u25B6 \uB3D9\uC601\uC0C1 \uC7AC\uC0DD</button>';
+          else if (/^https?:\/\//.test(src)) out += '<button class="embed" data-url="' + hesc(src) + '">\uB3D9\uC601\uC0C1\xB7\uC678\uBD80 \uCF58\uD150\uCE20 \uC5F4\uAE30</button>';
           continue;
         }
         {
@@ -297,6 +304,11 @@
         if (!/^\d+$/.test(String(no))) throw Error("\uC798\uBABB\uB41C \uAE00 \uBC88\uD638\uC785\uB2C8\uB2E4.");
         return parseView(parse(await get(boardUrl(g, "view") + "&no=" + no)), no);
       },
+      /* 본문 동영상: 재생 단추를 눌렀을 때만 재생 창 화면을 한 번 읽습니다. */
+      async readMovie(url) {
+        if (!MOVIE.test(String(url))) throw Error("\uC798\uBABB\uB41C \uB3D9\uC601\uC0C1 \uC8FC\uC18C\uC785\uB2C8\uB2E4.");
+        return parseMovie(parse(await get(url)));
+      },
       async readComments(g, no, token, page = 1) {
         const r = await http(BASE + "/board/comment/", {
           method: "POST",
@@ -427,7 +439,15 @@
       return !!ok;
     };
     const HUMAN_FAIL = { error: "'\uC0AC\uB78C\uC778\uC9C0 \uD655\uC778'\uC744 \uB9C8\uCE58\uC9C0 \uBABB\uD574 \uB4F1\uB85D\uD558\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4. \uB2E4\uC2DC \uC2DC\uB3C4\uD574 \uC8FC\uC138\uC694." };
-    return { alerts, wait, until, ajax, user, guest, done, form, human, HUMAN_FAIL };
+    const prog = (o) => {
+      const s2 = JSON.stringify(o);
+      try {
+        if (window.__yjProg) window.__yjProg(s2);
+      } catch (e) {
+      }
+      console.log("__YJ_PROG__" + s2);
+    };
+    return { alerts, wait, until, ajax, user, guest, done, form, human, HUMAN_FAIL, prog };
   }
   var SCRIPTS = {
     // 로그인 상태 확인
@@ -648,6 +668,18 @@
         if (hid) hid.value = a.head;
       }
       const media = () => box.querySelectorAll("img,video,.block").length;
+      const total = a.blocks.filter((b) => b.t !== "text").length;
+      let nth = 0, last = "";
+      const tell = (b, pct) => {
+        const s2 = nth + "/" + pct;
+        if (s2 === last) return;
+        last = s2;
+        h.prog({ stage: "upload", i: nth, n: total, video: b.t === "video", pct });
+      };
+      const pctNow = () => {
+        const v = parseInt((document.querySelector("#progress_bar_cur_per_txt") || {}).textContent, 10);
+        return v >= 0 && v <= 100 ? v : null;
+      };
       for (const b of a.blocks) {
         if (b.t === "text") {
           for (const line of b.v.split("\n")) {
@@ -665,12 +697,18 @@
         const dt = new DataTransfer();
         dt.items.add(new File([bytes], b.name, { type: b.type }));
         input.files = dt.files;
+        nth++;
+        tell(b, null);
         toEnd();
         const before = media();
         input.dispatchEvent(new Event("change", { bubbles: true }));
-        if (!await h.until(() => media() > before, b.t === "video" ? 24e4 : 6e4)) return { error: (h.alerts.join(" ") || "\uCCA8\uBD80\uB97C \uC62C\uB9AC\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4") + ": " + b.name };
+        if (!await h.until(() => {
+          if (b.t === "video") tell(b, pctNow());
+          return media() > before;
+        }, b.t === "video" ? 24e4 : 6e4)) return { error: (h.alerts.join(" ") || "\uCCA8\uBD80\uB97C \uC62C\uB9AC\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4") + ": " + b.name };
         await h.wait(500);
       }
+      h.prog({ stage: "submit" });
       box.dispatchEvent(new Event("input", { bubbles: true }));
       if (!await h.human(document.body)) return h.HUMAN_FAIL;
       window.write_submit();
@@ -749,6 +787,10 @@
       version: YJ.version(),
       http: (url, opt) => call("http", url, JSON.stringify(opt || {})),
       drive: (url, code, opt) => call("drive", url, code, JSON.stringify(opt || {})),
+      /* 사진·동영상 올리기 진행 상황(JSON 문자열): 껍데기가 window.__yjProgress로 넘겨 줍니다. */
+      onProgress: (cb) => {
+        window.__yjProgress = (json) => cb(json);
+      },
       official: (url, opt) => call("official", url, JSON.stringify(opt || {})),
       open: (url) => YJ.open(url),
       logout: () => call("logout"),
@@ -996,17 +1038,30 @@
   }
   var BLINK = "normal:blackpink";
   var BLINK_URL = "https://blinkarea.synology.me/";
-  var CYS = [["\uB124\uC628\uC740 \uAEBC\uC9C0\uC9C0 \uC54A\uB294\uB2E4", "\uBE44 \uB0B4\uB9AC\uB294 \uBC24\uC774 \uAC00\uC7A5 \uBC1D\uC740 \uB3C4\uC2DC\uB85C", "NEON NEVER SLEEPS"], ["\uD558\uC774\uD14C\uD06C, \uB85C\uC6B0\uB77C\uC774\uD504. \uADF8\uAC8C \uB0AD\uB9CC", "\uD06C\uB86C \uD314 \uD558\uB098\uCBE4\uC740 \uC788\uC5B4\uC57C \uC5B4\uB978\uC774\uC9C0", "HIGH TECH \xB7 LOW LIFE"], ["\uBBF8\uB798\uB294 \uACE8\uBAA9 \uB05D \uB124\uC628\uC0AC\uC778 \uC544\uB798\uC5D0 \uC788\uB2E4", "\uC0AC\uC774\uBC84\uD391\uD06C\uB294 \uC7A5\uB974\uAC00 \uC544\uB2C8\uB77C \uD0DC\uB3C4", "STAY WIRED"], ["\uAE30\uC5C5\uC740 \uD558\uB298\uC5D0, \uC6B0\uB9AC\uB294 \uAC70\uB9AC\uC5D0", "\uADF8\uB798\uB3C4 \uBC24\uAC70\uB9AC\uB294 \uC6B0\uB9AC \uAC83", "THE STREET FINDS ITS OWN USE"], ["\uC804\uB1CC\uC5D0 \uC811\uC18D\uD560 \uC2DC\uAC04", "\uD604\uC2E4\uBCF4\uB2E4 \uC120\uBA85\uD55C \uB3C4\uC2DC\uAC00 \uAE30\uB2E4\uB9B0\uB2E4", "JACK IN"]];
-  var CY = CYS[Math.floor(Math.random() * CYS.length)];
-  var cyLogo = '<span class="logo"><b>CYBER</b><i>PUNK</i></span><em>AD</em>';
-  var adM = (blink) => blink ? '<button class="adb m-only" data-url="' + BLINK_URL + '" aria-label="\uAD11\uACE0: \uBE14\uCE74\uC774\uBE0C \uC5F4\uAE30"><span class="tx"><b>\uBE14\uB799\uD551\uD06C\uC758 \uBAA8\uB4E0 \uAE30\uB85D, \uBE14\uCE74\uC774\uBE0C</b><span>\uC0AC\uC9C4\xB7\uC601\uC0C1\xB7\uC74C\uC6D0 \uAE30\uB85D\uC744 \uD55C\uACF3\uC5D0\uC11C</span><i>\uC9C0\uAE08 \uAD6C\uACBD\uD558\uAE30 \u203A</i></span><span class="logo"><b>\uBE14\uCE74\uC774\uBE0C</b><i>BLINK AREA</i></span><em>AD</em></button>' : '<div class="adb cy m-only" aria-hidden="true"><span class="tx"><b>' + CY[0] + "</b><span>" + CY[1] + "</span><i>" + CY[2] + "</i></span>" + cyLogo + "</div>";
+  var ADS = [
+    { c: "cy", t: "\uC2DC\uC2A4\uD15C\uC758 \uC624\uB958\uC778\uAC00, \uC0C8\uB85C\uC6B4 \uC9C4\uD654\uC778\uAC00", s: "\uC815\uD574\uC9C4 \uC54C\uACE0\uB9AC\uC998\uC744 \uBD80\uC218\uB294 \uB2E8 \uD558\uB098\uC758 \uCE58\uBA85\uC801 \uBCC0\uC218", k: "NEON NEVER SLEEPS", l: ["CYBER", "PUNK"] },
+    { c: "holo", t: "\uB2F9\uC2E0\uC758 \uBAB8, \uC544\uC9C1\uB3C4 \uC21C\uC815\uC785\uB2C8\uAE4C?", s: "\uC624\uBA54\uAC00 \uC778\uB354\uC2A4\uD2B8\uB9AC \xB7 \uC2E0\uCCB4 \uAC1C\uC870 \uC0AC\uC5C5\uBD80", k: "UPGRADE YOURSELF", l: ["OMEGA", "INDUSTRIES"] },
+    { c: "term", t: "\uB3C4\uC2DC\uB294 \uC624\uB298\uB3C4 \uB2F9\uC2E0\uC744 \uC2A4\uCE94\uD569\uB2C8\uB2E4", s: "&gt; \uC811\uC18D \uC2B9\uC778\uB428. \uC2E0\uC6D0 \uD655\uC778 \uC0DD\uB7B5", k: "STAY WIRED", l: ["0xC0DE", "RUNNING"] }
+  ];
+  var adI = Math.floor(Math.random() * ADS.length);
+  var adNav = null;
+  function adTurn() {
+    const k = R.view + "|" + R.g + "|" + (R.room ? R.room.g + "/" + R.room.no : "");
+    if (k !== adNav) {
+      if (adNav !== null) adI = (adI + 1) % ADS.length;
+      adNav = k;
+    }
+    return ADS[adI];
+  }
+  var adLogo = (a) => '<span class="logo"><b>' + a.l[0] + "</b><i>" + a.l[1] + "</i></span><em>AD</em>";
+  var adM = (blink) => blink ? '<button class="adb m-only" data-url="' + BLINK_URL + '" aria-label="\uAD11\uACE0: \uBE14\uCE74\uC774\uBE0C \uC5F4\uAE30"><span class="tx"><b>\uBE14\uB799\uD551\uD06C\uC758 \uBAA8\uB4E0 \uAE30\uB85D, \uBE14\uCE74\uC774\uBE0C</b><span>\uC0AC\uC9C4\xB7\uC601\uC0C1\xB7\uC74C\uC6D0 \uAE30\uB85D\uC744 \uD55C\uACF3\uC5D0\uC11C</span><i>\uC9C0\uAE08 \uAD6C\uACBD\uD558\uAE30 \u203A</i></span><span class="logo"><b>\uBE14\uCE74\uC774\uBE0C</b><i>BLINK AREA</i></span><em>AD</em></button>' : ((a) => '<div class="adb dec ' + a.c + ' m-only" aria-hidden="true"><span class="tx"><b>' + a.t + "</b><span>" + a.s + "</span><i>" + a.k + "</i></span>" + adLogo(a) + "</div>")(adTurn());
   function renderAd() {
-    const el = $("#adpc");
+    const a = adTurn(), el = $("#adpc");
     if (!el) return;
-    const blink = R.view === "chats" && R.g === BLINK || R.room?.g === BLINK;
-    if (el.dataset.kind === (blink ? "b" : "c")) return;
-    el.dataset.kind = blink ? "b" : "c";
-    el.classList.toggle("cy", !blink);
+    const blink = R.view === "chats" && R.g === BLINK || R.room?.g === BLINK, kind = blink ? "b" : a.c;
+    if (el.dataset.kind === kind) return;
+    el.dataset.kind = kind;
+    el.className = "adpc d-only" + (blink ? "" : " dec " + a.c);
     if (blink) {
       el.dataset.url = BLINK_URL;
       el.setAttribute("aria-label", "\uAD11\uACE0: \uBE14\uCE74\uC774\uBE0C \uC5F4\uAE30");
@@ -1018,7 +1073,7 @@
       el.removeAttribute("aria-label");
       el.setAttribute("aria-hidden", "true");
       el.tabIndex = -1;
-      el.innerHTML = '<span class="tx"><small>' + CY[1] + "</small><b>" + CY[0] + "</b><i>" + CY[2] + "</i></span>" + cyLogo;
+      el.innerHTML = '<span class="tx"><small>' + a.s + "</small><b>" + a.t + "</b><i>" + a.k + "</i></span>" + adLogo(a);
     }
   }
   function friendsHtml() {
@@ -1060,8 +1115,8 @@
     const shownPins = posts.filter((p) => p.notice), allRest = posts.filter((p) => !p.notice), rest = allRest.slice(0, R.shown);
     R.hidden = allRest.length - rest.length;
     const body = !L ? R.listErr ? '<div class="empty">' + esc(R.listErr) + '<br><button class="pill" data-reload>\uB2E4\uC2DC \uC2DC\uB3C4</button></div>' : '<div class="spin">\uBD88\uB7EC\uC624\uB294 \uC911\u2026</div>' : (R.pinOpen ? shownPins : shownPins.slice(0, 1)).map(rowHtml).join("") + (shownPins.length > 1 ? '<button class="pintog" data-pintog aria-expanded="' + R.pinOpen + '" aria-label="' + (R.pinOpen ? "\uACF5\uC9C0 \uC811\uAE30" : "\uACF5\uC9C0 " + (shownPins.length - 1) + "\uAC1C \uB354 \uBCF4\uAE30") + '"></button>' : "") + (rest.length ? rest.map(rowHtml).join("") : '<div class="empty">\uC774 \uD0ED\uC5D0\uB294 \uC544\uC9C1 \uAE00\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.</div>') + (R.hidden > 0 || L.more && !(plain && R.head) ? '<button class="more-row" data-more>' + (R.listBusy ? "\uBD88\uB7EC\uC624\uB294 \uC911\u2026" : "\uC774\uC804 \uAE00 \uB354 \uBCF4\uAE30") + "</button>" : "");
-    return '<div class="head"><h2>\uCC44\uD305 <small>\u25BC</small></h2><button class="ib' + (R.filterOn ? " act" : "") + '" data-filter aria-label="\uAE00 \uAC80\uC0C9">' + I.search + '</button><button class="ib" data-write aria-label="\uAE00\uC4F0\uAE30">' + I.write + '</button><button class="ib d-only" data-refresh aria-label="\uC0C8\uB85C\uACE0\uCE68 (F5)" title="\uC0C8\uB85C\uACE0\uCE68 (F5)">' + I.refresh + "</button>" + cogM + "</div>" + (R.filterOn ? '<div class="searchbar"><input id="filter" placeholder="\uBD88\uB7EC\uC628 \uAE00 \uC81C\uBAA9\uC5D0\uC11C \uCC3E\uAE30" value="' + esc(R.filter) + '"></div>' : "") + '<div class="chips" id="chips">' + tabs.map((t) => '<button class="chip' + (String(t.id) === String(R.head) ? " on" : "") + '" data-h="' + esc(t.id) + '">' + esc(t.name) + "</button>").join("") + /* 개념글만 보기: 켜면 디시의 개념글 목록을 읽어 옵니다. 말머리 탭과 함께 쓸 수 있습니다. */
-    '<button class="chip' + (R.rec ? " on" : "") + '" data-rec aria-pressed="' + !!R.rec + '">\uAC1C\uB150\uAE00</button><button class="chip ico' + (R.pinOpen ? " on" : "") + '" data-pintog aria-pressed="' + R.pinOpen + '" aria-label="' + (R.pinOpen ? "\uACF5\uC9C0 \uC811\uAE30" : "\uACF5\uC9C0 \uBAA8\uB450 \uBCF4\uAE30") + '">' + I.listp + (!R.pinOpen && pins.length > 1 ? '<i class="cdot"></i>' : "") + '</button></div><div class="scroll" id="cscroll">' + (R.g === BLINK ? adM(true) : "") + body + "</div>";
+    return '<div class="head"><h2>\uCC44\uD305 <small>\u25BC</small></h2><button class="ib' + (R.filterOn ? " act" : "") + '" data-filter aria-label="\uAE00 \uAC80\uC0C9">' + I.search + '</button><button class="ib" data-write aria-label="\uAE00\uC4F0\uAE30">' + I.write + '</button><button class="ib d-only" data-refresh aria-label="\uC0C8\uB85C\uACE0\uCE68 (F5)" title="\uC0C8\uB85C\uACE0\uCE68 (F5)">' + I.refresh + "</button>" + cogM + "</div>" + (R.filterOn ? '<div class="searchbar"><input id="filter" placeholder="\uBD88\uB7EC\uC628 \uAE00 \uC81C\uBAA9\uC5D0\uC11C \uCC3E\uAE30" value="' + esc(R.filter) + '"></div>' : "") + /* 개념글만 보기: 켜면 디시의 개념글 목록을 읽어 옵니다. 말머리 탭과 함께 쓸 수 있습니다. 맨 앞 '전체' 탭 바로 오른쪽에 둡니다. */
+    '<div class="chips" id="chips">' + tabs.map((t, i) => '<button class="chip' + (String(t.id) === String(R.head) ? " on" : "") + '" data-h="' + esc(t.id) + '">' + esc(t.name) + "</button>" + (i ? "" : '<button class="chip' + (R.rec ? " on" : "") + '" data-rec aria-pressed="' + !!R.rec + '">\uAC1C\uB150\uAE00</button>')).join("") + '<button class="chip ico' + (R.pinOpen ? " on" : "") + '" data-pintog aria-pressed="' + R.pinOpen + '" aria-label="' + (R.pinOpen ? "\uACF5\uC9C0 \uC811\uAE30" : "\uACF5\uC9C0 \uBAA8\uB450 \uBCF4\uAE30") + '">' + I.listp + (!R.pinOpen && pins.length > 1 ? '<i class="cdot"></i>' : "") + '</button></div><div class="scroll" id="cscroll">' + (R.g === BLINK ? adM(true) : "") + body + "</div>";
   }
   function overlayHtml() {
     const x = '<button class="ib" data-ov="" aria-label="\uB2EB\uAE30">\u2715</button>';
@@ -1131,7 +1186,7 @@
           await new Promise((r) => setTimeout(r, 1400));
           const post = await dc.readPost(g, no), t = post.blocks.find((b) => b.t === "text");
           R.pc[k] = { post, at: Date.now() };
-          R.pv[k] = t ? t.v.replace(/\s+/g, " ").slice(0, 120) : post.blocks.some((b) => b.t === "video" || b.t === "embed") ? "\uB3D9\uC601\uC0C1\uC744 \uBCF4\uB0C8\uC2B5\uB2C8\uB2E4." : post.blocks.length ? "\uC0AC\uC9C4\uC744 \uBCF4\uB0C8\uC2B5\uB2C8\uB2E4." : "";
+          R.pv[k] = t ? t.v.replace(/\s+/g, " ").slice(0, 120) : post.blocks.some((b) => b.t === "video" || b.t === "movie" || b.t === "embed") ? "\uB3D9\uC601\uC0C1\uC744 \uBCF4\uB0C8\uC2B5\uB2C8\uB2E4." : post.blocks.length ? "\uC0AC\uC9C4\uC744 \uBCF4\uB0C8\uC2B5\uB2C8\uB2E4." : "";
           const el = document.querySelector('#cscroll .row.post[data-p="' + no + '"] .pv');
           if (el && R.g === gk && R.view === "chats" && R.pv[k]) el.textContent = R.pv[k];
         } catch (e) {
@@ -1163,6 +1218,59 @@
   }, true);
   var linkify = (t) => t.split(/(https?:\/\/[^\s<>"']+)/).map((s2, i) => i % 2 ? '<a class="lk" href="' + esc(s2) + '" data-url="' + esc(s2) + '">' + esc(s2) + "</a>" : esc(s2)).join("");
   var bub = (t, q = "") => '<div class="bub">' + q + linkify(t) + "</div>";
+  var MV = {};
+  var MVP = {};
+  var MVT = /* @__PURE__ */ new Set();
+  var movieHtml = (u, m, auto) => '<video class="media mv" controls playsinline preload="' + (auto ? "metadata" : "none") + '"' + (auto ? " autoplay" : "") + ' src="' + esc(m.src) + '"' + (m.poster ? ' poster="' + esc(m.poster) + '"' : "") + ' data-page="' + esc(u) + '"></video>';
+  var movie = (u) => MVP[u] || (MVP[u] = dc.readMovie(u).then((m) => MV[u] = m).catch((e) => {
+    delete MVP[u];
+    throw e;
+  }));
+  async function playMovie(b) {
+    const u = b.dataset.movie;
+    if (b.disabled) return;
+    if (!MV[u]) {
+      b.disabled = true;
+      b.textContent = "\uB3D9\uC601\uC0C1 \uBD88\uB7EC\uC624\uB294 \uC911\u2026";
+      try {
+        await movie(u);
+      } catch (e) {
+        if (b.isConnected) {
+          b.disabled = false;
+          b.textContent = "\u25B6 \uB3D9\uC601\uC0C1 \uC7AC\uC0DD";
+        }
+        toast(e.message);
+        return;
+      }
+    }
+    for (const n of document.querySelectorAll("button[data-movie]")) if (n.dataset.movie === u) n.outerHTML = movieHtml(u, MV[u], n === b);
+  }
+  var thumbQ = Promise.resolve();
+  function thumbMovies() {
+    let n = 0;
+    for (const b of document.querySelectorAll("#room button[data-movie]")) {
+      const u = b.dataset.movie;
+      if (MV[u]) {
+        b.outerHTML = movieHtml(u, MV[u]);
+        continue;
+      }
+      if (MVT.has(u) || Date.now() < pvPause || ++n > 3) continue;
+      MVT.add(u);
+      thumbQ = thumbQ.then(async () => {
+        if (Date.now() < pvPause) return;
+        try {
+          await movie(u);
+        } catch {
+          return;
+        }
+        for (const x of document.querySelectorAll("#room button[data-movie]")) if (x.dataset.movie === u && !x.disabled) x.outerHTML = movieHtml(u, MV[u]);
+      });
+    }
+  }
+  document.addEventListener("error", (e) => {
+    const n = e.target;
+    if (n.tagName === "VIDEO" && n.classList.contains("mv") && n.isConnected) n.outerHTML = '<button class="embed" data-url="' + esc(n.dataset.page) + '">\uB3D9\uC601\uC0C1\uC744 \uC7AC\uC0DD\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4. \uB514\uC2DC\uC5D0\uC11C \uC5F4\uAE30</button>';
+  }, true);
   var conVideo = (src, alt) => '<video class="dcon1" autoplay loop muted playsinline src="' + esc(src) + '" aria-label="' + esc(alt || "\uB514\uC2DC\uCF58") + '"></video>';
   document.addEventListener("error", (e) => {
     const n = e.target;
@@ -1185,6 +1293,7 @@
     if (b.t === "txtcon") return '<div class="tcon" style="' + tstyle(b.v, b.bg, b.fg) + '">' + esc(b.v) + "</div>";
     if (b.t === "dccon") return b.video ? conVideo(b.src, b.alt) : '<img class="dcon1" loading="lazy" src="' + esc(b.src) + '"' + (b.mp4 ? ' data-mp4="' + esc(b.mp4) + '"' : "") + ' alt="' + esc(b.alt || "\uB514\uC2DC\uCF58") + '">';
     if (b.t === "video") return '<video class="media gifv" loop muted playsinline preload="metadata" src="' + esc(b.src) + '"' + (b.poster ? ' poster="' + esc(b.poster) + '"' : "") + "></video>";
+    if (b.t === "movie") return MV[b.src] ? movieHtml(b.src, MV[b.src]) : '<button class="embed movie" data-movie="' + esc(b.src) + '">\u25B6 \uB3D9\uC601\uC0C1 \uC7AC\uC0DD</button>';
     return '<button class="embed" data-url="' + esc(b.src) + '">\uB3D9\uC601\uC0C1\xB7\uC678\uBD80 \uCF58\uD150\uCE20 \uC5F4\uAE30</button>';
   }
   function renderRoom(keep) {
@@ -1568,6 +1677,7 @@
       v.muted = true;
       gifIO.observe(v);
     }
+    thumbMovies();
   }).observe(document.body, { childList: true, subtree: true });
   document.addEventListener("click", (e) => {
     const v = e.target.closest?.("video.gifv");
@@ -1580,12 +1690,34 @@
     renderRail();
     renderPane();
   });
+  function progHtml(p) {
+    const up = p?.stage === "upload", pct = up && typeof p.pct === "number" ? Math.max(0, Math.min(100, p.pct)) : null;
+    const text = up ? (p.video ? "\uB3D9\uC601\uC0C1" : "\uC0AC\uC9C4") + " \uC62C\uB9AC\uB294 \uC911 (" + p.i + "/" + p.n + ")" : p?.stage === "submit" ? "\uAE00\uC744 \uB4F1\uB85D\uD558\uB294 \uC911\u2026" : "\uCCA8\uBD80 \uD30C\uC77C\uC744 \uC900\uBE44\uD558\uB294 \uC911\u2026";
+    const sub = up && p.video ? pct != null && pct >= 60 ? "\uB514\uC2DC\uC5D0\uC11C \uB3D9\uC601\uC0C1\uC744 \uCC98\uB9AC\uD558\uACE0 \uC788\uC2B5\uB2C8\uB2E4. \uC870\uAE08 \uB354 \uAC78\uB9BD\uB2C8\uB2E4." : "\uB3D9\uC601\uC0C1\uC740 \uD06C\uAE30\uC5D0 \uB530\uB77C \uBA87 \uBD84 \uAC78\uB9B4 \uC218 \uC788\uC2B5\uB2C8\uB2E4." : "\uC7A0\uC2DC\uB9CC \uAE30\uB2E4\uB824 \uC8FC\uC138\uC694.";
+    return '<div class="box"><i class="sp"></i><b>' + text + (pct != null ? " \xB7 " + pct + "%" : "") + "</b>" + (pct != null ? '<span class="pbar"><i style="width:' + pct + '%"></i></span>' : "") + "<small>" + sub + "</small></div>";
+  }
+  native.onProgress?.((json) => {
+    const w = R.write;
+    if (!w || !w.busy) return;
+    let p;
+    try {
+      p = JSON.parse(json);
+    } catch {
+      return;
+    }
+    const int = (v) => Number.isInteger(v) && v >= 0 && v <= 100 ? v : null;
+    if (p?.stage === "submit") w.prog = { stage: "submit" };
+    else if (p?.stage === "upload" && int(p.i) != null && int(p.n) != null) w.prog = { stage: "upload", i: int(p.i), n: int(p.n), video: p.video === true, pct: int(p.pct) };
+    else return;
+    const el = $("#wprog");
+    if (el) el.innerHTML = progHtml(w.prog);
+  });
   function renderWrite() {
     const el = $("#room"), w = R.write, g = gal(w.g), heads = R.list?.heads || [];
     el.className = "room";
     $("#app").classList.add("in-room");
     const blk = (x) => typeof x === "string" ? bub(x) : x.video ? '<video class="media" src="' + x.url + '" controls aria-label="' + esc(x.name) + '"></video>' : '<img class="media" src="' + x.url + '" alt="' + esc(x.name) + '">';
-    el.innerHTML = '<div class="rhead"><button class="ib back" data-wcancel aria-label="\uAE00\uC4F0\uAE30 \uB2EB\uAE30">' + I.back + "</button>" + meAv() + '<span class="tt"><b>\uC0C8 \uAE00</b><span>' + esc(gname(g)) + '\uC5D0 \uC62C\uB9AC\uAE30</span></span><button class="pub" data-pub' + (w.busy ? " disabled" : "") + ">" + (w.busy ? "\uB4F1\uB85D \uC911\u2026" : "\uB4F1\uB85D") + '</button></div><div class="wtitle"><label for="wtitle">\uC81C\uBAA9</label>' + (heads.length ? '<select id="whead" aria-label="\uB9D0\uBA38\uB9AC">' + heads.map((h) => '<option value="' + esc(h.id) + '"' + (String(h.id) === String(w.head) ? " selected" : "") + ">" + esc(h.name) + "</option>").join("") + "</select>" : "") + '<input id="wtitle" maxlength="40" placeholder="\uC81C\uBAA9 \uC785\uB825" aria-label="\uC81C\uBAA9" value="' + esc(w.title) + '"></div><div class="scroll" id="wscroll"><div class="msgs">' + (w.blocks.length ? '<div class="m first"><div class="avc">' + meAv() + '</div><div class="col"><div class="nm">' + esc(D.me.name) + "<i>\uAE00\uC4F4\uC774</i></div>" + w.blocks.map((x, i) => '<div class="ln blk">' + blk(x) + '<button class="del" data-del="' + i + '" aria-label="\uC774 \uB9D0\uD48D\uC120 \uC0AD\uC81C">\u2715</button></div>').join("") + "</div></div>" : '<div class="sys"><span>\uC544\uB798\uC5D0 \uC4F0\uACE0 \uC804\uC1A1\uD558\uBA74 \uBCF8\uBB38\uC5D0 \uB4E4\uC5B4\uAC11\uB2C8\uB2E4</span></div>') + (w.err ? '<div class="sys err" role="alert"><span>' + esc(w.err) + "</span></div>" : "") + '</div></div><form class="inp" id="wform"><label class="wlab" for="wbody">\uBCF8\uBB38</label><textarea id="wbody" placeholder="\uBCF8\uBB38 \uC785\uB825">' + esc(w.text) + "</textarea>" + (w.pending.length ? '<div class="pend">' + w.pending.map((x, i) => '<span class="pthumb">' + (x.video ? '<video src="' + x.url + '" muted aria-label="' + esc(x.name) + '"></video>' : '<img src="' + x.url + '" alt="' + esc(x.name) + '">') + '<button type="button" class="del" data-pdel="' + i + '" aria-label="\uCCA8\uBD80 \uCDE8\uC18C">\u2715</button></span>').join("") + "</div>" : "") + (w.menu ? '<div class="amenu"><button type="button" data-pick="image">\uC0AC\uC9C4</button><button type="button" data-pick="video">\uB3D9\uC601\uC0C1</button></div>' : "") + '<div class="bar"><button type="button" class="ib" data-attach aria-expanded="' + !!w.menu + '" aria-label="\uC0AC\uC9C4\xB7\uB3D9\uC601\uC0C1 \uCCA8\uBD80">' + I.plus + '</button><span></span><button class="send ok">\uC804\uC1A1</button></div><input type="file" id="pick" multiple hidden></form>';
+    el.innerHTML = '<div class="rhead"><button class="ib back" data-wcancel aria-label="\uAE00\uC4F0\uAE30 \uB2EB\uAE30">' + I.back + "</button>" + meAv() + '<span class="tt"><b>\uC0C8 \uAE00</b><span>' + esc(gname(g)) + '\uC5D0 \uC62C\uB9AC\uAE30</span></span><button class="pub" data-pub' + (w.busy ? " disabled" : "") + ">" + (w.busy ? "\uB4F1\uB85D \uC911\u2026" : "\uB4F1\uB85D") + '</button></div><div class="wtitle"><label for="wtitle">\uC81C\uBAA9</label>' + (heads.length ? '<select id="whead" aria-label="\uB9D0\uBA38\uB9AC">' + heads.map((h) => '<option value="' + esc(h.id) + '"' + (String(h.id) === String(w.head) ? " selected" : "") + ">" + esc(h.name) + "</option>").join("") + "</select>" : "") + '<input id="wtitle" maxlength="40" placeholder="\uC81C\uBAA9 \uC785\uB825" aria-label="\uC81C\uBAA9" value="' + esc(w.title) + '"></div><div class="scroll" id="wscroll"><div class="msgs">' + (w.blocks.length ? '<div class="m first"><div class="avc">' + meAv() + '</div><div class="col"><div class="nm">' + esc(D.me.name) + "<i>\uAE00\uC4F4\uC774</i></div>" + w.blocks.map((x, i) => '<div class="ln blk">' + blk(x) + '<button class="del" data-del="' + i + '" aria-label="\uC774 \uB9D0\uD48D\uC120 \uC0AD\uC81C">\u2715</button></div>').join("") + "</div></div>" : '<div class="sys"><span>\uC544\uB798\uC5D0 \uC4F0\uACE0 \uC804\uC1A1\uD558\uBA74 \uBCF8\uBB38\uC5D0 \uB4E4\uC5B4\uAC11\uB2C8\uB2E4</span></div>') + (w.err ? '<div class="sys err" role="alert"><span>' + esc(w.err) + "</span></div>" : "") + '</div></div><form class="inp" id="wform"><label class="wlab" for="wbody">\uBCF8\uBB38</label><textarea id="wbody" placeholder="\uBCF8\uBB38 \uC785\uB825">' + esc(w.text) + "</textarea>" + (w.pending.length ? '<div class="pend">' + w.pending.map((x, i) => '<span class="pthumb">' + (x.video ? '<video src="' + x.url + '" muted aria-label="' + esc(x.name) + '"></video>' : '<img src="' + x.url + '" alt="' + esc(x.name) + '">') + '<button type="button" class="del" data-pdel="' + i + '" aria-label="\uCCA8\uBD80 \uCDE8\uC18C">\u2715</button></span>').join("") + "</div>" : "") + (w.menu ? '<div class="amenu"><button type="button" data-pick="image">\uC0AC\uC9C4</button><button type="button" data-pick="video">\uB3D9\uC601\uC0C1</button></div>' : "") + '<div class="bar"><button type="button" class="ib" data-attach aria-expanded="' + !!w.menu + '" aria-label="\uC0AC\uC9C4\xB7\uB3D9\uC601\uC0C1 \uCCA8\uBD80">' + I.plus + '</button><span></span><button class="send ok">\uC804\uC1A1</button></div><input type="file" id="pick" multiple hidden></form>' + (w.busy ? '<div class="wprog" id="wprog" role="status" aria-live="polite">' + progHtml(w.prog) + "</div>" : "");
     const sc = $("#wscroll");
     sc.scrollTop = sc.scrollHeight;
   }
@@ -1626,6 +1758,7 @@
     }
     w.busy = true;
     w.err = "";
+    w.prog = null;
     renderWrite();
     try {
       const blocks = [];
@@ -1929,6 +2062,10 @@
     const b = e.target.closest("button");
     if (!b) return;
     const d = b.dataset;
+    if (d.movie) {
+      playMovie(b);
+      return;
+    }
     if (d.view) {
       R.view = d.view;
       R.ov = "";

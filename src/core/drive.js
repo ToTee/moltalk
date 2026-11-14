@@ -68,7 +68,9 @@ function helpers(){
   return !!ok;
  };
  const HUMAN_FAIL={error:"'사람인지 확인'을 마치지 못해 등록하지 않았습니다. 다시 시도해 주세요."};
- return {alerts,wait,until,ajax,user,guest,done,form,human,HUMAN_FAIL};
+ // 오래 걸리는 작업(사진·동영상 올리기)의 진행 상황을 앱 화면에 알립니다(안드로이드는 YJD.progress, 윈도우는 콘솔 신호).
+ const prog=o=>{const s=JSON.stringify(o);try{if(window.__yjProg)window.__yjProg(s)}catch(e){}console.log('__YJ_PROG__'+s)};
+ return {alerts,wait,until,ajax,user,guest,done,form,human,HUMAN_FAIL,prog};
 }
 
 const SCRIPTS={
@@ -215,15 +217,21 @@ const SCRIPTS={
   subject.value=a.title;subject.dispatchEvent(new Event('input',{bubbles:true}));
   if(a.head!==''&&a.head!=null){const pick=document.querySelector('li.swiper-slide[data-no="'+a.head+'"] a');if(pick)pick.click();const hid=document.querySelector('#headtext');if(hid)hid.value=a.head}
   const media=()=>box.querySelectorAll('img,video,.block').length;
+  /* 첨부를 하나씩 올리는 동안 "몇 번째 중 몇 번째"와, 동영상이면 디시 화면이 계산해 보여 주는 진행률(%)을 앱에 알립니다. */
+  const total=a.blocks.filter(b=>b.t!=='text').length;let nth=0,last='';
+  const tell=(b,pct)=>{const s=nth+'/'+pct;if(s===last)return;last=s;h.prog({stage:'upload',i:nth,n:total,video:b.t==='video',pct})};
+  const pctNow=()=>{const v=parseInt((document.querySelector('#progress_bar_cur_per_txt')||{}).textContent,10);return v>=0&&v<=100?v:null};
   for(const b of a.blocks){
    if(b.t==='text'){for(const line of b.v.split('\n')){const p=document.createElement('p');if(line)p.textContent=line;else p.appendChild(document.createElement('br'));box.appendChild(p)}continue}
    const bin=atob(b.b64),bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
    const input=document.querySelector(b.t==='video'?'#upload_movie':'#upload');if(!input)return {error:'첨부 칸을 찾지 못했습니다.'};
    const dt=new DataTransfer();dt.items.add(new File([bytes],b.name,{type:b.type}));input.files=dt.files;
+   nth++;tell(b,null);
    toEnd();const before=media();input.dispatchEvent(new Event('change',{bubbles:true}));
-   if(!await h.until(()=>media()>before,b.t==='video'?240000:60000))return {error:(h.alerts.join(' ')||'첨부를 올리지 못했습니다')+': '+b.name};
+   if(!await h.until(()=>{if(b.t==='video')tell(b,pctNow());return media()>before},b.t==='video'?240000:60000))return {error:(h.alerts.join(' ')||'첨부를 올리지 못했습니다')+': '+b.name};
    await h.wait(500);
   }
+  h.prog({stage:'submit'});
   box.dispatchEvent(new Event('input',{bubbles:true}));
   if(!await h.human(document.body))return h.HUMAN_FAIL;
   window.write_submit();

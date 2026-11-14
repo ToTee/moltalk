@@ -7,6 +7,8 @@ export function androidNative(YJ){
   platform:'android',version:YJ.version(),
   http:(url,opt)=>call('http',url,JSON.stringify(opt||{})),
   drive:(url,code,opt)=>call('drive',url,code,JSON.stringify(opt||{})),
+  /* 사진·동영상 올리기 진행 상황(JSON 문자열): 껍데기가 window.__yjProgress로 넘겨 줍니다. */
+  onProgress:cb=>{window.__yjProgress=json=>cb(json)},
   official:(url,opt)=>call('official',url,JSON.stringify(opt||{})),
   open:url=>YJ.open(url),
   logout:()=>call('logout'),

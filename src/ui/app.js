@@ -129,21 +129,25 @@ function renderRail(){
 /* ---------- 광고 칸 ----------
    진짜 광고는 블카이브 하나이고, 블랙핑크 갤러리를 볼 때만 나옵니다(누르면 기기의 브라우저로 엽니다).
    그 밖에는 사이버펑크 세계관을 찬양하는 장식용 광고가 나옵니다. 꾸밈일 뿐이라 눌러도 아무 일도 일어나지 않습니다.
-   문구는 앱을 켤 때 하나를 골라 그 실행 동안 유지합니다. */
+   장식용 광고는 세 가지이고, 화면을 옮길 때마다(갤러리·글 목록·채팅방이 바뀔 때마다) 다음 것으로 넘어갑니다. */
 const BLINK='normal:blackpink',BLINK_URL='https://blinkarea.synology.me/';
-const CYS=[['네온은 꺼지지 않는다','비 내리는 밤이 가장 밝은 도시로','NEON NEVER SLEEPS'],['하이테크, 로우라이프. 그게 낭만','크롬 팔 하나쯤은 있어야 어른이지','HIGH TECH · LOW LIFE'],['미래는 골목 끝 네온사인 아래에 있다','사이버펑크는 장르가 아니라 태도','STAY WIRED'],['기업은 하늘에, 우리는 거리에','그래도 밤거리는 우리 것','THE STREET FINDS ITS OWN USE'],['전뇌에 접속할 시간','현실보다 선명한 도시가 기다린다','JACK IN']];
-const CY=CYS[Math.floor(Math.random()*CYS.length)];
-const cyLogo='<span class="logo"><b>CYBER</b><i>PUNK</i></span><em>AD</em>';
+const ADS=[{c:'cy',t:'시스템의 오류인가, 새로운 진화인가',s:'정해진 알고리즘을 부수는 단 하나의 치명적 변수',k:'NEON NEVER SLEEPS',l:['CYBER','PUNK']},
+ {c:'holo',t:'당신의 몸, 아직도 순정입니까?',s:'오메가 인더스트리 · 신체 개조 사업부',k:'UPGRADE YOURSELF',l:['OMEGA','INDUSTRIES']},
+ {c:'term',t:'도시는 오늘도 당신을 스캔합니다',s:'&gt; 접속 승인됨. 신원 확인 생략',k:'STAY WIRED',l:['0xC0DE','RUNNING']}];
+let adI=Math.floor(Math.random()*ADS.length),adNav=null;
+/* 보고 있는 화면이 바뀌었으면 다음 광고로 넘깁니다. 같은 화면을 다시 그릴 때는 그대로 둡니다. */
+function adTurn(){const k=R.view+'|'+R.g+'|'+(R.room?R.room.g+'/'+R.room.no:'');if(k!==adNav){if(adNav!==null)adI=(adI+1)%ADS.length;adNav=k}return ADS[adI]}
+const adLogo=a=>'<span class="logo"><b>'+a.l[0]+'</b><i>'+a.l[1]+'</i></span><em>AD</em>';
 const adM=blink=>blink?'<button class="adb m-only" data-url="'+BLINK_URL+'" aria-label="광고: 블카이브 열기"><span class="tx"><b>블랙핑크의 모든 기록, 블카이브</b><span>사진·영상·음원 기록을 한곳에서</span><i>지금 구경하기 ›</i></span><span class="logo"><b>블카이브</b><i>BLINK AREA</i></span><em>AD</em></button>':
- '<div class="adb cy m-only" aria-hidden="true"><span class="tx"><b>'+CY[0]+'</b><span>'+CY[1]+'</span><i>'+CY[2]+'</i></span>'+cyLogo+'</div>';
+ (a=>'<div class="adb dec '+a.c+' m-only" aria-hidden="true"><span class="tx"><b>'+a.t+'</b><span>'+a.s+'</span><i>'+a.k+'</i></span>'+adLogo(a)+'</div>')(adTurn());
 /* PC 화면 맨 아래 광고 줄(index.html의 #adpc): 지금 보고 있는 갤러리에 맞춰 내용을 바꿉니다. */
 function renderAd(){
- const el=$('#adpc');if(!el)return;const blink=(R.view==='chats'&&R.g===BLINK)||R.room?.g===BLINK;
- if(el.dataset.kind===(blink?'b':'c'))return;el.dataset.kind=blink?'b':'c';el.classList.toggle('cy',!blink);
+ const a=adTurn(),el=$('#adpc');if(!el)return;const blink=(R.view==='chats'&&R.g===BLINK)||R.room?.g===BLINK,kind=blink?'b':a.c;
+ if(el.dataset.kind===kind)return;el.dataset.kind=kind;el.className='adpc d-only'+(blink?'':' dec '+a.c);
  if(blink){el.dataset.url=BLINK_URL;el.setAttribute('aria-label','광고: 블카이브 열기');el.removeAttribute('aria-hidden');el.tabIndex=0;
   el.innerHTML='<span class="tx"><small>블카이브</small><b>블랙핑크의 모든 기록을 한곳에서</b><i>지금 구경하기 ›</i></span><span class="logo"><b>블카이브</b><i>BLINK AREA</i></span><em>AD</em>'}
  else{delete el.dataset.url;el.removeAttribute('aria-label');el.setAttribute('aria-hidden','true');el.tabIndex=-1;
-  el.innerHTML='<span class="tx"><small>'+CY[1]+'</small><b>'+CY[0]+'</b><i>'+CY[2]+'</i></span>'+cyLogo}
+  el.innerHTML='<span class="tx"><small>'+a.s+'</small><b>'+a.t+'</b><i>'+a.k+'</i></span>'+adLogo(a)}
 }
 
 /* ---------- 친구(갤러리 목록) ---------- */
@@ -194,9 +198,9 @@ function chatsHtml(){
   (R.hidden>0||(L.more&&!(plain&&R.head))?'<button class="more-row" data-more>'+(R.listBusy?'불러오는 중…':'이전 글 더 보기')+'</button>':'');
  return '<div class="head"><h2>채팅 <small>▼</small></h2><button class="ib'+(R.filterOn?' act':'')+'" data-filter aria-label="글 검색">'+I.search+'</button><button class="ib" data-write aria-label="글쓰기">'+I.write+'</button><button class="ib d-only" data-refresh aria-label="새로고침 (F5)" title="새로고침 (F5)">'+I.refresh+'</button>'+cogM+'</div>'+
   (R.filterOn?'<div class="searchbar"><input id="filter" placeholder="불러온 글 제목에서 찾기" value="'+esc(R.filter)+'"></div>':'')+
-  '<div class="chips" id="chips">'+tabs.map(t=>'<button class="chip'+(String(t.id)===String(R.head)?' on':'')+'" data-h="'+esc(t.id)+'">'+esc(t.name)+'</button>').join('')+
-  /* 개념글만 보기: 켜면 디시의 개념글 목록을 읽어 옵니다. 말머리 탭과 함께 쓸 수 있습니다. */
-  '<button class="chip'+(R.rec?' on':'')+'" data-rec aria-pressed="'+!!R.rec+'">개념글</button>'+
+  /* 개념글만 보기: 켜면 디시의 개념글 목록을 읽어 옵니다. 말머리 탭과 함께 쓸 수 있습니다. 맨 앞 '전체' 탭 바로 오른쪽에 둡니다. */
+  '<div class="chips" id="chips">'+tabs.map((t,i)=>'<button class="chip'+(String(t.id)===String(R.head)?' on':'')+'" data-h="'+esc(t.id)+'">'+esc(t.name)+'</button>'+
+   (i?'':'<button class="chip'+(R.rec?' on':'')+'" data-rec aria-pressed="'+!!R.rec+'">개념글</button>')).join('')+
   '<button class="chip ico'+(R.pinOpen?' on':'')+'" data-pintog aria-pressed="'+R.pinOpen+'" aria-label="'+(R.pinOpen?'공지 접기':'공지 모두 보기')+'">'+I.listp+(!R.pinOpen&&pins.length>1?'<i class="cdot"></i>':'')+'</button></div>'+
   '<div class="scroll" id="cscroll">'+(R.g===BLINK?adM(true):'')+body+'</div>';
 }
@@ -261,7 +265,7 @@ async function previews(){
  if(!todo.length)return;pvRunning=true;
  const work=async()=>{for(let no;(no=todo.shift())!=null;){const k=gk+'/'+no;
   if(R.g===gk&&Date.now()>=pvPause)try{await new Promise(r=>setTimeout(r,1400));const post=await dc.readPost(g,no),t=post.blocks.find(b=>b.t==='text');R.pc[k]={post,at:Date.now()};
-   R.pv[k]=t?t.v.replace(/\s+/g,' ').slice(0,120):post.blocks.some(b=>b.t==='video'||b.t==='embed')?'동영상을 보냈습니다.':post.blocks.length?'사진을 보냈습니다.':'';
+   R.pv[k]=t?t.v.replace(/\s+/g,' ').slice(0,120):post.blocks.some(b=>b.t==='video'||b.t==='movie'||b.t==='embed')?'동영상을 보냈습니다.':post.blocks.length?'사진을 보냈습니다.':'';
    const el=document.querySelector('#cscroll .row.post[data-p="'+no+'"] .pv');if(el&&R.g===gk&&R.view==='chats'&&R.pv[k])el.textContent=R.pv[k]}catch(e){if(e.code==='BUSY')pvPause=Date.now()+60000;else R.pv[k]=''}
   pvBusy.delete(k)}};
  await work();pvRunning=false;savePv();
@@ -280,6 +284,28 @@ document.addEventListener('scroll',e=>{const t=e.target;if(t.id==='cscroll'&&t.s
 /* 글 속의 주소는 누르면 기기의 브라우저로 열리는 링크가 됩니다. */
 const linkify=t=>t.split(/(https?:\/\/[^\s<>"']+)/).map((s,i)=>i%2?'<a class="lk" href="'+esc(s)+'" data-url="'+esc(s)+'">'+esc(s)+'</a>':esc(s)).join('');
 const bub=(t,q='')=>'<div class="bub">'+q+linkify(t)+'</div>';
+/* 본문 동영상: 재생 단추를 누르면 디시의 재생 창 화면을 한 번 읽어 영상 주소를 알아낸 뒤 그 자리에서 틉니다.
+   글을 열 때마다 미리 읽지 않는 것은 디시로 가는 요청을 줄이기 위해서입니다. 한 번 읽은 주소는 앱을 끌 때까지 기억합니다.
+   기기에서 재생하지 못하면 디시 화면으로 여는 단추로 바꿉니다. */
+const MV={},MVP={},MVT=new Set();
+/* 눌러서 틀 때(auto)만 영상을 내려받기 시작합니다. 미리 보기 그림만 보여 줄 때는 영상을 받지 않습니다. */
+const movieHtml=(u,m,auto)=>'<video class="media mv" controls playsinline preload="'+(auto?'metadata':'none')+'"'+(auto?' autoplay':'')+' src="'+esc(m.src)+'"'+(m.poster?' poster="'+esc(m.poster)+'"':'')+' data-page="'+esc(u)+'"></video>';
+/* 같은 영상을 두 번 읽지 않게, 읽는 중인 요청을 함께 씁니다. */
+const movie=u=>MVP[u]||(MVP[u]=dc.readMovie(u).then(m=>MV[u]=m).catch(e=>{delete MVP[u];throw e}));
+async function playMovie(b){const u=b.dataset.movie;if(b.disabled)return;
+ if(!MV[u]){b.disabled=true;b.textContent='동영상 불러오는 중…';try{await movie(u)}catch(e){if(b.isConnected){b.disabled=false;b.textContent='▶ 동영상 재생'}toast(e.message);return}}
+ for(const n of document.querySelectorAll('button[data-movie]'))if(n.dataset.movie===u)n.outerHTML=movieHtml(u,MV[u],n===b)}
+/* 미리 보기 그림: 채팅방을 열어 화면에 나온 동영상만(한 번에 세 개까지) 재생 창을 한 번씩 읽어 그림을 붙입니다.
+   영상 하나에 한 번만 시도하고, 디시가 요청을 막고 있는 동안에는 하지 않습니다. 실패하면 재생 단추를 그대로 둡니다. */
+let thumbQ=Promise.resolve();
+function thumbMovies(){let n=0;
+ for(const b of document.querySelectorAll('#room button[data-movie]')){const u=b.dataset.movie;
+  if(MV[u]){b.outerHTML=movieHtml(u,MV[u]);continue}
+  if(MVT.has(u)||Date.now()<pvPause||++n>3)continue;MVT.add(u);
+  /* 하나씩 차례로 읽고, 보내기 직전에 디시가 막고 있는지 다시 봅니다(앞 요청이 막혔으면 뒤 요청은 보내지 않습니다). */
+  thumbQ=thumbQ.then(async()=>{if(Date.now()<pvPause)return;try{await movie(u)}catch{return}
+   for(const x of document.querySelectorAll('#room button[data-movie]'))if(x.dataset.movie===u&&!x.disabled)x.outerHTML=movieHtml(u,MV[u])})}}
+document.addEventListener('error',e=>{const n=e.target;if(n.tagName==='VIDEO'&&n.classList.contains('mv')&&n.isConnected)n.outerHTML='<button class="embed" data-url="'+esc(n.dataset.page)+'">동영상을 재생하지 못했습니다. 디시에서 열기</button>'},true);
 const conVideo=(src,alt)=>'<video class="dcon1" autoplay loop muted playsinline src="'+esc(src)+'" aria-label="'+esc(alt||'디시콘')+'"></video>';
 /* 디시콘 주소는 그림일 수도 영상일 수도 있습니다. 그림으로 못 읽으면 영상으로 한 번 바꿔 봅니다. */
 document.addEventListener('error',e=>{const n=e.target;if(n.tagName==='IMG'&&n.classList.contains('dcon1')&&n.isConnected)n.outerHTML=conVideo(n.dataset.mp4||n.src,n.alt)},true);
@@ -293,6 +319,7 @@ function blockHtml(b,q=''){
  if(b.t==='dccon')return b.video?conVideo(b.src,b.alt):'<img class="dcon1" loading="lazy" src="'+esc(b.src)+'"'+(b.mp4?' data-mp4="'+esc(b.mp4)+'"':'')+' alt="'+esc(b.alt||'디시콘')+'">';
  /* 본문의 움직이는 그림(움짤)은 영상으로 들어옵니다. 재생 단추 없이 소리를 끈 채 되풀이 재생하고, 화면에 보일 때만 돌립니다(아래 gifIO). 누르면 조작 막대가 나옵니다. */
  if(b.t==='video')return '<video class="media gifv" loop muted playsinline preload="metadata" src="'+esc(b.src)+'"'+(b.poster?' poster="'+esc(b.poster)+'"':'')+'></video>';
+ if(b.t==='movie')return MV[b.src]?movieHtml(b.src,MV[b.src]):'<button class="embed movie" data-movie="'+esc(b.src)+'">▶ 동영상 재생</button>';
  return '<button class="embed" data-url="'+esc(b.src)+'">동영상·외부 콘텐츠 열기</button>';
 }
 function renderRoom(keep){
@@ -487,12 +514,27 @@ setTimeout(poll,90000);setInterval(poll,600000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&Date.now()-lastPoll>600000)poll()});
 /* 움짤: 화면에 보이는 것만 재생하고, 벗어나면 멈춥니다. 화면이 새로 그려질 때마다 새로 생긴 움짤을 찾아 지켜봅니다. */
 const gifIO=new IntersectionObserver(es=>{for(const e of es){if(e.isIntersecting)e.target.play().catch(()=>{});else e.target.pause()}},{threshold:.15});
-new MutationObserver(()=>{for(const v of document.querySelectorAll('video.gifv:not([data-io])')){v.dataset.io='1';v.muted=true;gifIO.observe(v)}}).observe(document.body,{childList:true,subtree:true});
+new MutationObserver(()=>{for(const v of document.querySelectorAll('video.gifv:not([data-io])')){v.dataset.io='1';v.muted=true;gifIO.observe(v)}thumbMovies()}).observe(document.body,{childList:true,subtree:true});
 document.addEventListener('click',e=>{const v=e.target.closest?.('video.gifv');if(v&&!v.controls)v.controls=true});
 /* 기기 알림을 누르면 알림 목록을 엽니다. */
 native.onNotify?.(()=>{R.ov='noti';for(const n of D.notis)n.read=true;save();renderRail();renderPane()});
 
 /* ---------- 글쓰기 화면 ---------- */
+/* 글을 올리는 동안 보여 주는 진행 창. 첨부를 읽고, 하나씩 올리고, 마지막에 글을 등록하는 순서로 바뀝니다.
+   동영상은 디시 화면이 계산한 진행률(%)을 그대로 보여 줍니다. 60%부터는 디시가 영상을 처리하는 시간입니다. */
+function progHtml(p){
+ const up=p?.stage==='upload',pct=up&&typeof p.pct==='number'?Math.max(0,Math.min(100,p.pct)):null;
+ const text=up?(p.video?'동영상':'사진')+' 올리는 중 ('+p.i+'/'+p.n+')':p?.stage==='submit'?'글을 등록하는 중…':'첨부 파일을 준비하는 중…';
+ const sub=up&&p.video?(pct!=null&&pct>=60?'디시에서 동영상을 처리하고 있습니다. 조금 더 걸립니다.':'동영상은 크기에 따라 몇 분 걸릴 수 있습니다.'):'잠시만 기다려 주세요.';
+ return '<div class="box"><i class="sp"></i><b>'+text+(pct!=null?' · '+pct+'%':'')+'</b>'+(pct!=null?'<span class="pbar"><i style="width:'+pct+'%"></i></span>':'')+'<small>'+sub+'</small></div>';
+}
+/* 진행 신호는 디시 화면에서 오므로 믿지 않습니다. 정해진 모양(단계 이름, 정수, 참·거짓)만 골라 받습니다. */
+native.onProgress?.(json=>{const w=R.write;if(!w||!w.busy)return;let p;try{p=JSON.parse(json)}catch{return}
+ const int=v=>Number.isInteger(v)&&v>=0&&v<=100?v:null;
+ if(p?.stage==='submit')w.prog={stage:'submit'};
+ else if(p?.stage==='upload'&&int(p.i)!=null&&int(p.n)!=null)w.prog={stage:'upload',i:int(p.i),n:int(p.n),video:p.video===true,pct:int(p.pct)};
+ else return;
+ const el=$('#wprog');if(el)el.innerHTML=progHtml(w.prog)});
 function renderWrite(){
  const el=$('#room'),w=R.write,g=gal(w.g),heads=R.list?.heads||[];
  el.className='room';$('#app').classList.add('in-room');
@@ -505,7 +547,8 @@ function renderWrite(){
   '<form class="inp" id="wform"><label class="wlab" for="wbody">본문</label><textarea id="wbody" placeholder="본문 입력">'+esc(w.text)+'</textarea>'+
   (w.pending.length?'<div class="pend">'+w.pending.map((x,i)=>'<span class="pthumb">'+(x.video?'<video src="'+x.url+'" muted aria-label="'+esc(x.name)+'"></video>':'<img src="'+x.url+'" alt="'+esc(x.name)+'">')+'<button type="button" class="del" data-pdel="'+i+'" aria-label="첨부 취소">✕</button></span>').join('')+'</div>':'')+
   (w.menu?'<div class="amenu"><button type="button" data-pick="image">사진</button><button type="button" data-pick="video">동영상</button></div>':'')+
-  '<div class="bar"><button type="button" class="ib" data-attach aria-expanded="'+!!w.menu+'" aria-label="사진·동영상 첨부">'+I.plus+'</button><span></span><button class="send ok">전송</button></div><input type="file" id="pick" multiple hidden></form>';
+  '<div class="bar"><button type="button" class="ib" data-attach aria-expanded="'+!!w.menu+'" aria-label="사진·동영상 첨부">'+I.plus+'</button><span></span><button class="send ok">전송</button></div><input type="file" id="pick" multiple hidden></form>'+
+  (w.busy?'<div class="wprog" id="wprog" role="status" aria-live="polite">'+progHtml(w.prog)+'</div>':'');
  const sc=$('#wscroll');sc.scrollTop=sc.scrollHeight;
 }
 /* 전송: 글을 이어 보내면 한 말풍선으로 합치고, 사이에 사진·영상을 보내면 그 지점에서 나뉩니다. 빈 전송은 빈 줄 한 줄입니다. */
@@ -520,7 +563,7 @@ async function publish(){
  const w=R.write;if(w.busy)return;if(w.text||w.pending.length)sendDraft();
  if(!w.title.trim()){w.err='제목을 입력해 주세요.';return renderWrite()}
  if(!w.blocks.some(x=>typeof x!=='string'||x.trim())){w.err='본문이나 사진을 추가해 주세요.';return renderWrite()}
- w.busy=true;w.err='';renderWrite();
+ w.busy=true;w.err='';w.prog=null;renderWrite();
  try{
   const blocks=[];for(const x of w.blocks)blocks.push(typeof x==='string'?{t:'text',v:x}:{t:x.video?'video':'img',name:x.name,type:x.file.type,b64:await b64(x.file)});
   const g=gal(w.g),r=await withAuth('write',{title:w.title.trim(),head:w.head,blocks},mWrite(g),{timeout:300000});
@@ -624,6 +667,7 @@ document.addEventListener('click',e=>{
  if(R.menu!=null&&!e.target.closest('[data-reply],[data-cdel],[data-postdel],[data-pedit]')){R.menu=null;R.ask=false;renderRoom(true)}
  const a=e.target.closest('a[data-url]');if(a){e.preventDefault();native.open(a.dataset.url);return}
  const b=e.target.closest('button');if(!b)return;const d=b.dataset;
+ if(d.movie){playMovie(b);return}
  if(d.view){R.view=d.view;R.ov='';renderPane()}
  else if(d.stab!=null){R.stab=d.stab;R.saved=false;if(d.ov)R.ov=d.ov;renderPane();if(d.stab==='계정'&&!R.userKnown)checkUser()}
  else if(d.ov!=null){R.ov=R.ov===d.ov?'':d.ov;if(d.ov==='set')R.stab='';

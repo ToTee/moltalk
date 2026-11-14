@@ -30,6 +30,31 @@ body{display:flex;flex-direction:column}
 .adpc.cy .logo b,.adb.cy .logo b{color:#00e5ff;letter-spacing:3px;text-shadow:0 0 6px #00e5ff}
 .adpc.cy .logo i,.adb.cy .logo i{color:#ff4fa3;font-size:12px;letter-spacing:4px;font-weight:700;margin-top:1px;text-shadow:0 0 6px #ff4fa3}
 .adpc.cy em,.adb.cy em{background:rgba(255,255,255,.12);color:#cfd8e3}
+/* 장식 광고 공통: 무늬(::before, ::after)가 글자를 덮지 않게 글자와 로고를 위로 올립니다. */
+.adpc.dec,.adb.dec{cursor:default;text-align:left;overflow:hidden}
+.dec .tx,.dec .logo{position:relative}
+/* 장식 광고 2 · 홀로그램 전광판: 짙은 남색 격자 위에 자홍·주황 빛 */
+.adpc.holo,.adb.holo{background:linear-gradient(105deg,#070b1f,#1a0a2e 50%,#3a0d2a)!important}
+.adpc.holo::before,.adb.holo::before{content:"";position:absolute;inset:0;background:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px) 0 0/100% 12px,linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px) 0 0/12px 100%;pointer-events:none}
+.adpc.holo::after,.adb.holo::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:linear-gradient(90deg,#ff2bd6,#ff8a00)}
+.adpc.holo .tx b,.adb.holo .tx b{color:#ffd0f4;font-weight:800}
+.adpc.holo .tx small,.adb.holo .tx span{color:#c9bfe6}
+.adpc.holo .tx i,.adb.holo .tx i{background:linear-gradient(90deg,#ff2bd6,#ff8a00);color:#12061c;font-weight:800;border-radius:0;padding:2px 8px;display:inline-block;font-size:10px;letter-spacing:1px;transform:skewX(-12deg)}
+.adpc.holo .logo,.adb.holo .logo{background:rgba(255,255,255,.06);border:1px solid #ff5fd0;border-radius:4px;transform:skewX(-8deg)}
+.adpc.holo .logo b,.adb.holo .logo b{color:#fff;font-weight:800;letter-spacing:2px}
+.adpc.holo .logo i,.adb.holo .logo i{color:#ffb347;font-size:8px;letter-spacing:2px}
+.adpc.holo em,.adb.holo em{background:rgba(255,255,255,.14);color:#f1dcff}
+/* 장식 광고 3 · 단말기 화면: 검은 바탕에 초록 글자와 가로 주사선 */
+.adpc.term,.adb.term{background:#030806!important;font-family:Consolas,"D2Coding","Malgun Gothic",monospace}
+.adpc.term::after,.adb.term::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(57,255,136,.07) 0 1px,transparent 1px 3px);pointer-events:none}
+.adpc.term .tx b,.adb.term .tx b{color:#d8ffe8;text-shadow:1px 0 0 rgba(255,0,110,.7),-1px 0 0 rgba(0,229,255,.7)}
+.adpc.term .tx small,.adb.term .tx span{color:#39ff88}
+.adpc.term .tx i,.adb.term .tx i{background:none;color:#1fbf62;padding:0;display:inline-block;font-size:10px;letter-spacing:1px}
+.adpc.term .tx i::after,.adb.term .tx i::after{content:"▌";margin-left:2px;color:#39ff88}
+.adpc.term .logo,.adb.term .logo{border:1px dashed #39ff88;border-radius:2px;background:rgba(57,255,136,.06)}
+.adpc.term .logo b,.adb.term .logo b{color:#39ff88;font-size:13px;letter-spacing:2px}
+.adpc.term .logo i,.adb.term .logo i{color:#ff2e88;font-size:9px;letter-spacing:1px}
+.adpc.term em,.adb.term em{background:rgba(57,255,136,.16);color:#9dffc6}
 .rail{width:64px;flex:none;background:var(--side);display:flex;flex-direction:column;align-items:center;padding:26px 0 20px;gap:22px;color:#909090}
 .rail .on{color:#191919}
 .rail .sp{flex:1}
@@ -165,6 +190,14 @@ body{display:flex;flex-direction:column}
 .sys{text-align:center;margin:10px 0}
 .sys span,.sys button{background:rgba(0,0,0,.5);color:#fff;font-size:11px;border-radius:12px;padding:3px 12px}
 .sys.err span{background:#b3261e}
+/* 글 올리는 동안의 진행 창: 글쓰기 화면 전체를 살짝 가리고 가운데에 상자를 띄웁니다. */
+.wprog{position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.35);padding:24px}
+.wprog .box{width:min(300px,100%);background:#fff;border-radius:16px;padding:22px 20px 18px;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.25);display:flex;flex-direction:column;align-items:center;gap:10px}
+.wprog .sp{width:28px;height:28px;border:3px solid #e6e6e6;border-top-color:#191919;border-radius:50%;animation:ptrspin .8s linear infinite}
+.wprog b{font-size:15px;font-weight:600;color:#191919}
+.wprog small{font-size:12px;color:#777;line-height:1.4}
+.wprog .pbar{display:block;width:100%;height:6px;border-radius:3px;background:#ececec;overflow:hidden}
+.wprog .pbar i{display:block;height:100%;background:#191919;border-radius:3px;transition:width .3s}
 .m{display:flex;gap:8px;margin-top:4px}
 .m.first{margin-top:12px}
 .m .avc{width:40px;flex:none}
@@ -221,6 +254,9 @@ body{display:flex;flex-direction:column}
 .oin .embed{background:#f2f2f3;margin:6px 0}
 .media{max-width:min(240px,100%);max-height:320px;border-radius:4px;display:block;background:#dfe6ec;cursor:zoom-in}
 video.media{cursor:auto}
+video.mv{background:#000}
+.embed.movie{font-weight:600}
+.embed.movie:disabled{opacity:.6}
 .dcon1{width:84px;height:84px;object-fit:contain;display:block}
 .dcons{display:flex;gap:0}
 .dcon{display:flex;gap:2px;flex:none}
@@ -329,6 +365,14 @@ span.d-only,span.m-only{display:contents}
   .adb .logo b{font-size:14px;font-weight:600;letter-spacing:1px}
   .adb .logo i{font-style:normal;font-size:7px;letter-spacing:2px;color:#f4a6c8;margin-top:3px}
   .adb em{position:absolute;right:7px;top:7px;font-style:normal;font-size:9px;font-weight:600;color:#666;background:#fff;border-radius:8px;padding:1px 5px}
+  /* 장식 광고 카드: 높이는 그대로 두고, 로고 칸과 여백을 줄이고 글자를 조금 좁혀 문구가 한 줄에 다 들어가게 합니다. */
+  .adb.dec{gap:6px;padding:14px 8px 14px 14px}
+  .adb.dec .tx b{font-size:13.5px;letter-spacing:-.4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .adb.dec .tx span{font-size:10.5px;letter-spacing:-.7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .adb.dec .logo{width:62px}
+  .adb.dec .logo b{font-size:12px;letter-spacing:.5px}
+  .adb.dec .logo i{letter-spacing:.5px}
+  .adb.holo .logo i{font-size:7px}
   .who>span:last-child{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .av{width:48px;height:48px;font-size:16px;font-weight:500}
   .who .av{width:38px;height:38px}

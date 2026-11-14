@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld('native',{
  http:(url,opt)=>ipcRenderer.invoke('http',url,opt),
  open:url=>ipcRenderer.invoke('open',url),
  drive:(url,code,opt)=>ipcRenderer.invoke('drive',url,code,opt),
+ /* 사진·동영상 올리기 진행 상황(JSON 문자열)을 받습니다. */
+ onProgress:cb=>{ipcRenderer.on('drive-progress',(e,json)=>cb(json))},
  official:(url,opt)=>ipcRenderer.invoke('official',url,opt),
  logout:()=>ipcRenderer.invoke('logout'),
  /* 새 댓글 알림을 윈도우 알림으로 띄우고, 그 알림을 눌렀을 때 화면에 알려 줍니다. */
