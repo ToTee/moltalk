@@ -36,7 +36,8 @@ export function toBlocks(root){
   {const xu=c.getAttribute('data-x-url')||'';if(/^https:\/\//.test(xu)){if(buf&&!buf.endsWith('\n'))buf+='\n';buf+=xu+'\n';continue}}
   if(tag==='iframe'||tag==='embed'){const src=abs(c.getAttribute('src')||'');if(src){flush();out.push({t:'embed',src})}continue}
   const cls=c.getAttribute('class')||'';
-  if(/txtdccon/.test(cls)){const v=c.textContent.trim(),inner=c.querySelector('[class*="ctxt_"]');if(v){flush();out.push({t:'txtcon',v,bg:(cls.match(/cbg_([0-9a-f]{6})/i)||[])[1]||'3b4890',fg:((inner?.getAttribute('class')||'').match(/ctxt_([0-9a-f]{6})/i)||[])[1]||'ffffff'})}continue}
+  /* 글자콘은 본문·댓글 화면에 따라 이름표가 다릅니다(txtdccon, 댓글 응답에서는 coment_dccon_txt). 둘 다 글자콘으로 읽습니다. */
+  if(/txtdccon|coment_dccon_txt/.test(cls)){const v=c.textContent.trim(),inner=c.querySelector('[class*="ctxt_"]');if(v){flush();out.push({t:'txtcon',v,bg:(cls.match(/cbg_([0-9a-f]{6})/i)||[])[1]||'3b4890',fg:((inner?.getAttribute('class')||'').match(/ctxt_([0-9a-f]{6})/i)||[])[1]||'ffffff'})}continue}
   /* 링크: 보이는 글자에 주소가 없으면 주소를 뒤에 붙여, 화면에서 누를 수 있게 합니다. */
   if(tag==='a'){const href=abs(c.getAttribute('href')||''),before=buf.length;walk(c);if(/^https?:\/\//.test(href)&&!/https?:\/\//.test(buf.slice(before)))buf+=(buf.length>before?' ':'')+href+' ';continue}
   const block=/^(p|div|li|tr|h[1-6]|blockquote|ul|ol|table)$/.test(tag);
@@ -144,7 +145,8 @@ export function createDc({http,parse}){
  const get=async url=>{const r=await http(url,{headers:{Referer:BASE+'/'}});if(r.status===429||r.status===403||(r.status===200&&!r.text.trim()))throw busy();if(r.status!==200)throw Error('디시에서 요청을 거절했습니다 ('+r.status+').');return r.text};
  return {
   async searchGalleries(q){q=String(q||'').trim();if(!q||q.length>60)throw Error('검색어를 1~60자로 입력해 주세요.');return parseGallerySearch(parse(await get('https://search.dcinside.com/gallery/q/'+encodeURIComponent(q))))},
-  async listPosts(g,{page=1,head=''}={}){if(head!==''&&!/^\d{1,6}$/.test(String(head)))throw Error('잘못된 말머리입니다.');return parseList(parse(await get(boardUrl(g,'lists')+'&page='+Math.max(1,page|0)+(head!==''?'&search_head='+head:''))))},
+  /* rec: 개념글만 봅니다(디시 목록의 "개념글" 탭과 같은 주소). */
+  async listPosts(g,{page=1,head='',rec=false}={}){if(head!==''&&!/^\d{1,6}$/.test(String(head)))throw Error('잘못된 말머리입니다.');return parseList(parse(await get(boardUrl(g,'lists')+'&page='+Math.max(1,page|0)+(head!==''?'&search_head='+head:'')+(rec?'&exception_mode=recommend':''))))},
   async readPost(g,no){if(!/^\d+$/.test(String(no)))throw Error('잘못된 글 번호입니다.');return parseView(parse(await get(boardUrl(g,'view')+'&no='+no)),no)},
   async readComments(g,no,token,page=1){
    const r=await http(BASE+'/board/comment/',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded; charset=UTF-8','X-Requested-With':'XMLHttpRequest',Referer:boardUrl(g,'view')+'&no='+no},

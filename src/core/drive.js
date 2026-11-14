@@ -135,10 +135,20 @@ const SCRIPTS={
  // 사용할 수 있는 디시콘 목록 읽기
  async dcconList(a,h){
   if(!document.querySelector('#commentWrite'))return {error:'이 글에서는 디시콘을 쓸 수 없습니다.'};
+  /* 디시 화면은 디시콘 창을 한 시간 동안 기억해 둡니다. 방금 디시콘을 산 뒤처럼 새로 읽어야 할 때는 그 기억을 지웁니다. */
+  if(a.fresh)for(const k of Object.keys(localStorage))if(/^(show_dccon_|dccon_layer_timer_|dccon_fav_layer_timer_)/.test(k))localStorage.removeItem(k);
   window.show_dccon('commentWrite');
   const box=document.querySelector('#dcconBoxComment');
   await h.until(()=>!box.querySelector('.dccon-loading'),12000);await h.wait(300);
-  const items=[...box.querySelectorAll('.sm-img')].map(n=>{const img=n.querySelector('img');return {pkg:String(n.getAttribute('data-dccon-package')||''),detail:String(n.getAttribute('data-dccon-detail')||''),src:img?(img.getAttribute('data-src')||img.getAttribute('data-original')||img.src||''):'',alt:img?img.alt:''}}).filter(x=>x.pkg&&x.detail&&/^https:/.test(x.src));
+  const read=()=>[...box.querySelectorAll('.sm-img')].map(n=>{const img=n.querySelector('img');return {pkg:String(n.getAttribute('data-dccon-package')||''),detail:String(n.getAttribute('data-dccon-detail')||''),src:img?(img.getAttribute('data-src')||img.getAttribute('data-original')||img.src||''):'',alt:img?img.alt:''}}).filter(x=>x.pkg&&x.detail&&/^https:/.test(x.src));
+  const seen=new Set(),items=[],add=()=>{for(const x of read()){const k=x.pkg+'/'+x.detail;if(!seen.has(k)){seen.add(k);items.push(x)}}};
+  add();
+  /* 디시콘 묶음이 여러 개면 창 위쪽에 묶음마다 탭이 있고, 탭을 눌러야 그 묶음의 그림이 불려 옵니다. 탭을 차례로 눌러 모두 모읍니다(최대 20묶음). */
+  const tabs=[...box.querySelectorAll('#swiper-dccon-tab li a')].filter(t=>/getDccon_tab/.test(t.getAttribute('onclick')||''));
+  for(const t of tabs.slice(0,20)){
+   if(t.closest('li').classList.contains('on'))continue;
+   t.click();await h.until(()=>read().some(x=>!seen.has(x.pkg+'/'+x.detail)),2500);await h.wait(200);add();
+  }
   return {user:h.user(),items,double:!!document.querySelector('#dbl_con_chk'),note:items.length?'':(box.textContent||'').replace(/\s+/g,' ').trim().slice(0,120)};
  },
 

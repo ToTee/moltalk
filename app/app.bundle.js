@@ -71,7 +71,7 @@
           continue;
         }
         const cls = c.getAttribute("class") || "";
-        if (/txtdccon/.test(cls)) {
+        if (/txtdccon|coment_dccon_txt/.test(cls)) {
           const v = c.textContent.trim(), inner = c.querySelector('[class*="ctxt_"]');
           if (v) {
             flush();
@@ -288,9 +288,10 @@
         if (!q || q.length > 60) throw Error("\uAC80\uC0C9\uC5B4\uB97C 1~60\uC790\uB85C \uC785\uB825\uD574 \uC8FC\uC138\uC694.");
         return parseGallerySearch(parse(await get("https://search.dcinside.com/gallery/q/" + encodeURIComponent(q))));
       },
-      async listPosts(g, { page = 1, head = "" } = {}) {
+      /* rec: 개념글만 봅니다(디시 목록의 "개념글" 탭과 같은 주소). */
+      async listPosts(g, { page = 1, head = "", rec = false } = {}) {
         if (head !== "" && !/^\d{1,6}$/.test(String(head))) throw Error("\uC798\uBABB\uB41C \uB9D0\uBA38\uB9AC\uC785\uB2C8\uB2E4.");
-        return parseList(parse(await get(boardUrl(g, "lists") + "&page=" + Math.max(1, page | 0) + (head !== "" ? "&search_head=" + head : ""))));
+        return parseList(parse(await get(boardUrl(g, "lists") + "&page=" + Math.max(1, page | 0) + (head !== "" ? "&search_head=" + head : "") + (rec ? "&exception_mode=recommend" : ""))));
       },
       async readPost(g, no) {
         if (!/^\d+$/.test(String(no))) throw Error("\uC798\uBABB\uB41C \uAE00 \uBC88\uD638\uC785\uB2C8\uB2E4.");
@@ -514,14 +515,35 @@
     // 사용할 수 있는 디시콘 목록 읽기
     async dcconList(a, h) {
       if (!document.querySelector("#commentWrite")) return { error: "\uC774 \uAE00\uC5D0\uC11C\uB294 \uB514\uC2DC\uCF58\uC744 \uC4F8 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4." };
+      if (a.fresh) {
+        for (const k of Object.keys(localStorage)) if (/^(show_dccon_|dccon_layer_timer_|dccon_fav_layer_timer_)/.test(k)) localStorage.removeItem(k);
+      }
       window.show_dccon("commentWrite");
       const box = document.querySelector("#dcconBoxComment");
       await h.until(() => !box.querySelector(".dccon-loading"), 12e3);
       await h.wait(300);
-      const items = [...box.querySelectorAll(".sm-img")].map((n) => {
+      const read = () => [...box.querySelectorAll(".sm-img")].map((n) => {
         const img = n.querySelector("img");
         return { pkg: String(n.getAttribute("data-dccon-package") || ""), detail: String(n.getAttribute("data-dccon-detail") || ""), src: img ? img.getAttribute("data-src") || img.getAttribute("data-original") || img.src || "" : "", alt: img ? img.alt : "" };
       }).filter((x) => x.pkg && x.detail && /^https:/.test(x.src));
+      const seen = /* @__PURE__ */ new Set(), items = [], add = () => {
+        for (const x of read()) {
+          const k = x.pkg + "/" + x.detail;
+          if (!seen.has(k)) {
+            seen.add(k);
+            items.push(x);
+          }
+        }
+      };
+      add();
+      const tabs = [...box.querySelectorAll("#swiper-dccon-tab li a")].filter((t) => /getDccon_tab/.test(t.getAttribute("onclick") || ""));
+      for (const t of tabs.slice(0, 20)) {
+        if (t.closest("li").classList.contains("on")) continue;
+        t.click();
+        await h.until(() => read().some((x) => !seen.has(x.pkg + "/" + x.detail)), 2500);
+        await h.wait(200);
+        add();
+      }
       return { user: h.user(), items, double: !!document.querySelector("#dbl_con_chk"), note: items.length ? "" : (box.textContent || "").replace(/\s+/g, " ").trim().slice(0, 120) };
     },
     // 디시콘 1개 또는 2개(더블콘) 댓글로 등록
@@ -1038,7 +1060,8 @@
     const shownPins = posts.filter((p) => p.notice), allRest = posts.filter((p) => !p.notice), rest = allRest.slice(0, R.shown);
     R.hidden = allRest.length - rest.length;
     const body = !L ? R.listErr ? '<div class="empty">' + esc(R.listErr) + '<br><button class="pill" data-reload>\uB2E4\uC2DC \uC2DC\uB3C4</button></div>' : '<div class="spin">\uBD88\uB7EC\uC624\uB294 \uC911\u2026</div>' : (R.pinOpen ? shownPins : shownPins.slice(0, 1)).map(rowHtml).join("") + (shownPins.length > 1 ? '<button class="pintog" data-pintog aria-expanded="' + R.pinOpen + '" aria-label="' + (R.pinOpen ? "\uACF5\uC9C0 \uC811\uAE30" : "\uACF5\uC9C0 " + (shownPins.length - 1) + "\uAC1C \uB354 \uBCF4\uAE30") + '"></button>' : "") + (rest.length ? rest.map(rowHtml).join("") : '<div class="empty">\uC774 \uD0ED\uC5D0\uB294 \uC544\uC9C1 \uAE00\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.</div>') + (R.hidden > 0 || L.more && !(plain && R.head) ? '<button class="more-row" data-more>' + (R.listBusy ? "\uBD88\uB7EC\uC624\uB294 \uC911\u2026" : "\uC774\uC804 \uAE00 \uB354 \uBCF4\uAE30") + "</button>" : "");
-    return '<div class="head"><h2>\uCC44\uD305 <small>\u25BC</small></h2><button class="ib' + (R.filterOn ? " act" : "") + '" data-filter aria-label="\uAE00 \uAC80\uC0C9">' + I.search + '</button><button class="ib" data-write aria-label="\uAE00\uC4F0\uAE30">' + I.write + '</button><button class="ib d-only" data-refresh aria-label="\uC0C8\uB85C\uACE0\uCE68 (F5)" title="\uC0C8\uB85C\uACE0\uCE68 (F5)">' + I.refresh + "</button>" + cogM + "</div>" + (R.filterOn ? '<div class="searchbar"><input id="filter" placeholder="\uBD88\uB7EC\uC628 \uAE00 \uC81C\uBAA9\uC5D0\uC11C \uCC3E\uAE30" value="' + esc(R.filter) + '"></div>' : "") + '<div class="chips" id="chips">' + tabs.map((t) => '<button class="chip' + (String(t.id) === String(R.head) ? " on" : "") + '" data-h="' + esc(t.id) + '">' + esc(t.name) + "</button>").join("") + '<button class="chip ico' + (R.pinOpen ? " on" : "") + '" data-pintog aria-pressed="' + R.pinOpen + '" aria-label="' + (R.pinOpen ? "\uACF5\uC9C0 \uC811\uAE30" : "\uACF5\uC9C0 \uBAA8\uB450 \uBCF4\uAE30") + '">' + I.listp + (!R.pinOpen && pins.length > 1 ? '<i class="cdot"></i>' : "") + '</button></div><div class="scroll" id="cscroll">' + (R.g === BLINK ? adM(true) : "") + body + "</div>";
+    return '<div class="head"><h2>\uCC44\uD305 <small>\u25BC</small></h2><button class="ib' + (R.filterOn ? " act" : "") + '" data-filter aria-label="\uAE00 \uAC80\uC0C9">' + I.search + '</button><button class="ib" data-write aria-label="\uAE00\uC4F0\uAE30">' + I.write + '</button><button class="ib d-only" data-refresh aria-label="\uC0C8\uB85C\uACE0\uCE68 (F5)" title="\uC0C8\uB85C\uACE0\uCE68 (F5)">' + I.refresh + "</button>" + cogM + "</div>" + (R.filterOn ? '<div class="searchbar"><input id="filter" placeholder="\uBD88\uB7EC\uC628 \uAE00 \uC81C\uBAA9\uC5D0\uC11C \uCC3E\uAE30" value="' + esc(R.filter) + '"></div>' : "") + '<div class="chips" id="chips">' + tabs.map((t) => '<button class="chip' + (String(t.id) === String(R.head) ? " on" : "") + '" data-h="' + esc(t.id) + '">' + esc(t.name) + "</button>").join("") + /* 개념글만 보기: 켜면 디시의 개념글 목록을 읽어 옵니다. 말머리 탭과 함께 쓸 수 있습니다. */
+    '<button class="chip' + (R.rec ? " on" : "") + '" data-rec aria-pressed="' + !!R.rec + '">\uAC1C\uB150\uAE00</button><button class="chip ico' + (R.pinOpen ? " on" : "") + '" data-pintog aria-pressed="' + R.pinOpen + '" aria-label="' + (R.pinOpen ? "\uACF5\uC9C0 \uC811\uAE30" : "\uACF5\uC9C0 \uBAA8\uB450 \uBCF4\uAE30") + '">' + I.listp + (!R.pinOpen && pins.length > 1 ? '<i class="cdot"></i>' : "") + '</button></div><div class="scroll" id="cscroll">' + (R.g === BLINK ? adM(true) : "") + body + "</div>";
   }
   function overlayHtml() {
     const x = '<button class="ib" data-ov="" aria-label="\uB2EB\uAE30">\u2715</button>';
@@ -1245,6 +1268,7 @@
     } else sc.scrollTop = top;
   }
   var postUrl = (g, no) => "https://gall.dcinside.com/" + (g.type === "minor" ? "mgallery/" : g.type === "mini" ? "mini/" : "") + "board/view/?id=" + g.id + "&no=" + no;
+  var DCCON_SHOP = "https://m.dcinside.com/dcconShop/dcconList";
   var TBG = ["3b4890", "b4b4e1", "f5e1f0", "d2f0e6", "ffffff", "333333"];
   var TFG = ["ffffff", "333333"];
   function tstyle(t, bg, fg) {
@@ -1256,20 +1280,22 @@
     if (C.busy) return '<div class="spin">\uB514\uC2DC\uCF58 \uBD88\uB7EC\uC624\uB294 \uC911\u2026</div>';
     if (C.err) return '<p class="hint">' + esc(C.err) + "</p>";
     if (!C.items) return "";
-    if (!C.items.length) return '<p class="hint">' + esc(C.note || "\uC0AC\uC6A9\uD560 \uC218 \uC788\uB294 \uB514\uC2DC\uCF58\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.") + "</p>";
-    return '<div class="cons">' + C.items.map((c, i) => '<button class="con' + (i === R.con1 ? " sel" : "") + '" data-con="' + i + '" data-lp="con" aria-label="' + esc(c.alt || "\uB514\uC2DC\uCF58") + '"><img loading="lazy" src="' + esc(c.src) + '" alt=""></button>').join("") + '</div><p class="hint">' + (R.con1 != null ? "\uD558\uB098\uB97C \uACE8\uB790\uC2B5\uB2C8\uB2E4. \uB2E4\uB978 \uB514\uC2DC\uCF58\uC744 \uB204\uB974\uBA74 2\uAC1C\uAC00 \uC88C\uC6B0\uB85C \uD568\uAED8 \uC62C\uB77C\uAC11\uB2C8\uB2E4." : "\uB204\uB974\uBA74 1\uAC1C \uB4F1\uB85D \xB7 \uAFB9 \uB204\uB978 \uB4A4 \uB2E4\uB978 \uB514\uC2DC\uCF58\uC744 \uB204\uB974\uBA74 \uB354\uBE14\uCF58") + "</p>";
+    const shop = '<button type="button" class="cshop" data-conshop>\uFF0B \uB514\uC2DC\uCF58 \uC0F5</button>';
+    if (!C.items.length) return '<div class="cpkgs">' + shop + '</div><p class="hint">' + esc(C.note || "\uC0AC\uC6A9\uD560 \uC218 \uC788\uB294 \uB514\uC2DC\uCF58\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.") + "</p>";
+    const pkgs = [...new Set(C.items.map((c) => c.pkg))], cur = pkgs.includes(R.conPkg) ? R.conPkg : pkgs[0];
+    return '<div class="cpkgs">' + (pkgs.length > 1 ? pkgs.map((p) => '<button type="button" class="cpkg' + (p === cur ? " on" : "") + '" data-conpkg="' + esc(p) + '" aria-label="\uB514\uC2DC\uCF58 \uBB36\uC74C" aria-pressed="' + (p === cur) + '"><img loading="lazy" src="' + esc(C.items.find((c) => c.pkg === p).src) + '" alt=""></button>').join("") : "") + shop + '</div><div class="cons">' + C.items.map((c, i) => c.pkg !== cur ? "" : '<button class="con' + (i === R.con1 ? " sel" : "") + '" data-con="' + i + '" data-lp="con" aria-label="' + esc(c.alt || "\uB514\uC2DC\uCF58") + '"><img loading="lazy" src="' + esc(c.src) + '" alt=""></button>').join("") + '</div><p class="hint">' + (R.con1 != null ? "\uD558\uB098\uB97C \uACE8\uB790\uC2B5\uB2C8\uB2E4. \uB2E4\uB978 \uB514\uC2DC\uCF58\uC744 \uB204\uB974\uBA74 2\uAC1C\uAC00 \uC88C\uC6B0\uB85C \uD568\uAED8 \uC62C\uB77C\uAC11\uB2C8\uB2E4." : "\uB204\uB974\uBA74 1\uAC1C \uB4F1\uB85D \xB7 \uAFB9 \uB204\uB978 \uB4A4 \uB2E4\uB978 \uB514\uC2DC\uCF58\uC744 \uB204\uB974\uBA74 \uB354\uBE14\uCF58") + "</p>";
   }
   function txtconHtml() {
     return '<div class="cpanel tpanel"><div class="tcon" id="tcprev" style="' + tstyle(R.tcon, D.tbg, D.tfg) + '">' + esc(R.tcon) + '</div><div class="tcolors"><span>\uBC30\uACBD\uC0C9</span>' + TBG.map((c) => '<button type="button" class="sw' + (c === D.tbg ? " on" : "") + '" data-tbg="' + c + '" style="background:#' + c + '" aria-label="\uBC30\uACBD\uC0C9 ' + c + '" aria-pressed="' + (c === D.tbg) + '"></button>').join("") + "<i></i><span>\uAE00\uC790\uC0C9</span>" + TFG.map((c) => '<button type="button" class="sw' + (c === D.tfg ? " on" : "") + '" data-tfg="' + c + '" style="background:#' + c + '" aria-label="\uAE00\uC790\uC0C9 ' + c + '" aria-pressed="' + (c === D.tfg) + '"></button>').join("") + "</div>" + (D.trecent.length ? '<div class="trecent">' + D.trecent.map((t) => '<button type="button" data-tuse="' + esc(t) + '">' + esc(t) + "</button>").join("") + '<button type="button" class="tclr" data-tclear>\uC0AD\uC81C</button></div>' : "") + '<div class="trow"><input id="tcin" maxlength="20" placeholder="\uAE00\uC790\uCF58 \uB0B4\uC6A9 \uC785\uB825 (\uCD5C\uB300 20\uC790)" aria-label="\uAE00\uC790\uCF58 \uB0B4\uC6A9" value="' + esc(R.tcon) + '"><button type="button" class="pub" data-tsend>\uB4F1\uB85D</button></div></div>';
   }
-  async function loadCons() {
+  async function loadCons(fresh) {
     const g = gal(R.room?.g || R.g) || D.gals[0], no = R.room?.no || R.latest[key(g)]?.id, C = R.cons;
     if (!g || !no || C.busy) return;
     C.busy = true;
     C.err = "";
     renderRoom(true);
     if (R.ov === "con") renderPane();
-    const r = await drive("dcconList", {}, mView(g, no));
+    const r = await drive("dcconList", { fresh: !!fresh }, mView(g, no), { timeout: 9e4 });
     C.busy = false;
     if (r.error) {
       C.err = r.error;
@@ -1628,8 +1654,8 @@
   async function loadList({ append = false, fresh = false } = {}) {
     const g = gal(R.g);
     if (!g) return;
-    const seq = ++R.seq, head = R.list && !R.list.heads.length ? "" : R.head;
-    const ck = R.g + "|" + head, c = R.cache[ck];
+    const seq = ++R.seq, head = R.list && !R.list.heads.length ? "" : R.head, rec = !!R.rec;
+    const ck = R.g + "|" + head + (rec ? "|rec" : ""), c = R.cache[ck];
     if (!append && !fresh && c && Date.now() - c.at < 6e4) {
       R.list = c.list;
       R.listErr = "";
@@ -1644,7 +1670,7 @@
     R.listBusy = true;
     renderPane();
     try {
-      const page = append ? R.list.page + 1 : 1, res = await dc.listPosts(g, { page, head });
+      const page = append ? R.list.page + 1 : 1, res = await dc.listPosts(g, { page, head, rec });
       if (seq !== R.seq) return;
       if (append) {
         const ids = new Set(R.list.posts.map((p) => p.id)), add = res.posts.filter((p) => !p.notice && !ids.has(p.id));
@@ -1652,13 +1678,13 @@
         R.list.page = page;
         R.list.more = add.length > 0;
       } else {
-        if (head) {
+        if (head || rec) {
           const ids = new Set(res.posts.map((p) => p.id)), pins = (R.cache[R.g + "|"]?.list.posts || []).filter((p) => p.notice && !ids.has(p.id));
           res.posts.unshift(...pins);
         }
         R.list = { posts: res.posts, heads: res.heads.length ? res.heads : R.list?.heads || [], page: 1, more: res.posts.some((p) => !p.notice) };
       }
-      if (!head) {
+      if (!head && !rec) {
         const t = res.posts.find((p) => !p.notice);
         if (t && !append) {
           R.latest[R.g] = { id: t.id, title: t.title };
@@ -1685,6 +1711,7 @@
   async function openGallery(k) {
     R.g = k;
     R.head = "";
+    R.rec = false;
     R.shown = 20;
     R.view = "chats";
     R.ov = "";
@@ -1950,6 +1977,10 @@
       renderRoom(true);
     } else if (d.g) {
       openGallery(d.g);
+    } else if (d.rec != null) {
+      R.rec = !R.rec;
+      R.shown = 20;
+      loadList();
     } else if (d.h != null) {
       R.head = d.h;
       R.shown = 20;
@@ -2096,6 +2127,16 @@
       $("#tcin")?.focus({ preventScroll: true });
     } else if (d.con != null) {
       pickCon(+d.con, false);
+    } else if (d.conpkg != null) {
+      R.conPkg = d.conpkg;
+      R.con1 = null;
+      renderRoom(true);
+      if (R.ov === "con") renderPane();
+    } else if (d.conshop != null) {
+      native.official(DCCON_SHOP).then(() => {
+        R.cons.items = null;
+        loadCons(true);
+      });
     } else if (d.tbg) {
       D.tbg = d.tbg;
       save();

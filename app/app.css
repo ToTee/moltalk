@@ -240,6 +240,12 @@ video.media{cursor:auto}
 .replybar .ib{width:28px;height:28px}
 .cpanel{flex:none;background:#fff;border-bottom:1px solid var(--line);padding-top:8px}
 .scroll.cpanel{flex:1;border:0}
+/* 디시콘 묶음 탭과 디시콘 샵 단추 */
+.cpkgs{display:flex;align-items:center;gap:6px;padding:0 10px 8px;overflow-x:auto}
+.cpkg{flex:none;width:40px;height:40px;border-radius:8px;background:#f1f3f5;display:grid;place-items:center;opacity:.55}
+.cpkg img{max-width:32px;max-height:32px;pointer-events:none}
+.cpkg.on{opacity:1;background:var(--mine);outline:2px solid #191919}
+.cshop{flex:none;margin-left:auto;border:1px solid #dcdcdc;border-radius:16px;padding:6px 12px;font-size:12px;white-space:nowrap;background:#fff}
 .cons{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:0 10px 10px;max-height:180px;overflow-y:auto}
 .scroll.cpanel .cons{max-height:none}
 .con{height:74px;border-radius:8px;background:#f1f3f5;display:grid;place-items:center;user-select:none}

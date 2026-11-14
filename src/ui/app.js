@@ -195,6 +195,8 @@ function chatsHtml(){
  return '<div class="head"><h2>채팅 <small>▼</small></h2><button class="ib'+(R.filterOn?' act':'')+'" data-filter aria-label="글 검색">'+I.search+'</button><button class="ib" data-write aria-label="글쓰기">'+I.write+'</button><button class="ib d-only" data-refresh aria-label="새로고침 (F5)" title="새로고침 (F5)">'+I.refresh+'</button>'+cogM+'</div>'+
   (R.filterOn?'<div class="searchbar"><input id="filter" placeholder="불러온 글 제목에서 찾기" value="'+esc(R.filter)+'"></div>':'')+
   '<div class="chips" id="chips">'+tabs.map(t=>'<button class="chip'+(String(t.id)===String(R.head)?' on':'')+'" data-h="'+esc(t.id)+'">'+esc(t.name)+'</button>').join('')+
+  /* 개념글만 보기: 켜면 디시의 개념글 목록을 읽어 옵니다. 말머리 탭과 함께 쓸 수 있습니다. */
+  '<button class="chip'+(R.rec?' on':'')+'" data-rec aria-pressed="'+!!R.rec+'">개념글</button>'+
   '<button class="chip ico'+(R.pinOpen?' on':'')+'" data-pintog aria-pressed="'+R.pinOpen+'" aria-label="'+(R.pinOpen?'공지 접기':'공지 모두 보기')+'">'+I.listp+(!R.pinOpen&&pins.length>1?'<i class="cdot"></i>':'')+'</button></div>'+
   '<div class="scroll" id="cscroll">'+(R.g===BLINK?adM(true):'')+body+'</div>';
 }
@@ -353,6 +355,7 @@ function renderRoom(keep){
 const postUrl=(g,no)=>'https://gall.dcinside.com/'+(g.type==='minor'?'mgallery/':g.type==='mini'?'mini/':'')+'board/view/?id='+g.id+'&no='+no;
 
 /* ---------- 디시콘·글자콘 창 ---------- */
+const DCCON_SHOP='https://m.dcinside.com/dcconShop/dcconList';
 const TBG=['3b4890','b4b4e1','f5e1f0','d2f0e6','ffffff','333333'],TFG=['ffffff','333333'];
 function tstyle(t,bg,fg){const n=[...String(t)].length;return 'background:#'+bg+';color:#'+fg+';font-size:'+(n<=2?44:n<=4?30:n<=8?22:n<=12?18:15)+'px'}
 function consHtml(){
@@ -360,8 +363,13 @@ function consHtml(){
  if(C.busy)return '<div class="spin">디시콘 불러오는 중…</div>';
  if(C.err)return '<p class="hint">'+esc(C.err)+'</p>';
  if(!C.items)return '';
- if(!C.items.length)return '<p class="hint">'+esc(C.note||('사용할 수 있는 디시콘이 없습니다.'))+'</p>';
- return '<div class="cons">'+C.items.map((c,i)=>'<button class="con'+(i===R.con1?' sel':'')+'" data-con="'+i+'" data-lp="con" aria-label="'+esc(c.alt||'디시콘')+'"><img loading="lazy" src="'+esc(c.src)+'" alt=""></button>').join('')+'</div>'+
+ /* 디시콘 샵: 디시 화면을 열어 다른 디시콘을 찾고 살 수 있습니다. 닫으면 목록을 새로 읽습니다. */
+ const shop='<button type="button" class="cshop" data-conshop>＋ 디시콘 샵</button>';
+ if(!C.items.length)return '<div class="cpkgs">'+shop+'</div><p class="hint">'+esc(C.note||('사용할 수 있는 디시콘이 없습니다.'))+'</p>';
+ /* 묶음(패키지)이 여러 개면 묶음마다 탭을 두고, 고른 묶음의 그림만 보여 줍니다. 탭 그림은 그 묶음의 첫 디시콘입니다. */
+ const pkgs=[...new Set(C.items.map(c=>c.pkg))],cur=pkgs.includes(R.conPkg)?R.conPkg:pkgs[0];
+ return '<div class="cpkgs">'+(pkgs.length>1?pkgs.map(p=>'<button type="button" class="cpkg'+(p===cur?' on':'')+'" data-conpkg="'+esc(p)+'" aria-label="디시콘 묶음" aria-pressed="'+(p===cur)+'"><img loading="lazy" src="'+esc(C.items.find(c=>c.pkg===p).src)+'" alt=""></button>').join(''):'')+shop+'</div>'+
+  '<div class="cons">'+C.items.map((c,i)=>c.pkg!==cur?'':'<button class="con'+(i===R.con1?' sel':'')+'" data-con="'+i+'" data-lp="con" aria-label="'+esc(c.alt||'디시콘')+'"><img loading="lazy" src="'+esc(c.src)+'" alt=""></button>').join('')+'</div>'+
   '<p class="hint">'+(R.con1!=null?'하나를 골랐습니다. 다른 디시콘을 누르면 2개가 좌우로 함께 올라갑니다.':'누르면 1개 등록 · 꾹 누른 뒤 다른 디시콘을 누르면 더블콘')+'</p>';
 }
 function txtconHtml(){
@@ -370,10 +378,10 @@ function txtconHtml(){
   (D.trecent.length?'<div class="trecent">'+D.trecent.map(t=>'<button type="button" data-tuse="'+esc(t)+'">'+esc(t)+'</button>').join('')+'<button type="button" class="tclr" data-tclear>삭제</button></div>':'')+
   '<div class="trow"><input id="tcin" maxlength="20" placeholder="글자콘 내용 입력 (최대 20자)" aria-label="글자콘 내용" value="'+esc(R.tcon)+'"><button type="button" class="pub" data-tsend>등록</button></div></div>';
 }
-async function loadCons(){
+async function loadCons(fresh){
  const g=gal(R.room?.g||R.g)||D.gals[0],no=R.room?.no||R.latest[key(g)]?.id,C=R.cons;if(!g||!no||C.busy)return;
  C.busy=true;C.err='';renderRoom(true);if(R.ov==='con')renderPane();
- const r=await drive('dcconList',{},mView(g,no));
+ const r=await drive('dcconList',{fresh:!!fresh},mView(g,no),{timeout:90000});
  C.busy=false;if(r.error){C.err=r.error;C.items=null}else{C.items=r.items;C.note=r.note;if(r.user!=null){R.user=r.user;R.userKnown=true;D.user=R.user;save()}}
  renderRoom(true);if(R.ov==='con')renderPane();
 }
@@ -525,23 +533,23 @@ async function publish(){
 
 /* ---------- 불러오기 ---------- */
 async function loadList({append=false,fresh=false}={}){
- const g=gal(R.g);if(!g)return;const seq=++R.seq,head=R.list&&!R.list.heads.length?'':R.head;
- const ck=R.g+'|'+head,c=R.cache[ck];
+ const g=gal(R.g);if(!g)return;const seq=++R.seq,head=R.list&&!R.list.heads.length?'':R.head,rec=!!R.rec;
+ const ck=R.g+'|'+head+(rec?'|rec':''),c=R.cache[ck];
  if(!append&&!fresh&&c&&Date.now()-c.at<60000){R.list=c.list;R.listErr='';R.listBusy=false;renderPane();return}
  if(!append){R.list=null;R.listErr=''}R.listBusy=true;renderPane();
- try{const page=append?R.list.page+1:1,res=await dc.listPosts(g,{page,head});if(seq!==R.seq)return;
+ try{const page=append?R.list.page+1:1,res=await dc.listPosts(g,{page,head,rec});if(seq!==R.seq)return;
   if(append){const ids=new Set(R.list.posts.map(p=>p.id)),add=res.posts.filter(p=>!p.notice&&!ids.has(p.id));R.list.posts.push(...add);R.list.page=page;R.list.more=add.length>0}
   else{
    /* 말머리 탭에서도 공지는 맨 위에 남도록, 전체 목록에서 본 공지를 앞에 붙입니다. */
-   if(head){const ids=new Set(res.posts.map(p=>p.id)),pins=(R.cache[R.g+'|']?.list.posts||[]).filter(p=>p.notice&&!ids.has(p.id));res.posts.unshift(...pins)}
+   if(head||rec){const ids=new Set(res.posts.map(p=>p.id)),pins=(R.cache[R.g+'|']?.list.posts||[]).filter(p=>p.notice&&!ids.has(p.id));res.posts.unshift(...pins)}
    R.list={posts:res.posts,heads:res.heads.length?res.heads:R.list?.heads||[],page:1,more:res.posts.some(p=>!p.notice)}}
-  if(!head){const t=res.posts.find(p=>!p.notice);if(t&&!append){R.latest[R.g]={id:t.id,title:t.title};D.top[R.g]=t.id;delete R.updated[R.g];save()}}
+  if(!head&&!rec){const t=res.posts.find(p=>!p.notice);if(t&&!append){R.latest[R.g]={id:t.id,title:t.title};D.top[R.g]=t.id;delete R.updated[R.g];save()}}
   if(res.name&&g.name!==res.name&&/^[A-Za-z0-9_]+$/.test(g.name)){g.name=res.name;save()}
   R.cache[ck]={list:R.list,at:Date.now()};
  }catch(e){if(seq!==R.seq)return;if(append){moreHold=Date.now()+15000;toast(e.message)}else R.listErr=e.message}
  R.listBusy=false;renderPane();
 }
-async function openGallery(k){R.g=k;R.head='';R.shown=20;R.view='chats';R.ov='';R.filter='';R.filterOn=false;R.pinOpen=false;R.list=null;await loadList()}
+async function openGallery(k){R.g=k;R.head='';R.rec=false;R.shown=20;R.view='chats';R.ov='';R.filter='';R.filterOn=false;R.pinOpen=false;R.list=null;await loadList()}
 async function openPost(no,fresh,given){
  /* 지금 목록에서 연 글이면 현재 갤러리, 열려 있던 방을 다시 읽는 것이면 그 방의 갤러리를 씁니다(방을 연 뒤 다른 갤러리로 옮겼을 수 있습니다). */
  const inList=given||R.list?.posts.find(p=>p.id===no),meta=inList||R.room?.meta;if(!meta)return;
@@ -627,6 +635,7 @@ document.addEventListener('click',e=>{
  else if(d.noticlear!=null){D.notis=[];save();renderPane()}
  else if(d.alias!=null){D.aliasOn=!D.aliasOn;save();renderPane();renderRoom(true)}
  else if(d.g){openGallery(d.g)}
+ else if(d.rec!=null){R.rec=!R.rec;R.shown=20;loadList()}
  else if(d.h!=null){R.head=d.h;R.shown=20;if(R.list?.heads.length)loadList();else renderPane()}
  else if(d.p){openPost(+d.p)}
  else if(d.pintog!=null){R.pinOpen=!R.pinOpen;renderPane()}
@@ -662,6 +671,8 @@ document.addEventListener('click',e=>{
  else if(d.cpanel!=null){R.cpanel=!R.cpanel;R.tpanel=false;R.con1=null;renderRoom(true);if(R.cpanel&&!R.cons.items)loadCons()}
  else if(d.tpanel!=null){R.tpanel=!R.tpanel;R.cpanel=false;renderRoom(true);$('#tcin')?.focus({preventScroll:true})}
  else if(d.con!=null){pickCon(+d.con,false)}
+ else if(d.conpkg!=null){R.conPkg=d.conpkg;R.con1=null;renderRoom(true);if(R.ov==='con')renderPane()}
+ else if(d.conshop!=null){native.official(DCCON_SHOP).then(()=>{R.cons.items=null;loadCons(true)})}
  else if(d.tbg){D.tbg=d.tbg;save();renderRoom(true)}
  else if(d.tfg){D.tfg=d.tfg;save();renderRoom(true)}
  else if(d.tuse){R.tcon=d.tuse;renderRoom(true)}
