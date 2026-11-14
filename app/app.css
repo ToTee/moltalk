@@ -211,7 +211,8 @@ span.d-only,span.m-only{display:contents}
   /* 왼쪽 세로 메뉴가 맨 아래로 내려갑니다. 설정은 맨 위 줄에 있습니다. */
   .app{flex-direction:column}
   .pane{order:1;min-height:0}
-  .rail{order:2;width:100%;flex-direction:row;padding:4px 6px 8px;gap:0;background:#fff;border-top:1px solid #f1f1f1;color:#b4b4b4}
+  .rail{order:2;width:100%;flex-direction:row;padding:4px 6px 8px;gap:0;background:#fff;border-top:1px solid #f1f1f1;color:#b7babd}
+  .rail .on{color:#2d3237}
   .rail .sp,.rail .deco,.rail [data-ov="set"]{display:none}
   .rail .ic{flex:1;width:auto;height:48px}
   .rail .cnt{left:calc(50% + 4px);top:2px}

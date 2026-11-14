@@ -71,10 +71,10 @@ const two=(pc,mobile)=>'<span class="d-only">'+pc+'</span><span class="m-only">'
 const cogM='<button class="ib m-only" data-ov="set" aria-label="설정">'+I.cog+'</button>';
 function renderRail(){
  const n=R.list?R.list.posts.reduce((a,p)=>a+unreadOf(p),0):0;
- $('#rail').innerHTML='<button class="ic'+(R.view==='friends'?' on':'')+'" data-view="friends" aria-label="친구">'+I.person+'</button>'+
-  '<button class="ic'+(R.view==='chats'?' on':'')+'" data-view="chats" aria-label="채팅">'+I.chat+(n?'<span class="cnt">'+(n>999?'999+':n)+'</span>':'')+'</button>'+
+ $('#rail').innerHTML='<button class="ic'+(R.view==='friends'?' on':'')+'" data-view="friends" aria-label="친구">'+two(I.person,I.personM)+'</button>'+
+  '<button class="ic'+(R.view==='chats'?' on':'')+'" data-view="chats" aria-label="채팅">'+two(I.chat,I.chatM)+(n?'<span class="cnt">'+(n>999?'999+':n)+'</span>':'')+'</button>'+
   '<span class="ic deco" aria-hidden="true">'+I.more+'</span><span class="sp"></span>'+
-  '<button class="ic'+(R.ov==='con'?' on':'')+'" data-ov="con" aria-label="디시콘">'+two(I.smile,I.smileF)+'</button>'+
+  '<button class="ic'+(R.ov==='con'?' on':'')+'" data-ov="con" aria-label="디시콘">'+two(I.smile,I.conM)+'</button>'+
   '<button class="ic'+(R.ov==='noti'?' on':'')+'" data-ov="noti" aria-label="알림">'+two(I.bell,I.bellF)+(D.notis.some(n=>!n.read)?'<i class="dot" style="left:auto;right:-2px;top:-2px"></i>':'')+'</button>'+
   '<button class="ic'+(D.aliasOn?' on':'')+'" data-alias aria-pressed="'+D.aliasOn+'" aria-label="갤러리 이름을 사람 이름으로 바꾸기">'+two(I.sun,I.sunF)+'</button>'+
   '<button class="ic'+(R.ov==='set'?' on':'')+'" data-ov="set" aria-label="설정">'+I.cog+'</button>';

@@ -1,6 +1,6 @@
 {
   "name": "yangjitalk",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "디시인사이드를 메신저 화면으로 보는 비공식 열람 앱",
   "private": true,
   "type": "module",
