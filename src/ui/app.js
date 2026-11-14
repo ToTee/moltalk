@@ -642,7 +642,8 @@ async function moreComments(){
 const myUid=()=>R.userKnown?R.user:D.user||'';
 function fixMine(list){const u=myUid();for(const c of list)if(c.my==null)c.my=c.mine;
  const many=new Set(list.filter(c=>c.my).map(c=>c.uid||c.ip+'/'+c.name)).size>1;
- for(const c of list)c.mine=c.my&&(u?c.uid===u:!many)}
+ /* 로그인 아이디를 알면 댓글의 아이디가 같은지만 봅니다. 앱의 로그인은 디시 모바일 쪽이라, 댓글을 읽어 오는 PC 쪽 화면에서는 "내 댓글" 표시가 붙지 않을 수 있습니다. */
+ for(const c of list)c.mine=u?c.uid===u:c.my&&!many}
 async function readCm(...a){const cm=await dc.readComments(...a);fixMine(cm.comments);return cm}
 /* 친구 목록의 "최근 글" 문구와 새 글 표시를 채웁니다. 하나씩 요청하고, 1분 안에 읽은 갤러리는 건너뛰며, 막히면 멈춥니다. */
 const latestQ=[];let latestRun=false;
@@ -658,6 +659,7 @@ async function loadLatest(list=D.gals){
 /* ---------- 입력 처리 ---------- */
 let drag=null,dragged=false,lp=null,lpSkip=false;
 document.addEventListener('pointerdown',e=>{
+ lpSkip=false;/* 새로 누르기 시작하면, 앞선 길게 누르기 때문에 걸어 둔 "다음 누름 무시"를 풉니다(손을 뗀 신호가 오지 않는 기기 대비). */
  const c=e.target.closest('.chips,.favs');if(c)drag={c,x:e.clientX,l:c.scrollLeft,moved:false};
  const t=e.target.closest('[data-lp]');if(t&&!e.button){const x=e.clientX,y=e.clientY;lpEnd();
   /* 꾹 누르는 동안 손가락이 조금 흔들려도(8픽셀 이내) 길게 누르기로 봅니다. 그보다 많이 움직이면 아래 mv가 취소합니다. */
@@ -669,13 +671,15 @@ let lpMove=null;
 function lpEnd(){clearTimeout(lp);lp=null;if(lpMove){document.removeEventListener('pointermove',lpMove);lpMove=null}}
 document.addEventListener('pointermove',e=>{if(!drag)return;const d=e.clientX-drag.x;if(Math.abs(d)>8)drag.moved=true;if(drag.moved)drag.c.scrollLeft=drag.l-d});
 document.addEventListener('pointerup',()=>{lpEnd();if(drag&&drag.moved){dragged=true;setTimeout(()=>dragged=false)}drag=null;if(lpSkip)setTimeout(()=>lpSkip=false,50)});
-document.addEventListener('pointercancel',()=>{lpEnd();drag=null});
+document.addEventListener('pointercancel',()=>{lpEnd();drag=null;if(lpSkip)setTimeout(()=>lpSkip=false,50)});
 document.addEventListener('wheel',e=>{const c=e.target.closest('.chips,.favs');if(c&&c.scrollWidth>c.clientWidth){c.scrollLeft+=e.deltaY;e.preventDefault()}},{passive:false});
-document.addEventListener('contextmenu',e=>{const t=e.target.closest('[data-lp]');if(t){e.preventDefault();longPress(t)}});
+/* 휴대폰은 길게 누르면 이 신호(contextmenu)도 함께 보냅니다. 위의 0.5초 대기와 겹쳐 두 번 처리되지 않게 대기를 끝내고, 손을 뗄 때의 누름도 무시합니다. */
+document.addEventListener('contextmenu',e=>{const t=e.target.closest('[data-lp]');if(t){e.preventDefault();lpEnd();lpSkip=true;longPress(t)}});
 function longPress(t){
  if(t.dataset.lp==='gal'){R.gmenu=t.dataset.g;R.ov='gmenu';renderPane()}
  else if(t.dataset.lp==='msg'){R.menu=t.dataset.cid;R.ask=false;renderRoom(true)}
- else if(t.dataset.lp==='con'){pickCon(+t.dataset.con,true)}
+ /* 길게 누르기는 "첫 번째 디시콘 고르기"만 합니다. 같은 것을 다시 길게 눌러도(신호가 두 번 와도) 고른 상태가 풀리지 않습니다. */
+ else if(t.dataset.lp==='con'){const i=+t.dataset.con;if(R.con1===i)return;R.con1=null;pickCon(i,true)}
 }
 
 document.addEventListener('click',e=>{

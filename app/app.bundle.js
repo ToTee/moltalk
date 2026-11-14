@@ -2034,7 +2034,7 @@
     const u = myUid();
     for (const c of list) if (c.my == null) c.my = c.mine;
     const many = new Set(list.filter((c) => c.my).map((c) => c.uid || c.ip + "/" + c.name)).size > 1;
-    for (const c of list) c.mine = c.my && (u ? c.uid === u : !many);
+    for (const c of list) c.mine = u ? c.uid === u : c.my && !many;
   }
   async function readCm(...a) {
     const cm = await dc.readComments(...a);
@@ -2076,6 +2076,7 @@
   var lp = null;
   var lpSkip = false;
   document.addEventListener("pointerdown", (e) => {
+    lpSkip = false;
     const c = e.target.closest(".chips,.favs");
     if (c) drag = { c, x: e.clientX, l: c.scrollLeft, moved: false };
     const t = e.target.closest("[data-lp]");
@@ -2121,6 +2122,7 @@
   document.addEventListener("pointercancel", () => {
     lpEnd();
     drag = null;
+    if (lpSkip) setTimeout(() => lpSkip = false, 50);
   });
   document.addEventListener("wheel", (e) => {
     const c = e.target.closest(".chips,.favs");
@@ -2133,6 +2135,8 @@
     const t = e.target.closest("[data-lp]");
     if (t) {
       e.preventDefault();
+      lpEnd();
+      lpSkip = true;
       longPress(t);
     }
   });
@@ -2146,7 +2150,10 @@
       R.ask = false;
       renderRoom(true);
     } else if (t.dataset.lp === "con") {
-      pickCon(+t.dataset.con, true);
+      const i = +t.dataset.con;
+      if (R.con1 === i) return;
+      R.con1 = null;
+      pickCon(i, true);
     }
   }
   document.addEventListener("click", (e) => {
