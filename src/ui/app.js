@@ -276,7 +276,7 @@ function renderRoom(keep){
   '<button class="ib" data-rreload aria-label="새로고침">'+I.refresh+'</button><button class="ib" data-rmenu aria-label="글 메뉴" aria-expanded="'+!!R.rmenu+'">'+I.menu+'</button></div>'+
   /* 오른쪽 위 메뉴: 원본 모양으로 보기(글쓴이가 꾸민 그대로), 디시에서 열기 */
   (R.rmenu?'<button class="rdim" data-rmenu aria-label="메뉴 닫기"></button><div class="rpop"><button data-orig'+(p?'':' disabled')+'>원본 모양으로 보기</button><button data-rmenu data-url="'+esc(postUrl(g,r.no))+'">디시에서 열기</button></div>':'')+
-  (R.orig&&p?'<div class="orig"><div class="ohead"><button class="ib" data-orig aria-label="채팅방으로 돌아가기">'+I.back+'</button><b>원본 보기<small>'+esc(title)+'</small></b></div><div class="scroll"><div class="oin">'+(p.html||'<p>본문이 없습니다.</p>')+'</div></div></div>':'')+
+  (R.orig&&p?'<div class="orig"><div class="ohead"><button class="ib" data-orig aria-label="채팅방으로 돌아가기">'+I.back+'</button><b>원본 보기<small>'+esc(title)+'</small></b></div><div class="scroll" id="oscroll"><div class="oin">'+(p.html||'<p>본문이 없습니다.</p>')+'</div></div></div>':'')+
   (R.nfold?'<button class="nmini" data-nfold aria-label="공지 펼치기">'+I.horn+'</button>':'<div class="notice">'+I.horn+'<span class="tx"><div>'+((p||meta).head?'['+esc((p||meta).head)+'] ':'')+esc(meta.title)+'</div><div>'+esc(author)+' · 조회 '+((p||meta).views||0).toLocaleString()+' · 추천 '+((p||meta).up||0)+'</div></span><button class="nbtn" data-nfold aria-label="공지 접기">'+I.up+'</button></div>')+
   '<div class="scroll" id="rscroll"><div class="msgs">'+h+'</div></div>'+
   (R.cpanel?'<div class="cpanel">'+consHtml()+'</div>':'')+(R.tpanel?txtconHtml():'')+
@@ -596,6 +596,25 @@ window.yjBack=()=>{if(!$('#viewer').hidden){$('#viewer').hidden=true;return true
  if(R.cpanel||R.tpanel||R.menu!=null){R.cpanel=R.tpanel=false;R.menu=null;renderRoom(true);return true}
  if(R.ov){R.ov='';renderPane();return true}
  if(R.room){R.room=null;R.roomSeq++;renderRoom();renderPane();return true}if(R.view==='chats'){R.view='friends';renderPane();return true}return false};
+/* ---------- 휴대폰 스크롤 손잡이 ---------- */
+/* 휴대폰 브라우저의 스크롤 막대는 손가락으로 잡을 수 없어서, 오른쪽 끝에 잡고 끌 수 있는 손잡이를 따로 둡니다.
+   목록을 움직이거나 건드리면 나타나고, 2초 동안 가만히 두면 사라집니다. PC는 원래 막대를 마우스로 끌 수 있어 쓰지 않습니다(app.css에서 숨김). */
+const sth=document.createElement('div');sth.id='sthumb';sth.innerHTML='<i></i>';document.body.append(sth);
+let sthId='',sthHide=0,sthGrab=null;
+const sthBox=()=>{const s=sthId&&document.getElementById(sthId);if(!s||s.scrollHeight<=s.clientHeight+4)return null;
+ const r=s.getBoundingClientRect(),h=Math.max(44,r.height*s.clientHeight/s.scrollHeight),max=s.scrollHeight-s.clientHeight;return {s,r,h,max}};
+function sthShow(s){
+ if(s)sthId=s.id;const b=sthBox();if(!b){sth.classList.remove('on');return}
+ sth.style.height=b.h+'px';sth.style.top=b.r.top+(b.r.height-b.h)*b.s.scrollTop/b.max+'px';sth.classList.add('on');
+ clearTimeout(sthHide);if(!sthGrab)sthHide=setTimeout(()=>sth.classList.remove('on'),2000);
+}
+document.addEventListener('scroll',e=>{const t=e.target;if(t.id&&t.classList&&t.classList.contains('scroll'))sthShow(t)},true);
+document.addEventListener('touchstart',e=>{const s=e.target.closest&&e.target.closest('.scroll[id]');if(s)sthShow(s)},{passive:true});
+sth.addEventListener('pointerdown',e=>{const b=sthBox();if(!b)return;e.preventDefault();sth.setPointerCapture(e.pointerId);sthGrab={off:e.clientY-sth.getBoundingClientRect().top};clearTimeout(sthHide);sth.classList.add('drag')});
+sth.addEventListener('pointermove',e=>{if(!sthGrab)return;const b=sthBox();if(!b)return;b.s.scrollTop=Math.max(0,Math.min(1,(e.clientY-sthGrab.off-b.r.top)/(b.r.height-b.h)))*b.max});
+const sthEnd=()=>{if(!sthGrab)return;sthGrab=null;sth.classList.remove('drag');sthShow()};
+sth.addEventListener('pointerup',sthEnd);sth.addEventListener('pointercancel',sthEnd);
+
 /* ---------- 새로고침 ---------- */
 /* 지금 보이는 화면을 다시 읽습니다: 열려 있는 글, 글 목록, 친구 목록의 최근 글 순서로 봅니다. 디시가 막지 않도록 3초 안에는 다시 받지 않습니다. */
 let refreshAt=0;

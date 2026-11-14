@@ -8,7 +8,12 @@ const REAL_UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHT
 app.whenReady().then(async()=>{
  const w=new BrowserWindow({width:440,height:780,show:!!process.env.P_SHOW,webPreferences:{contextIsolation:true,nodeIntegration:false,sandbox:true}});
  w.webContents.setUserAgent(process.env.P_UA==='real'?REAL_UA:MOBILE_UA);
- const logs=[];w.webContents.on('console-message',(e,l,m)=>{if(l>=2)logs.push(String(typeof m==='string'?m:e.message).slice(0,160))});
+ const t0=Date.now(),logs=[];w.webContents.on('console-message',(e,l,m)=>{const s=String(typeof m==='string'?m:e.message);if(/turnstile/i.test(s))logs.push(((Date.now()-t0)/1000).toFixed(1)+'s '+s.slice(0,160))});
+ /* P_EMU=1: 크롬 개발자 도구의 '기기 모드'와 같은 방법으로, 브라우저가 알리는 정보(종류·터치·화면)를 휴대폰으로 일관되게 맞춥니다. */
+ if(process.env.P_EMU){const d=w.webContents.debugger,V=process.versions.chrome.split('.')[0];d.attach('1.3');
+  await d.sendCommand('Emulation.setUserAgentOverride',{userAgent:MOBILE_UA,platform:'Linux armv81',userAgentMetadata:{brands:[{brand:'Chromium',version:V},{brand:'Not?A_Brand',version:'99'}],fullVersionList:[{brand:'Chromium',version:process.versions.chrome},{brand:'Not?A_Brand',version:'99.0.0.0'}],platform:'Android',platformVersion:'14.0.0',architecture:'',model:'Pixel 8',mobile:true,bitness:'',wow64:false}});
+  await d.sendCommand('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:5});
+  await d.sendCommand('Emulation.setDeviceMetricsOverride',{width:412,height:780,deviceScaleFactor:2.625,mobile:true,screenWidth:412,screenHeight:915});}
  await w.loadURL(process.env.P_URL).catch(e=>logs.push('load: '+e.message));
  const out=await w.webContents.executeJavaScript(`(async()=>{
   const wait=ms=>new Promise(r=>setTimeout(r,ms));

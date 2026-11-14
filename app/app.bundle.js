@@ -1067,7 +1067,7 @@
     } else h = r.err ? '<div class="sys err"><span>' + esc(r.err) + '</span></div><div class="sys"><button data-rreload>\uB2E4\uC2DC \uC2DC\uB3C4</button></div>' : '<div class="sys"><span>\uBD88\uB7EC\uC624\uB294 \uC911\u2026</span></div>';
     const people = p ? (/* @__PURE__ */ new Set([author, ...(r.comments || []).map(who)])).size : 1;
     el.innerHTML = '<div class="rhead"><button class="ib back" data-back aria-label="\uBAA9\uB85D\uC73C\uB85C">' + I.back + "</button>" + userAv(author) + '<span class="tt"><b>' + esc(title) + "</b><span>" + esc(gname(g)) + " \xB7 \uCC38\uC5EC " + people + '\uBA85</span></span><button class="ib" data-rreload aria-label="\uC0C8\uB85C\uACE0\uCE68">' + I.refresh + '</button><button class="ib" data-rmenu aria-label="\uAE00 \uBA54\uB274" aria-expanded="' + !!R.rmenu + '">' + I.menu + "</button></div>" + /* 오른쪽 위 메뉴: 원본 모양으로 보기(글쓴이가 꾸민 그대로), 디시에서 열기 */
-    (R.rmenu ? '<button class="rdim" data-rmenu aria-label="\uBA54\uB274 \uB2EB\uAE30"></button><div class="rpop"><button data-orig' + (p ? "" : " disabled") + '>\uC6D0\uBCF8 \uBAA8\uC591\uC73C\uB85C \uBCF4\uAE30</button><button data-rmenu data-url="' + esc(postUrl(g, r.no)) + '">\uB514\uC2DC\uC5D0\uC11C \uC5F4\uAE30</button></div>' : "") + (R.orig && p ? '<div class="orig"><div class="ohead"><button class="ib" data-orig aria-label="\uCC44\uD305\uBC29\uC73C\uB85C \uB3CC\uC544\uAC00\uAE30">' + I.back + "</button><b>\uC6D0\uBCF8 \uBCF4\uAE30<small>" + esc(title) + '</small></b></div><div class="scroll"><div class="oin">' + (p.html || "<p>\uBCF8\uBB38\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.</p>") + "</div></div></div>" : "") + (R.nfold ? '<button class="nmini" data-nfold aria-label="\uACF5\uC9C0 \uD3BC\uCE58\uAE30">' + I.horn + "</button>" : '<div class="notice">' + I.horn + '<span class="tx"><div>' + ((p || meta).head ? "[" + esc((p || meta).head) + "] " : "") + esc(meta.title) + "</div><div>" + esc(author) + " \xB7 \uC870\uD68C " + ((p || meta).views || 0).toLocaleString() + " \xB7 \uCD94\uCC9C " + ((p || meta).up || 0) + '</div></span><button class="nbtn" data-nfold aria-label="\uACF5\uC9C0 \uC811\uAE30">' + I.up + "</button></div>") + '<div class="scroll" id="rscroll"><div class="msgs">' + h + "</div></div>" + (R.cpanel ? '<div class="cpanel">' + consHtml() + "</div>" : "") + (R.tpanel ? txtconHtml() : "") + (R.reply ? '<div class="replybar"><span>' + esc(who(R.reply)) + '\uC5D0\uAC8C \uB2F5\uC7A5</span><button class="ib" data-noreply aria-label="\uB2F5\uC7A5 \uCDE8\uC18C">\u2715</button></div>' : "") + '<form class="inp" id="cform"><textarea placeholder="\uBA54\uC2DC\uC9C0 \uC785\uB825" aria-label="\uB313\uAE00 \uC785\uB825" maxlength="200">' + esc(draft) + '</textarea><div class="bar"><button type="button" class="ib" data-url="' + esc(mView(g, r.no)) + '" aria-label="\uB514\uC2DC \uD654\uBA74\uC5D0\uC11C \uC5F4\uAE30">' + I.plus + '</button><button type="button" class="ib' + (R.cpanel ? " act" : "") + '" data-cpanel aria-expanded="' + R.cpanel + '" aria-label="\uB514\uC2DC\uCF58">' + I.smile + '</button><button type="button" class="ib' + (R.tpanel ? " act" : "") + '" data-tpanel aria-expanded="' + R.tpanel + '" aria-label="\uAE00\uC790\uCF58">' + I.file + '</button><span></span><button class="send' + (draft.trim() && !R.sending ? " ok" : "") + '"' + (R.sending ? " disabled" : "") + ">" + (R.sending ? "\uBCF4\uB0B4\uB294 \uC911\u2026" : "\uC804\uC1A1") + "</button></div></form>";
+    (R.rmenu ? '<button class="rdim" data-rmenu aria-label="\uBA54\uB274 \uB2EB\uAE30"></button><div class="rpop"><button data-orig' + (p ? "" : " disabled") + '>\uC6D0\uBCF8 \uBAA8\uC591\uC73C\uB85C \uBCF4\uAE30</button><button data-rmenu data-url="' + esc(postUrl(g, r.no)) + '">\uB514\uC2DC\uC5D0\uC11C \uC5F4\uAE30</button></div>' : "") + (R.orig && p ? '<div class="orig"><div class="ohead"><button class="ib" data-orig aria-label="\uCC44\uD305\uBC29\uC73C\uB85C \uB3CC\uC544\uAC00\uAE30">' + I.back + "</button><b>\uC6D0\uBCF8 \uBCF4\uAE30<small>" + esc(title) + '</small></b></div><div class="scroll" id="oscroll"><div class="oin">' + (p.html || "<p>\uBCF8\uBB38\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.</p>") + "</div></div></div>" : "") + (R.nfold ? '<button class="nmini" data-nfold aria-label="\uACF5\uC9C0 \uD3BC\uCE58\uAE30">' + I.horn + "</button>" : '<div class="notice">' + I.horn + '<span class="tx"><div>' + ((p || meta).head ? "[" + esc((p || meta).head) + "] " : "") + esc(meta.title) + "</div><div>" + esc(author) + " \xB7 \uC870\uD68C " + ((p || meta).views || 0).toLocaleString() + " \xB7 \uCD94\uCC9C " + ((p || meta).up || 0) + '</div></span><button class="nbtn" data-nfold aria-label="\uACF5\uC9C0 \uC811\uAE30">' + I.up + "</button></div>") + '<div class="scroll" id="rscroll"><div class="msgs">' + h + "</div></div>" + (R.cpanel ? '<div class="cpanel">' + consHtml() + "</div>" : "") + (R.tpanel ? txtconHtml() : "") + (R.reply ? '<div class="replybar"><span>' + esc(who(R.reply)) + '\uC5D0\uAC8C \uB2F5\uC7A5</span><button class="ib" data-noreply aria-label="\uB2F5\uC7A5 \uCDE8\uC18C">\u2715</button></div>' : "") + '<form class="inp" id="cform"><textarea placeholder="\uBA54\uC2DC\uC9C0 \uC785\uB825" aria-label="\uB313\uAE00 \uC785\uB825" maxlength="200">' + esc(draft) + '</textarea><div class="bar"><button type="button" class="ib" data-url="' + esc(mView(g, r.no)) + '" aria-label="\uB514\uC2DC \uD654\uBA74\uC5D0\uC11C \uC5F4\uAE30">' + I.plus + '</button><button type="button" class="ib' + (R.cpanel ? " act" : "") + '" data-cpanel aria-expanded="' + R.cpanel + '" aria-label="\uB514\uC2DC\uCF58">' + I.smile + '</button><button type="button" class="ib' + (R.tpanel ? " act" : "") + '" data-tpanel aria-expanded="' + R.tpanel + '" aria-label="\uAE00\uC790\uCF58">' + I.file + '</button><span></span><button class="send' + (draft.trim() && !R.sending ? " ok" : "") + '"' + (R.sending ? " disabled" : "") + ">" + (R.sending ? "\uBCF4\uB0B4\uB294 \uC911\u2026" : "\uC804\uC1A1") + "</button></div></form>";
     if (otop && $("#room .orig .scroll")) $("#room .orig .scroll").scrollTop = otop;
     const sc = $("#rscroll");
     if (R.toBottom) {
@@ -2027,6 +2027,63 @@
     }
     return false;
   };
+  var sth = document.createElement("div");
+  sth.id = "sthumb";
+  sth.innerHTML = "<i></i>";
+  document.body.append(sth);
+  var sthId = "";
+  var sthHide = 0;
+  var sthGrab = null;
+  var sthBox = () => {
+    const s2 = sthId && document.getElementById(sthId);
+    if (!s2 || s2.scrollHeight <= s2.clientHeight + 4) return null;
+    const r = s2.getBoundingClientRect(), h = Math.max(44, r.height * s2.clientHeight / s2.scrollHeight), max = s2.scrollHeight - s2.clientHeight;
+    return { s: s2, r, h, max };
+  };
+  function sthShow(s2) {
+    if (s2) sthId = s2.id;
+    const b = sthBox();
+    if (!b) {
+      sth.classList.remove("on");
+      return;
+    }
+    sth.style.height = b.h + "px";
+    sth.style.top = b.r.top + (b.r.height - b.h) * b.s.scrollTop / b.max + "px";
+    sth.classList.add("on");
+    clearTimeout(sthHide);
+    if (!sthGrab) sthHide = setTimeout(() => sth.classList.remove("on"), 2e3);
+  }
+  document.addEventListener("scroll", (e) => {
+    const t = e.target;
+    if (t.id && t.classList && t.classList.contains("scroll")) sthShow(t);
+  }, true);
+  document.addEventListener("touchstart", (e) => {
+    const s2 = e.target.closest && e.target.closest(".scroll[id]");
+    if (s2) sthShow(s2);
+  }, { passive: true });
+  sth.addEventListener("pointerdown", (e) => {
+    const b = sthBox();
+    if (!b) return;
+    e.preventDefault();
+    sth.setPointerCapture(e.pointerId);
+    sthGrab = { off: e.clientY - sth.getBoundingClientRect().top };
+    clearTimeout(sthHide);
+    sth.classList.add("drag");
+  });
+  sth.addEventListener("pointermove", (e) => {
+    if (!sthGrab) return;
+    const b = sthBox();
+    if (!b) return;
+    b.s.scrollTop = Math.max(0, Math.min(1, (e.clientY - sthGrab.off - b.r.top) / (b.r.height - b.h))) * b.max;
+  });
+  var sthEnd = () => {
+    if (!sthGrab) return;
+    sthGrab = null;
+    sth.classList.remove("drag");
+    sthShow();
+  };
+  sth.addEventListener("pointerup", sthEnd);
+  sth.addEventListener("pointercancel", sthEnd);
   var refreshAt = 0;
   function refresh() {
     if (R.write || R.ov || Date.now() - refreshAt < 3e3) return false;
