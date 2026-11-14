@@ -64,8 +64,10 @@ function setupSession(){
   done({cancel});
  });
  // 디시 이미지 서버는 Referer가 없으면 거절합니다. 화면에서 보낸 요청에 Referer를 채웁니다.
- ses.webRequest.onBeforeSendHeaders({urls:['https://*.dcinside.com/*','https://*.dcinside.co.kr/*']},(details,done)=>{
+ // 유튜브 재생기는 어느 화면에 들어가 있는지(Referer)를 모르면 재생을 거절합니다. 앱 화면은 파일이라 Referer가 없으므로 앱 이름으로 채웁니다.
+ ses.webRequest.onBeforeSendHeaders({urls:['https://*.dcinside.com/*','https://*.dcinside.co.kr/*','https://www.youtube.com/embed/*']},(details,done)=>{
   const h=details.requestHeaders,custom=Object.keys(h).find(k=>k.toLowerCase()==='x-yj-referer');
+  if(details.url.startsWith('https://www.youtube.com/')){if(!Object.keys(h).some(k=>k.toLowerCase()==='referer'))h.Referer='https://app.moltalk.invalid/';return done({requestHeaders:h})}
   if(custom){h.Referer=h[custom];delete h[custom]}
   else if(!Object.keys(h).some(k=>k.toLowerCase()==='referer'))h.Referer='https://gall.dcinside.com/';
   done({requestHeaders:h});
@@ -106,7 +108,7 @@ ipcMain.handle('drive',async(event,url,code,opt={})=>{
   await w.loadURL(url).catch(()=>{});
   if(!dcUrl(w.webContents.getURL()))return {error:'화면을 열지 못했습니다.'};
   const nav=new Promise(res=>w.webContents.once('did-navigate',(e,u)=>res({navigated:u})));
-  const limit=Math.min(Number(opt.timeout)||90000,300000);/* 사람인지 확인(최대 20초)과 등록 응답(최대 20초)을 모두 기다릴 수 있는 시간 */
+  const limit=Math.min(Number(opt.timeout)||90000,900000);/* 큰 동영상을 올릴 때는 15분까지 기다립니다. *//* 사람인지 확인(최대 20초)과 등록 응답(최대 20초)을 모두 기다릴 수 있는 시간 */
   const timeout=new Promise(res=>{
    const arm=ms=>{clearTimeout(timer);timer=setTimeout(()=>res({error:'시간이 초과되었습니다.'}),ms)};arm(limit);
    // '사람인지 확인'을 직접 눌러야 하면 공식 화면이 신호를 보냅니다. 그동안 창을 보여 주고 기다리는 시간을 늘립니다.

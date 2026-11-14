@@ -72,11 +72,13 @@ public class MainActivity extends Activity {
     private String jobCode;
     private String jobInjectedUrl;
     private Runnable jobTimeout;
+    private FrameLayout rootView, ytBox;
+    private WebView yt;
 
     @Override
     protected void onCreate(Bundle saved) {
         super.onCreate(saved);
-        FrameLayout root = new FrameLayout(this);
+        FrameLayout root = rootView = new FrameLayout(this);
         root.setBackgroundColor(Color.WHITE);
         // 맨 위 상태 표시줄(시계, 배터리)과 맨 아래 내비게이션 바를 흰 바탕에 어두운 아이콘으로 맞춥니다.
         getWindow().setStatusBarColor(Color.WHITE);
@@ -275,6 +277,11 @@ public class MainActivity extends Activity {
             String scheme = u == null ? null : u.getScheme();
             if (u != null && u.getUserInfo() == null && ("https".equals(scheme) || "http".equals(scheme))) ui.post(() -> { try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))); } catch (Exception ignored) { } });
         }
+        /** 유튜브 영상(쇼츠 포함)을 앱 화면 위에 가득 띄워 재생합니다. 영상 번호(11자)만 받습니다. */
+        @JavascriptInterface public void youtube(String vid) {
+            if (vid == null || !vid.matches("[A-Za-z0-9_-]{11}")) return;
+            ui.post(() -> openYt(vid));
+        }
         @JavascriptInterface public void notify(String title, String body) {
             ui.post(() -> showNote(title, body));
         }
@@ -316,7 +323,7 @@ public class MainActivity extends Activity {
         String closeOn = null;
         try {
             JSONObject opt = new JSONObject(optJson == null || optJson.isEmpty() ? "{}" : optJson);
-            timeout = Math.min(Math.max(opt.optLong("timeout", 90000), 5000), 300000);
+            timeout = Math.min(Math.max(opt.optLong("timeout", 90000), 5000), 900000);
             if (visible && opt.has("closeOn")) closeOn = opt.optString("closeOn");
         } catch (Exception ignored) { }
         jobId = id;
@@ -331,6 +338,55 @@ public class MainActivity extends Activity {
             ui.postDelayed(jobTimeout, timeout);
         }
         helper.loadUrl(url);
+    }
+
+    /** 유튜브 재생 화면. 앱 화면(main)과 따로 둔 웹뷰라서 유튜브 쪽 스크립트는 앱의 기능(YJ)을 쓸 수 없습니다. */
+    private void openYt(String vid) {
+        if (dead) return;
+        if (ytBox == null) {
+            ytBox = new FrameLayout(this);
+            ytBox.setBackgroundColor(Color.BLACK);
+            ytBox.setClickable(true);
+            yt = new WebView(this);
+            WebSettings s = yt.getSettings();
+            s.setJavaScriptEnabled(true);
+            s.setDomStorageEnabled(true);
+            s.setMediaPlaybackRequiresUserGesture(false);
+            s.setAllowFileAccess(false);
+            s.setSupportMultipleWindows(false);
+            yt.setBackgroundColor(Color.BLACK);
+            yt.setWebChromeClient(new WebChromeClient());
+            yt.setWebViewClient(new WebViewClient() {
+                // 재생 화면 밖으로 나가는 이동(유튜브에서 보기 등)은 막습니다.
+                @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                    return request.isForMainFrame() && !request.getUrl().toString().startsWith("https://www.youtube.com/embed/");
+                }
+            });
+            ytBox.addView(yt, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+            Button close = new Button(this);
+            close.setText("닫기");
+            close.setOnClickListener(v -> closeYt());
+            ytBox.addView(close, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.END));
+            rootView.addView(ytBox, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        }
+        // 유튜브 재생기는 어느 화면에서 불렀는지(Referer)를 모르면 재생을 거절합니다.
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Referer", "https://" + APP_HOST + "/");
+        ytBox.setVisibility(View.VISIBLE);
+        yt.loadUrl("https://www.youtube.com/embed/" + vid + "?autoplay=1&playsinline=1&rel=0", headers);
+    }
+
+    private boolean closeYt() {
+        if (ytBox == null || ytBox.getVisibility() != View.VISIBLE) return false;
+        yt.loadUrl("about:blank");
+        ytBox.setVisibility(View.GONE);
+        return true;
+    }
+
+    @Override
+    protected void onStop() {
+        closeYt(); // 앱이 뒤로 가면 소리가 계속 나지 않게 재생 화면을 닫습니다.
+        super.onStop();
     }
 
     /** 공식 화면 상자를 화면 가운데의 작은 팝업으로 줄이거나(on), 전체 화면으로 되돌립니다. */
@@ -399,10 +455,6 @@ public class MainActivity extends Activity {
             Uri u = request.getUrl();
             if (APP_HOST.equals(u.getHost())) return asset(u.getPath());
             if (!"GET".equals(request.getMethod()) || request.isForMainFrame() || !dcUrl(u.toString())) return null;
-            // 본문 동영상(영상 서버 dcm*의 mp4)은 대신 받아 주면 재생기가 원하는 구간만 골라 받지 못해 재생이 실패합니다.
-            // 이 서버는 Referer 없이도 내주므로 화면이 직접 받게 둡니다.
-            String host = u.getHost();
-            if (host != null && host.startsWith("dcm") && "mp4".equals(u.getQueryParameter("type"))) return null;
             return proxy(request);
         }
     }
@@ -427,23 +479,58 @@ public class MainActivity extends Activity {
             c.setInstanceFollowRedirects(false);
             c.setConnectTimeout(10000);
             c.setReadTimeout(30000);
-            for (Map.Entry<String, String> h : request.getRequestHeaders().entrySet()) c.setRequestProperty(h.getKey(), h.getValue());
+            // 영상 재생기는 "어디부터 달라"(Range)고 요청합니다. 웹뷰는 대신 받아 준 내용에서 그 자리까지 스스로 건너뛰므로,
+            // 서버에는 처음부터 전부 달라고 하고(Range를 넘기지 않음) 전체 길이를 알 수 있는 흐름으로 감싸서 돌려줍니다.
+            // Range를 서버에 그대로 넘기면 웹뷰가 이미 잘린 내용을 한 번 더 건너뛰어 재생이 실패합니다.
+            boolean ranged = false;
+            for (Map.Entry<String, String> h : request.getRequestHeaders().entrySet()) {
+                if ("range".equalsIgnoreCase(h.getKey())) { ranged = true; continue; }
+                c.setRequestProperty(h.getKey(), h.getValue());
+            }
+            if (ranged) c.setRequestProperty("Accept-Encoding", "identity");
             c.setRequestProperty("User-Agent", UA);
             c.setRequestProperty("Referer", "https://gall.dcinside.com/");
             String cookie = CookieManager.getInstance().getCookie(url);
             if (cookie != null) c.setRequestProperty("Cookie", cookie);
             int status = c.getResponseCode();
-            if (status >= 300 && status < 400) return null;
+            if (status >= 300 && status < 400) { c.disconnect(); return null; }
             Map<String, String> headers = new HashMap<>();
             for (Map.Entry<String, List<String>> h : c.getHeaderFields().entrySet()) if (h.getKey() != null && !h.getValue().isEmpty()) headers.put(h.getKey(), h.getValue().get(0));
             headers.put("Access-Control-Allow-Origin", "*");
             String type = c.getContentType(), mime = type == null ? "application/octet-stream" : type.split(";")[0].trim();
             String reason = c.getResponseMessage();
             InputStream in = status >= 400 ? c.getErrorStream() : c.getInputStream();
+            if (ranged && status == 200) {
+                long total = -1;
+                try { total = Long.parseLong(c.getHeaderField("Content-Length")); } catch (Exception ignored) { }
+                if (total > 0) { in = new SizedStream(in, total); headers.put("Accept-Ranges", "bytes"); }
+            }
             return new WebResourceResponse(mime, null, status, reason == null || reason.isEmpty() ? "OK" : reason, headers, in);
         } catch (Exception e) {
             return null;
         }
+    }
+
+    /** 남은 길이를 정확히 알려 주는 흐름. 웹뷰는 영상의 구간 요청을 처리할 때 available()로 전체 길이를 재고 skip()으로 자리를 옮깁니다. */
+    private static class SizedStream extends java.io.FilterInputStream {
+        private long left;
+        SizedStream(InputStream in, long total) { super(in); left = total; }
+        @Override public int available() { return (int) Math.min(Math.max(left, 0), Integer.MAX_VALUE); }
+        @Override public int read() throws java.io.IOException { int r = in.read(); if (r >= 0) left--; return r; }
+        @Override public int read(byte[] b, int off, int len) throws java.io.IOException { int n = in.read(b, off, len); if (n > 0) left -= n; return n; }
+        @Override public long skip(long n) throws java.io.IOException {
+            // 네트워크 흐름의 skip은 요청한 만큼 건너뛰지 못할 수 있어, 읽어서 버리는 방식으로 끝까지 건너뜁니다.
+            byte[] buf = new byte[65536];
+            long done = 0;
+            while (done < n) {
+                int r = in.read(buf, 0, (int) Math.min(buf.length, n - done));
+                if (r < 0) break;
+                done += r;
+            }
+            left -= done;
+            return done;
+        }
+        @Override public boolean markSupported() { return false; }
     }
 
     /** 사진·동영상 고르기 */
@@ -483,6 +570,7 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
+        if (closeYt()) return;
         if (jobId != null && jobVisible) {
             if (helper.canGoBack()) helper.goBack(); else finishJob("false");
             return;
@@ -568,6 +656,7 @@ public class MainActivity extends Activity {
         pool.shutdownNow();
         main.destroy();
         helper.destroy();
+        if (yt != null) yt.destroy();
         super.onDestroy();
     }
 }

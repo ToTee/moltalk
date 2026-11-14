@@ -228,10 +228,30 @@ const SCRIPTS={
    const dt=new DataTransfer();dt.items.add(new File([bytes],b.name,{type:b.type}));input.files=dt.files;
    nth++;tell(b,null);
    toEnd();const before=media();input.dispatchEvent(new Event('change',{bubbles:true}));
-   if(!await h.until(()=>{if(b.t==='video')tell(b,pctNow());return media()>before},b.t==='video'?240000:60000))return {error:(h.alerts.join(' ')||'첨부를 올리지 못했습니다')+': '+b.name};
+   /* 동영상은 전송이 끝나면 디시가 "동영상 등록" 창(대표 그림·설명·등록 방식)을 띄우고, 거기서 [등록]을 눌러야 본문에 들어갑니다.
+      그 창이 뜨고 대표 그림이 정해지면 디시의 등록 함수(insertMovieInfo)를 한 번 불러 줍니다. 설명·태그는 비워 둡니다. */
+   let placed=false,info=null,infoAt=0;
+   const place=()=>{if(placed||b.t!=='video')return;const lay=document.querySelector('#mvinfo_insert_layer'),th=document.querySelector('#mv_thumb');
+    if(lay&&getComputedStyle(lay).display!=='none'&&th&&th.getAttribute('src')&&typeof window.insertMovieInfo==='function'){placed=true;toEnd();
+     h.ajax(/\/movie\/insert-mvinfo/,60000).then(r=>{info=r||{};infoAt=Date.now()});window.insertMovieInfo()}};
+   /* 디시 편집기는 대표 그림을 다 읽은 뒤에야 본문에 영상 칸을 넣는데, 숨은 화면에서는 그 그림을 못 읽어 칸이 들어가지 않을 때가 있습니다.
+      등록 응답을 받고도 칸이 생기지 않으면, 편집기가 넣는 것과 같은 모양의 영상 칸을 직접 넣습니다. */
+   const byHand=()=>{if(!info||info.result!==true||Date.now()-infoAt<2500||media()>before)return;
+    const up=(document.querySelector('#upmov_no')||{}).value||'',mk=(tag,cls)=>{const n=document.createElement(tag);if(cls)n.className=cls;return n};
+    const div=mk('div','block mv'),cont=mk('span','cont video'),inr=mk('span','cont-inr'),del=mk('button','sp-imgclose'),blind=mk('span','blind'),pos=mk('span','pos'),img=mk('img'),txt=mk('span','info-txt'),p=mk('p');
+    div.setAttribute('data-movie',up+'|'+info.mv_no+'|'+info.mv_token);div.setAttribute('contenteditable','false');
+    del.type='button';blind.textContent='삭제';del.appendChild(blind);pos.appendChild(mk('span','order-handle'));img.src=String(info.mv_thumb||'');txt.textContent='게시물 등록 후 재생 가능합니다.';
+    inr.append(del,pos,img,txt);cont.appendChild(inr);div.appendChild(cont);p.appendChild(mk('br'));box.append(div,p);info=null;
+    const lay=document.querySelector('#mvinfo_insert_layer'),md=document.querySelector('#movieData');if(lay)lay.style.display='none';if(md)md.value='1'};
+   const bad=()=>info&&info.result!==true;
+   if(!await h.until(()=>{if(b.t==='video'){tell(b,pctNow());place();byHand()}return media()>before||bad()},b.t==='video'?780000:60000)||bad())return {error:(h.alerts.join(' ')||(bad()&&info.cause)||'첨부를 올리지 못했습니다')+': '+b.name};
    await h.wait(500);
   }
+  /* 편집기가 뒤늦게 같은 영상 칸을 한 번 더 넣었으면 하나만 남깁니다. */
+  {const seen=new Set();for(const n of box.querySelectorAll('.block.mv')){const k=n.getAttribute('data-movie');if(seen.has(k))n.remove();else seen.add(k)}}
   h.prog({stage:'submit'});
+  /* 동영상 등록 방식은 "빠른 등록"(글을 바로 올리고 본문에서 인코딩)으로 합니다. 기본값인 "완성 등록"은 인코딩이 끝날 때까지 글이 목록에 나오지 않습니다. */
+  {const q=document.querySelector('#quick_upload'),v=document.querySelector('#movie_upload_type_val');if(q)q.checked=true;if(v)v.value='0'}
   box.dispatchEvent(new Event('input',{bubbles:true}));
   if(!await h.human(document.body))return h.HUMAN_FAIL;
   window.write_submit();

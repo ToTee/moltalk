@@ -11,6 +11,8 @@ export function androidNative(YJ){
   onProgress:cb=>{window.__yjProgress=json=>cb(json)},
   official:(url,opt)=>call('official',url,JSON.stringify(opt||{})),
   open:url=>YJ.open(url),
+  /* 유튜브는 앱 화면과 따로 둔 재생 화면에서 틉니다(유튜브 쪽 스크립트가 앱 기능을 쓰지 못하게). */
+  youtube:id=>YJ.youtube(String(id)),
   logout:()=>call('logout'),
   notify:(title,body)=>YJ.notify(String(title||''),String(body||''))
  };

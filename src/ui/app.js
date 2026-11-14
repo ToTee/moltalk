@@ -1,5 +1,5 @@
 // 몰톡 화면. 디시 읽기 코어(dc.js)의 결과를 메신저 모양으로 보여 줍니다.
-import {createDc} from '../core/dc.js';
+import {createDc,ytButton} from '../core/dc.js';
 import {script,mView,mList,mWrite,mModify,mGallog,LOGIN_URL,LOGIN_DONE} from '../core/drive.js';
 import {I} from './icons.js';
 import {androidNative} from './native-android.js';
@@ -265,7 +265,7 @@ async function previews(){
  if(!todo.length)return;pvRunning=true;
  const work=async()=>{for(let no;(no=todo.shift())!=null;){const k=gk+'/'+no;
   if(R.g===gk&&Date.now()>=pvPause)try{await new Promise(r=>setTimeout(r,1400));const post=await dc.readPost(g,no),t=post.blocks.find(b=>b.t==='text');R.pc[k]={post,at:Date.now()};
-   R.pv[k]=t?t.v.replace(/\s+/g,' ').slice(0,120):post.blocks.some(b=>b.t==='video'||b.t==='movie'||b.t==='embed')?'동영상을 보냈습니다.':post.blocks.length?'사진을 보냈습니다.':'';
+   R.pv[k]=t?t.v.replace(/\s+/g,' ').slice(0,120):post.blocks.some(b=>b.t==='video'||b.t==='movie'||b.t==='yt'||b.t==='embed')?'동영상을 보냈습니다.':post.blocks.length?'사진을 보냈습니다.':'';
    const el=document.querySelector('#cscroll .row.post[data-p="'+no+'"] .pv');if(el&&R.g===gk&&R.view==='chats'&&R.pv[k])el.textContent=R.pv[k]}catch(e){if(e.code==='BUSY')pvPause=Date.now()+60000;else R.pv[k]=''}
   pvBusy.delete(k)}};
  await work();pvRunning=false;savePv();
@@ -295,6 +295,16 @@ let bigFrom=null;
 function openBig(b){const v=b.closest('.mvw')?.querySelector('video');if(!v)return;const at=v.currentTime||0,box=$('#viewer');v.pause();bigFrom=v;
  box.innerHTML='<video controls autoplay playsinline src="'+esc(v.currentSrc||v.src)+'"'+(v.poster?' poster="'+esc(v.poster)+'"':'')+'></video><button class="vclose" aria-label="크게 보기 닫기">✕</button>';
  const big=box.querySelector('video');if(at>0)big.addEventListener('loadedmetadata',()=>{big.currentTime=at},{once:true});box.hidden=false}
+/* 유튜브(쇼츠 포함): 미리 보기 그림을 누르면 그 자리에서 유튜브 재생기를 엽니다. [크게]를 누르면 앱 창을 가득 채운 재생기로 옮깁니다.
+   소리가 겹치지 않게, 크게 볼 때는 본문 쪽 재생기를 미리 보기 그림으로 되돌립니다. */
+const ytOk=id=>/^[\w-]{11}$/.test(id);
+const ytFrame=id=>'<iframe src="https://www.youtube.com/embed/'+id+'?autoplay=1&playsinline=1&rel=0" allow="autoplay; encrypted-media; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" title="유튜브 영상"></iframe>';
+function playYt(b){const id=b.dataset.yt;if(!ytOk(id))return;
+ /* 휴대폰은 앱 화면과 따로 둔 재생 화면을 화면 가득 띄웁니다. PC는 그 자리에서 재생하고 [크게]로 키웁니다. */
+ if(native.youtube){native.youtube(id);return}
+ b.outerHTML='<span class="mvw yt">'+ytFrame(id)+'<button class="mvbig" data-ytbig="'+id+'" aria-label="유튜브 영상 크게 보기">크게</button></span>'}
+function openBigYt(b){const id=b.dataset.ytbig,box=$('#viewer');if(!ytOk(id))return;b.closest('.mvw').outerHTML=ytButton(id);bigFrom=null;
+ box.innerHTML=ytFrame(id)+'<button class="vclose" aria-label="크게 보기 닫기">✕</button>';box.hidden=false}
 function closeViewer(){const box=$('#viewer'),big=box.querySelector('video');if(big&&bigFrom?.isConnected)try{bigFrom.currentTime=big.currentTime}catch{}
  bigFrom=null;box.innerHTML='';box.hidden=true}
 /* 같은 영상을 두 번 읽지 않게, 읽는 중인 요청을 함께 씁니다. */
@@ -312,7 +322,7 @@ function thumbMovies(){let n=0;
   /* 하나씩 차례로 읽고, 보내기 직전에 디시가 막고 있는지 다시 봅니다(앞 요청이 막혔으면 뒤 요청은 보내지 않습니다). */
   thumbQ=thumbQ.then(async()=>{if(Date.now()<pvPause)return;try{await movie(u)}catch{return}
    for(const x of document.querySelectorAll('#room button[data-movie]'))if(x.dataset.movie===u&&!x.disabled)x.outerHTML=movieHtml(u,MV[u])})}}
-document.addEventListener('error',e=>{const n=e.target;if(n.tagName==='VIDEO'&&n.classList.contains('mv')&&n.isConnected)(n.closest('.mvw')||n).outerHTML='<button class="embed" data-url="'+esc(n.dataset.page)+'">동영상을 재생하지 못했습니다. 디시에서 열기</button>'},true);
+document.addEventListener('error',e=>{const n=e.target;if(n.tagName==='VIDEO'&&n.classList.contains('mv')&&n.isConnected)(n.closest('.mvw')||n).outerHTML='<button class="embed" data-url="'+esc(n.dataset.page)+'">동영상을 재생하지 못했습니다'+(n.error?' (오류 '+n.error.code+')':'')+'. 디시에서 열기</button>'},true);
 const conVideo=(src,alt)=>'<video class="dcon1" autoplay loop muted playsinline src="'+esc(src)+'" aria-label="'+esc(alt||'디시콘')+'"></video>';
 /* 디시콘 주소는 그림일 수도 영상일 수도 있습니다. 그림으로 못 읽으면 영상으로 한 번 바꿔 봅니다. */
 document.addEventListener('error',e=>{const n=e.target;if(n.tagName==='IMG'&&n.classList.contains('dcon1')&&n.isConnected)n.outerHTML=conVideo(n.dataset.mp4||n.src,n.alt)},true);
@@ -326,6 +336,7 @@ function blockHtml(b,q=''){
  if(b.t==='dccon')return b.video?conVideo(b.src,b.alt):'<img class="dcon1" loading="lazy" src="'+esc(b.src)+'"'+(b.mp4?' data-mp4="'+esc(b.mp4)+'"':'')+' alt="'+esc(b.alt||'디시콘')+'">';
  /* 본문의 움직이는 그림(움짤)은 영상으로 들어옵니다. 재생 단추 없이 소리를 끈 채 되풀이 재생하고, 화면에 보일 때만 돌립니다(아래 gifIO). 누르면 조작 막대가 나옵니다. */
  if(b.t==='video')return '<video class="media gifv" loop muted playsinline preload="metadata" src="'+esc(b.src)+'"'+(b.poster?' poster="'+esc(b.poster)+'"':'')+'></video>';
+ if(b.t==='yt')return ytButton(b.id);
  if(b.t==='movie')return MV[b.src]?movieHtml(b.src,MV[b.src]):'<button class="embed movie" data-movie="'+esc(b.src)+'">▶ 동영상 재생</button>';
  return '<button class="embed" data-url="'+esc(b.src)+'">동영상·외부 콘텐츠 열기</button>';
 }
@@ -573,7 +584,7 @@ async function publish(){
  w.busy=true;w.err='';w.prog=null;renderWrite();
  try{
   const blocks=[];for(const x of w.blocks)blocks.push(typeof x==='string'?{t:'text',v:x}:{t:x.video?'video':'img',name:x.name,type:x.file.type,b64:await b64(x.file)});
-  const g=gal(w.g),r=await withAuth('write',{title:w.title.trim(),head:w.head,blocks},mWrite(g),{timeout:300000});
+  const g=gal(w.g),r=await withAuth('write',{title:w.title.trim(),head:w.head,blocks},mWrite(g),{timeout:blocks.some(b=>b.t==='video')?900000:300000});
   if(R.write!==w)return;
   if(r.navigated||r.ok){for(const x of w.blocks)if(x.url)URL.revokeObjectURL(x.url);R.write=null;toast('글을 올렸습니다.');renderRoom();delete R.cache[w.g+'|'];if(R.g===w.g){R.head='';loadList({fresh:true})}return}
   w.err=r.error||'글을 올리지 못했습니다.';
@@ -676,6 +687,8 @@ document.addEventListener('click',e=>{
  const b=e.target.closest('button');if(!b)return;const d=b.dataset;
  if(d.movie){playMovie(b);return}
  if(d.mvbig!=null){openBig(b);return}
+ if(d.yt){playYt(b);return}
+ if(d.ytbig){openBigYt(b);return}
  if(d.view){R.view=d.view;R.ov='';renderPane()}
  else if(d.stab!=null){R.stab=d.stab;R.saved=false;if(d.ov)R.ov=d.ov;renderPane();if(d.stab==='계정'&&!R.userKnown)checkUser()}
  else if(d.ov!=null){R.ov=R.ov===d.ov?'':d.ov;if(d.ov==='set')R.stab='';

@@ -10,6 +10,8 @@
     return BASE + "/" + (g.type === "minor" ? "mgallery/" : g.type === "mini" ? "mini/" : "") + "board/" + action + "/?id=" + g.id;
   }
   var MOVIE = /^https:\/\/gall\.dcinside\.com\/board\/movie\/movie_view\?no=\d+$/;
+  var ytId = (src) => (String(src || "").match(/^https?:\/\/(?:www\.|m\.)?(?:youtube(?:-nocookie)?\.com\/(?:embed|v|shorts)\/|youtu\.be\/)([\w-]{11})(?:[?&#/]|$)/) || [])[1] || "";
+  var ytButton = (id) => '<button class="ytb" data-yt="' + id + '" aria-label="\uC720\uD29C\uBE0C \uC601\uC0C1 \uC7AC\uC0DD"><img loading="lazy" src="https://i.ytimg.com/vi/' + id + '/hqdefault.jpg" alt=""><i>\u25B6</i></button>';
   function parseMovie(doc) {
     const v = doc.querySelector("video#dc_mv") || doc.querySelector("video"), src = abs(v?.querySelector("source")?.getAttribute("src") || v?.getAttribute("src") || ""), poster = abs(v?.getAttribute("poster") || "");
     if (!/^https:\/\//.test(src)) throw Error("\uB3D9\uC601\uC0C1 \uC8FC\uC18C\uB97C \uCC3E\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.");
@@ -70,7 +72,11 @@
         }
         if (tag === "iframe" || tag === "embed") {
           const src = abs(c.getAttribute("src") || "");
-          if (src) {
+          const yt = ytId(src);
+          if (yt) {
+            flush();
+            out.push({ t: "yt", id: yt, src });
+          } else if (src) {
             flush();
             out.push({ t: MOVIE.test(src) ? "movie" : "embed", src });
           }
@@ -149,7 +155,9 @@
         }
         if (tag === "iframe" || tag === "embed") {
           const src = abs(c.getAttribute("src") || "");
-          if (MOVIE.test(src)) out += '<button class="embed movie" data-movie="' + hesc(src) + '">\u25B6 \uB3D9\uC601\uC0C1 \uC7AC\uC0DD</button>';
+          const yt = ytId(src);
+          if (yt) out += ytButton(yt);
+          else if (MOVIE.test(src)) out += '<button class="embed movie" data-movie="' + hesc(src) + '">\u25B6 \uB3D9\uC601\uC0C1 \uC7AC\uC0DD</button>';
           else if (/^https?:\/\//.test(src)) out += '<button class="embed" data-url="' + hesc(src) + '">\uB3D9\uC601\uC0C1\xB7\uC678\uBD80 \uCF58\uD150\uCE20 \uC5F4\uAE30</button>';
           continue;
         }
@@ -254,7 +262,8 @@
       const id = String(c.no ?? "");
       if (!/^[1-9]\d*$/.test(id) || out.some((x) => x.id === id)) continue;
       const deleted = String(c.is_delete) === "1" || c.del_yn === "Y", parentId = /^[1-9]\d*$/.test(String(c.c_no ?? "")) ? String(c.c_no) : null;
-      const root = parse('<div id="m">' + (c.memo || "") + "</div>").querySelector("#m");
+      const memo = String(c.memo || ""), fixed = /written_dccon/.test(memo) ? memo.replace(/"img class=/g, '"><img class=') : memo;
+      const root = parse('<div id="m">' + fixed + "</div>").querySelector("#m");
       out.push({
         id,
         parentId,
@@ -702,13 +711,71 @@
         toEnd();
         const before = media();
         input.dispatchEvent(new Event("change", { bubbles: true }));
+        let placed = false, info = null, infoAt = 0;
+        const place = () => {
+          if (placed || b.t !== "video") return;
+          const lay = document.querySelector("#mvinfo_insert_layer"), th = document.querySelector("#mv_thumb");
+          if (lay && getComputedStyle(lay).display !== "none" && th && th.getAttribute("src") && typeof window.insertMovieInfo === "function") {
+            placed = true;
+            toEnd();
+            h.ajax(/\/movie\/insert-mvinfo/, 6e4).then((r) => {
+              info = r || {};
+              infoAt = Date.now();
+            });
+            window.insertMovieInfo();
+          }
+        };
+        const byHand = () => {
+          if (!info || info.result !== true || Date.now() - infoAt < 2500 || media() > before) return;
+          const up = (document.querySelector("#upmov_no") || {}).value || "", mk = (tag, cls) => {
+            const n = document.createElement(tag);
+            if (cls) n.className = cls;
+            return n;
+          };
+          const div = mk("div", "block mv"), cont = mk("span", "cont video"), inr = mk("span", "cont-inr"), del = mk("button", "sp-imgclose"), blind = mk("span", "blind"), pos = mk("span", "pos"), img = mk("img"), txt = mk("span", "info-txt"), p = mk("p");
+          div.setAttribute("data-movie", up + "|" + info.mv_no + "|" + info.mv_token);
+          div.setAttribute("contenteditable", "false");
+          del.type = "button";
+          blind.textContent = "\uC0AD\uC81C";
+          del.appendChild(blind);
+          pos.appendChild(mk("span", "order-handle"));
+          img.src = String(info.mv_thumb || "");
+          txt.textContent = "\uAC8C\uC2DC\uBB3C \uB4F1\uB85D \uD6C4 \uC7AC\uC0DD \uAC00\uB2A5\uD569\uB2C8\uB2E4.";
+          inr.append(del, pos, img, txt);
+          cont.appendChild(inr);
+          div.appendChild(cont);
+          p.appendChild(mk("br"));
+          box.append(div, p);
+          info = null;
+          const lay = document.querySelector("#mvinfo_insert_layer"), md = document.querySelector("#movieData");
+          if (lay) lay.style.display = "none";
+          if (md) md.value = "1";
+        };
+        const bad = () => info && info.result !== true;
         if (!await h.until(() => {
-          if (b.t === "video") tell(b, pctNow());
-          return media() > before;
-        }, b.t === "video" ? 24e4 : 6e4)) return { error: (h.alerts.join(" ") || "\uCCA8\uBD80\uB97C \uC62C\uB9AC\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4") + ": " + b.name };
+          if (b.t === "video") {
+            tell(b, pctNow());
+            place();
+            byHand();
+          }
+          return media() > before || bad();
+        }, b.t === "video" ? 78e4 : 6e4) || bad()) return { error: (h.alerts.join(" ") || bad() && info.cause || "\uCCA8\uBD80\uB97C \uC62C\uB9AC\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4") + ": " + b.name };
         await h.wait(500);
       }
+      {
+        const seen = /* @__PURE__ */ new Set();
+        for (const n of box.querySelectorAll(".block.mv")) {
+          const k = n.getAttribute("data-movie");
+          if (seen.has(k)) n.remove();
+          else seen.add(k);
+        }
+      }
       h.prog({ stage: "submit" });
+      {
+        const q = document.querySelector("#quick_upload"), v = document.querySelector("#movie_upload_type_val");
+        if (q) q.checked = true;
+        if (v) v.value = "0";
+      }
       box.dispatchEvent(new Event("input", { bubbles: true }));
       if (!await h.human(document.body)) return h.HUMAN_FAIL;
       window.write_submit();
@@ -793,6 +860,8 @@
       },
       official: (url, opt) => call("official", url, JSON.stringify(opt || {})),
       open: (url) => YJ.open(url),
+      /* 유튜브는 앱 화면과 따로 둔 재생 화면에서 틉니다(유튜브 쪽 스크립트가 앱 기능을 쓰지 못하게). */
+      youtube: (id) => YJ.youtube(String(id)),
       logout: () => call("logout"),
       notify: (title, body) => YJ.notify(String(title || ""), String(body || ""))
     };
@@ -1186,7 +1255,7 @@
           await new Promise((r) => setTimeout(r, 1400));
           const post = await dc.readPost(g, no), t = post.blocks.find((b) => b.t === "text");
           R.pc[k] = { post, at: Date.now() };
-          R.pv[k] = t ? t.v.replace(/\s+/g, " ").slice(0, 120) : post.blocks.some((b) => b.t === "video" || b.t === "movie" || b.t === "embed") ? "\uB3D9\uC601\uC0C1\uC744 \uBCF4\uB0C8\uC2B5\uB2C8\uB2E4." : post.blocks.length ? "\uC0AC\uC9C4\uC744 \uBCF4\uB0C8\uC2B5\uB2C8\uB2E4." : "";
+          R.pv[k] = t ? t.v.replace(/\s+/g, " ").slice(0, 120) : post.blocks.some((b) => b.t === "video" || b.t === "movie" || b.t === "yt" || b.t === "embed") ? "\uB3D9\uC601\uC0C1\uC744 \uBCF4\uB0C8\uC2B5\uB2C8\uB2E4." : post.blocks.length ? "\uC0AC\uC9C4\uC744 \uBCF4\uB0C8\uC2B5\uB2C8\uB2E4." : "";
           const el = document.querySelector('#cscroll .row.post[data-p="' + no + '"] .pv');
           if (el && R.g === gk && R.view === "chats" && R.pv[k]) el.textContent = R.pv[k];
         } catch (e) {
@@ -1234,6 +1303,25 @@
     if (at > 0) big.addEventListener("loadedmetadata", () => {
       big.currentTime = at;
     }, { once: true });
+    box.hidden = false;
+  }
+  var ytOk = (id) => /^[\w-]{11}$/.test(id);
+  var ytFrame = (id) => '<iframe src="https://www.youtube.com/embed/' + id + '?autoplay=1&playsinline=1&rel=0" allow="autoplay; encrypted-media; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" title="\uC720\uD29C\uBE0C \uC601\uC0C1"></iframe>';
+  function playYt(b) {
+    const id = b.dataset.yt;
+    if (!ytOk(id)) return;
+    if (native.youtube) {
+      native.youtube(id);
+      return;
+    }
+    b.outerHTML = '<span class="mvw yt">' + ytFrame(id) + '<button class="mvbig" data-ytbig="' + id + '" aria-label="\uC720\uD29C\uBE0C \uC601\uC0C1 \uD06C\uAC8C \uBCF4\uAE30">\uD06C\uAC8C</button></span>';
+  }
+  function openBigYt(b) {
+    const id = b.dataset.ytbig, box = $("#viewer");
+    if (!ytOk(id)) return;
+    b.closest(".mvw").outerHTML = ytButton(id);
+    bigFrom = null;
+    box.innerHTML = ytFrame(id) + '<button class="vclose" aria-label="\uD06C\uAC8C \uBCF4\uAE30 \uB2EB\uAE30">\u2715</button>';
     box.hidden = false;
   }
   function closeViewer() {
@@ -1293,7 +1381,7 @@
   }
   document.addEventListener("error", (e) => {
     const n = e.target;
-    if (n.tagName === "VIDEO" && n.classList.contains("mv") && n.isConnected) (n.closest(".mvw") || n).outerHTML = '<button class="embed" data-url="' + esc(n.dataset.page) + '">\uB3D9\uC601\uC0C1\uC744 \uC7AC\uC0DD\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4. \uB514\uC2DC\uC5D0\uC11C \uC5F4\uAE30</button>';
+    if (n.tagName === "VIDEO" && n.classList.contains("mv") && n.isConnected) (n.closest(".mvw") || n).outerHTML = '<button class="embed" data-url="' + esc(n.dataset.page) + '">\uB3D9\uC601\uC0C1\uC744 \uC7AC\uC0DD\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4' + (n.error ? " (\uC624\uB958 " + n.error.code + ")" : "") + ". \uB514\uC2DC\uC5D0\uC11C \uC5F4\uAE30</button>";
   }, true);
   var conVideo = (src, alt) => '<video class="dcon1" autoplay loop muted playsinline src="' + esc(src) + '" aria-label="' + esc(alt || "\uB514\uC2DC\uCF58") + '"></video>';
   document.addEventListener("error", (e) => {
@@ -1317,6 +1405,7 @@
     if (b.t === "txtcon") return '<div class="tcon" style="' + tstyle(b.v, b.bg, b.fg) + '">' + esc(b.v) + "</div>";
     if (b.t === "dccon") return b.video ? conVideo(b.src, b.alt) : '<img class="dcon1" loading="lazy" src="' + esc(b.src) + '"' + (b.mp4 ? ' data-mp4="' + esc(b.mp4) + '"' : "") + ' alt="' + esc(b.alt || "\uB514\uC2DC\uCF58") + '">';
     if (b.t === "video") return '<video class="media gifv" loop muted playsinline preload="metadata" src="' + esc(b.src) + '"' + (b.poster ? ' poster="' + esc(b.poster) + '"' : "") + "></video>";
+    if (b.t === "yt") return ytButton(b.id);
     if (b.t === "movie") return MV[b.src] ? movieHtml(b.src, MV[b.src]) : '<button class="embed movie" data-movie="' + esc(b.src) + '">\u25B6 \uB3D9\uC601\uC0C1 \uC7AC\uC0DD</button>';
     return '<button class="embed" data-url="' + esc(b.src) + '">\uB3D9\uC601\uC0C1\xB7\uC678\uBD80 \uCF58\uD150\uCE20 \uC5F4\uAE30</button>';
   }
@@ -1787,7 +1876,7 @@
     try {
       const blocks = [];
       for (const x of w.blocks) blocks.push(typeof x === "string" ? { t: "text", v: x } : { t: x.video ? "video" : "img", name: x.name, type: x.file.type, b64: await b64(x.file) });
-      const g = gal(w.g), r = await withAuth("write", { title: w.title.trim(), head: w.head, blocks }, mWrite(g), { timeout: 3e5 });
+      const g = gal(w.g), r = await withAuth("write", { title: w.title.trim(), head: w.head, blocks }, mWrite(g), { timeout: blocks.some((b) => b.t === "video") ? 9e5 : 3e5 });
       if (R.write !== w) return;
       if (r.navigated || r.ok) {
         for (const x of w.blocks) if (x.url) URL.revokeObjectURL(x.url);
@@ -2092,6 +2181,14 @@
     }
     if (d.mvbig != null) {
       openBig(b);
+      return;
+    }
+    if (d.yt) {
+      playYt(b);
+      return;
+    }
+    if (d.ytbig) {
+      openBigYt(b);
       return;
     }
     if (d.view) {

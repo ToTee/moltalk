@@ -15,6 +15,10 @@ export function boardUrl(g,action){
 
 // 본문에 올린 동영상의 재생 창 주소
 const MOVIE=/^https:\/\/gall\.dcinside\.com\/board\/movie\/movie_view\?no=\d+$/;
+/* 본문에 넣은 유튜브 영상(쇼츠 포함)의 주소에서 영상 번호(11자)를 꺼냅니다. 유튜브 주소가 아니면 빈 글자입니다. */
+export const ytId=src=>(String(src||'').match(/^https?:\/\/(?:www\.|m\.)?(?:youtube(?:-nocookie)?\.com\/(?:embed|v|shorts)\/|youtu\.be\/)([\w-]{11})(?:[?&#/]|$)/)||[])[1]||'';
+/* 유튜브 영상 자리: 미리 보기 그림과 재생 단추. 누르면 앱이 그 자리에서 유튜브 재생기를 엽니다. */
+export const ytButton=id=>'<button class="ytb" data-yt="'+id+'" aria-label="유튜브 영상 재생"><img loading="lazy" src="https://i.ytimg.com/vi/'+id+'/hqdefault.jpg" alt=""><i>▶</i></button>';
 /* 재생 창 화면에서 실제 영상 주소와 미리 보기 그림 주소를 꺼냅니다. */
 export function parseMovie(doc){
  const v=doc.querySelector('video#dc_mv')||doc.querySelector('video'),src=abs(v?.querySelector('source')?.getAttribute('src')||v?.getAttribute('src')||''),poster=abs(v?.getAttribute('poster')||'');
@@ -44,7 +48,7 @@ export function toBlocks(root){
   /* 트위터(X) 글: 본문에는 주소만 든 빈 칸으로 들어옵니다. 주소를 글자로 꺼내 누를 수 있게 합니다. */
   {const xu=c.getAttribute('data-x-url')||'';if(/^https:\/\//.test(xu)){if(buf&&!buf.endsWith('\n'))buf+='\n';buf+=xu+'\n';continue}}
   /* 본문에 올린 동영상은 디시의 재생 창(movie_view) 주소로 들어옵니다. 앱 안에서 틀 수 있게 따로 표시합니다. */
-  if(tag==='iframe'||tag==='embed'){const src=abs(c.getAttribute('src')||'');if(src){flush();out.push({t:MOVIE.test(src)?'movie':'embed',src})}continue}
+  if(tag==='iframe'||tag==='embed'){const src=abs(c.getAttribute('src')||'');const yt=ytId(src);if(yt){flush();out.push({t:'yt',id:yt,src})}else if(src){flush();out.push({t:MOVIE.test(src)?'movie':'embed',src})}continue}
   const cls=c.getAttribute('class')||'';
   /* 글자콘은 본문·댓글 화면에 따라 이름표가 다릅니다(txtdccon, 댓글 응답에서는 coment_dccon_txt). 둘 다 글자콘으로 읽습니다. */
   if(/txtdccon|coment_dccon_txt/.test(cls)){const v=c.textContent.trim(),inner=c.querySelector('[class*="ctxt_"]');if(v){flush();out.push({t:'txtcon',v,bg:(cls.match(/cbg_([0-9a-f]{6})/i)||[])[1]||'3b4890',fg:((inner?.getAttribute('class')||'').match(/ctxt_([0-9a-f]{6})/i)||[])[1]||'ffffff'})}continue}
@@ -83,7 +87,7 @@ export function toHtml(root){
    if(ok(pic))out+='<img loading="lazy" src="'+hesc(pic)+'" alt="'+hesc(c.getAttribute('title')||(/dccon/.test(c.getAttribute('class')||'')?'디시콘':'움짤'))+'"'+(/dccon/.test(c.getAttribute('class')||'')?'':' data-zoom')+'>';
    else if(ok(file))out+='<video class="gifv" loop muted playsinline preload="metadata" src="'+hesc(file)+'"'+(ok(poster)?' poster="'+hesc(poster)+'"':'')+'></video>';
    continue}
-  if(tag==='iframe'||tag==='embed'){const src=abs(c.getAttribute('src')||'');if(MOVIE.test(src))out+='<button class="embed movie" data-movie="'+hesc(src)+'">▶ 동영상 재생</button>';else if(/^https?:\/\//.test(src))out+='<button class="embed" data-url="'+hesc(src)+'">동영상·외부 콘텐츠 열기</button>';continue}
+  if(tag==='iframe'||tag==='embed'){const src=abs(c.getAttribute('src')||'');const yt=ytId(src);if(yt)out+=ytButton(yt);else if(MOVIE.test(src))out+='<button class="embed movie" data-movie="'+hesc(src)+'">▶ 동영상 재생</button>';else if(/^https?:\/\//.test(src))out+='<button class="embed" data-url="'+hesc(src)+'">동영상·외부 콘텐츠 열기</button>';continue}
   {const xu=c.getAttribute('data-x-url')||'';if(ok(xu)){out+='<p><a href="'+hesc(xu)+'" data-url="'+hesc(xu)+'">'+hesc(xu)+'</a></p>';continue}}
   if(tag==='a'){const href=abs(c.getAttribute('href')||''),link=/^https?:\/\//.test(href);out+=link?'<a href="'+hesc(href)+'" data-url="'+hesc(href)+'"'+attrs(c)+'>':'<span'+attrs(c)+'>';walk(c);out+=link?'</a>':'</span>';continue}
   if(HTML_TAGS.test(tag)){if(tag==='hr'){out+='<hr'+attrs(c)+'>';continue}out+='<'+tag+attrs(c)+'>';walk(c);out+='</'+tag+'>';continue}
@@ -132,7 +136,9 @@ export function parseComments(data,parse){
  for(const c of data.comments||[]){
   const id=String(c.no??'');if(!/^[1-9]\d*$/.test(id)||out.some(x=>x.id===id))continue;/* 번호 0은 광고 줄 */
   const deleted=String(c.is_delete)==='1'||c.del_yn==='Y',parentId=/^[1-9]\d*$/.test(String(c.c_no??''))?String(c.c_no):null;
-  const root=parse('<div id="m">'+(c.memo||'')+'</div>').querySelector('#m');
+  /* 더블콘(디시콘 두 개)은 두 번째 그림이 첫 번째 그림 태그 안에 붙은 채로 옵니다(…"img class=…). 그대로 읽으면 첫 번째만 나오므로 둘로 갈라 줍니다. */
+  const memo=String(c.memo||''),fixed=/written_dccon/.test(memo)?memo.replace(/"img class=/g,'"><img class='):memo;
+  const root=parse('<div id="m">'+fixed+'</div>').querySelector('#m');
   out.push({id,parentId,name:deleted?'삭제된 댓글':c.name||'ㅇㅇ',uid:String(c.user_id||''),ip:String(c.ip||''),time:deleted?'':String(c.reg_date||''),
    blocks:deleted?[{t:'text',v:'(삭제된 댓글)'}]:toBlocks(root),deleted,mine:c.my_cmt==='Y'});
  }
