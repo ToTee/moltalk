@@ -20,7 +20,10 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const COLORS=['#a4b7e8','#8fcbd9','#e9a9a0','#b6a5e0','#8ec7a2','#e3bd7c','#d99cc0','#8aa3b8'];
 const hash=s=>[...String(s)].reduce((a,c)=>(a*31+c.charCodeAt(0))>>>0,7);
 const hue=s=>COLORS[hash(s)%COLORS.length];
-const userAv=n=>'<span class="av" style="background:'+hue(n)+'">'+I.sil+'</span>';
+/* 사람 자리에는 앱에 들어 있는 프로필 그림(avatars.jpg, 가로 8칸 × 세로 6칸) 가운데 하나를 보여 줍니다.
+   이름으로 칸을 정하므로 같은 사람은 언제나 같은 그림이 나옵니다. 그림 48장(동물, 풍경·일상, 애니메이션풍 그림)은 이 앱을 위해 이미지 생성 모델(gpt-image-2)로 만든 것이며 실제 사람이나 기존 캐릭터가 아닙니다. */
+const AV_COLS=8,AV_ROWS=6;
+const userAv=(n,seed)=>{const i=hash('av'+n+(seed?'#'+seed:''))%(AV_COLS*AV_ROWS);return '<span class="av avp" style="background-color:'+hue(n)+';background-position:'+(i%AV_COLS)/(AV_COLS-1)*100+'% '+Math.floor(i/AV_COLS)/(AV_ROWS-1)*100+'%"></span>'};
 
 /* ---------- 저장되는 설정 ---------- */
 /* 앱 이름을 바꾸기 전(yangjitalk)에 저장한 설정이 있으면 새 이름으로 옮기고, 실제로 쓸 이름을 돌려줍니다.
@@ -96,6 +99,9 @@ const R={view:'friends',g:null,head:'',list:null,listErr:'',listBusy:false,seq:0
  latest:{},updated:{},cache:{},hk:{},pv:{},pc:{},shown:20,hidden:0,search:{q:'',res:null,busy:false,err:''},filter:'',filterOn:false,gmenu:null,log:'게시글',
  gallog:{},user:'',userKnown:false,reply:null,menu:null,ask:false,cpanel:false,tpanel:false,cons:{items:null,busy:false,err:''},con1:null,tcon:'',write:null,sending:false,toBottom:false};
 const who=x=>x.name+(x.ip?'('+x.ip+')':'');
+/* 글쓴이의 프로필 그림. 닉네임이 같아도 아이디가 다르면 다른 사람이므로 아이디를 섞어 정합니다.
+   아이디도 IP도 안 보이는 글쓴이는 글마다 다른 그림이 나오게 글 번호를 섞습니다. */
+const postAv=p=>userAv(who(p),p.uid||(p.ip?'':p.id));
 function toast(msg){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>t.hidden=true,2600)}
 
 /* ---------- 왼쪽 메뉴 ---------- */
@@ -148,7 +154,7 @@ function chatsHtml(){
  const rowHtml=p=>{const pi=pins.indexOf(p),n=unreadOf(p),author=who(p);
   const pv=p.notice?p.title:R.pv[R.g+'/'+p.id]||(p.hasVideo?'동영상을 보냈습니다.':p.hasImage?'사진을 보냈습니다.':author+' · 조회 '+p.views.toLocaleString());
   return '<button class="row post'+(R.room&&R.room.g===R.g&&R.room.no===p.id?' sel':'')+'" data-p="'+p.id+'">'+
-   (p.notice?'<span class="av grid">'+[0,1,2,3].map(i=>'<i style="background:'+COLORS[(hash(p.id)+i)%COLORS.length]+'"></i>').join('')+'</span>':userAv(author))+
+   (p.notice?'<span class="av grid">'+[0,1,2,3].map(i=>'<i style="background:'+COLORS[(hash(p.id)+i)%COLORS.length]+'"></i>').join('')+'</span>':postAv(p))+
    '<span class="tx"><b><span class="t">'+esc(p.notice?noticeName(g,pi,p):p.title)+'</span><small>'+(p.notice?pins.length:p.comments)+'</small>'+(p.notice?I.pin:'')+'</b><span class="pv">'+esc(pv)+'</span></span>'+
    '<span class="rt">'+listTime(p.time)+(n?'<br><em>'+n+'</em>':'')+'</span></button>'};
  /* 처음에는 20개만 보여 주고, 아래로 스크롤하면 10개씩 더 보여 줍니다. 보이는 글만 본문 미리보기를 읽어 옵니다. */
@@ -254,7 +260,8 @@ function blockHtml(b,q=''){
  if(b.t==='img')return '<img class="media" loading="lazy" src="'+esc(b.src)+'" alt="'+esc(b.alt||'본문 사진')+'" data-zoom>';
  if(b.t==='txtcon')return '<div class="tcon" style="'+tstyle(b.v,b.bg,b.fg)+'">'+esc(b.v)+'</div>';
  if(b.t==='dccon')return b.video?conVideo(b.src,b.alt):'<img class="dcon1" loading="lazy" src="'+esc(b.src)+'"'+(b.mp4?' data-mp4="'+esc(b.mp4)+'"':'')+' alt="'+esc(b.alt||'디시콘')+'">';
- if(b.t==='video')return '<video class="media" controls preload="none" src="'+esc(b.src)+'"'+(b.poster?' poster="'+esc(b.poster)+'"':'')+'></video>';
+ /* 본문의 움직이는 그림(움짤)은 영상으로 들어옵니다. 재생 단추 없이 소리를 끈 채 되풀이 재생하고, 화면에 보일 때만 돌립니다(아래 gifIO). 누르면 조작 막대가 나옵니다. */
+ if(b.t==='video')return '<video class="media gifv" loop muted playsinline preload="metadata" src="'+esc(b.src)+'"'+(b.poster?' poster="'+esc(b.poster)+'"':'')+'></video>';
  return '<button class="embed" data-url="'+esc(b.src)+'">동영상·외부 콘텐츠 열기</button>';
 }
 function renderRoom(keep){
@@ -288,14 +295,14 @@ function renderRoom(keep){
     (R.menu==='body'&&i===merged.length-1?'<button class="delbtn edit" data-pedit>수정</button><button class="delbtn" data-postdel>'+(R.ask?'정말 삭제':'삭제')+'</button>':'');
    const ln='<div class="ln"'+lp+'>'+body+menu+(last&&m.d?'<span class="tm">'+clock(m.d)+'</span>':'')+'</div>';
    h+=m.mine?'<div class="m mine'+(first?' first':'')+'"><div class="col">'+ln+'</div></div>':
-    '<div class="m'+(first?' first':'')+'"><div class="avc">'+(first?userAv(m.w):'')+'</div><div class="col">'+(first?'<div class="nm">'+esc(m.w)+(i<merged.length||m.isAuthor?'<i>글쓴이</i>':'')+'</div>':'')+ln+'</div></div>';
+    '<div class="m'+(first?' first':'')+'"><div class="avc">'+(first?(m.c?userAv(m.w,m.c.uid):postAv(meta)):'')+'</div><div class="col">'+(first?'<div class="nm">'+esc(m.w)+(i<merged.length||m.isAuthor?'<i>글쓴이</i>':'')+'</div>':'')+ln+'</div></div>';
   });
   if(r.cerr)h+='<div class="sys err"><span>'+esc(r.cerr)+'</span></div>';
   else if(!r.comments)h+='<div class="sys"><span>댓글 불러오는 중…</span></div>';
   else if(r.total>r.comments.length&&!r.noMore)h+='<div class="sys"><button data-cmore>'+(r.cbusy?'불러오는 중…':'댓글 더 보기')+'</button></div>';
  }else h=r.err?'<div class="sys err"><span>'+esc(r.err)+'</span></div><div class="sys"><button data-rreload>다시 시도</button></div>':'<div class="sys"><span>불러오는 중…</span></div>';
  const people=p?new Set([author,...(r.comments||[]).map(who)]).size:1;
- el.innerHTML='<div class="rhead"><button class="ib back" data-back aria-label="목록으로">'+I.back+'</button>'+userAv(author)+'<span class="tt"><b>'+esc(title)+'</b><span>'+esc(gname(g))+' · 참여 '+people+'명</span></span>'+
+ el.innerHTML='<div class="rhead"><button class="ib back" data-back aria-label="목록으로">'+I.back+'</button>'+postAv(meta)+'<span class="tt"><b>'+esc(title)+'</b><span>'+esc(gname(g))+' · 참여 '+people+'명</span></span>'+
   '<button class="ib" data-rreload aria-label="새로고침">'+I.refresh+'</button><button class="ib" data-rmenu aria-label="글 메뉴" aria-expanded="'+!!R.rmenu+'">'+I.menu+'</button></div>'+
   /* 오른쪽 위 메뉴: 원본 모양으로 보기(글쓴이가 꾸민 그대로), 디시에서 열기 */
   (R.rmenu?'<button class="rdim" data-rmenu aria-label="메뉴 닫기"></button><div class="rpop"><button data-orig'+(p?'':' disabled')+'>원본 모양으로 보기</button><button data-vote="up"'+(p?'':' disabled')+'>추천'+(p?' '+(p.up||0):'')+'</button><button data-vote="down"'+(p?'':' disabled')+'>비추천'+(p&&p.down?' '+p.down:'')+'</button><button data-rmenu data-url="'+esc(postUrl(g,r.no))+'">디시에서 열기</button></div>':'')+
@@ -435,6 +442,10 @@ async function poll(){
 setTimeout(poll,90000);setInterval(poll,600000);
 /* 휴대폰은 앱이 뒤에 가 있는 동안 위 시계가 멈출 수 있어, 앱으로 돌아왔을 때 10분이 지났으면 바로 확인합니다. */
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&Date.now()-lastPoll>600000)poll()});
+/* 움짤: 화면에 보이는 것만 재생하고, 벗어나면 멈춥니다. 화면이 새로 그려질 때마다 새로 생긴 움짤을 찾아 지켜봅니다. */
+const gifIO=new IntersectionObserver(es=>{for(const e of es){if(e.isIntersecting)e.target.play().catch(()=>{});else e.target.pause()}},{threshold:.15});
+new MutationObserver(()=>{for(const v of document.querySelectorAll('video.gifv:not([data-io])')){v.dataset.io='1';v.muted=true;gifIO.observe(v)}}).observe(document.body,{childList:true,subtree:true});
+document.addEventListener('click',e=>{const v=e.target.closest?.('video.gifv');if(v&&!v.controls)v.controls=true});
 /* 기기 알림을 누르면 알림 목록을 엽니다. */
 native.onNotify?.(()=>{R.ov='noti';for(const n of D.notis)n.read=true;save();renderRail();renderPane()});
 

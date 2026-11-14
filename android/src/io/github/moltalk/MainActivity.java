@@ -400,7 +400,7 @@ public class MainActivity extends Activity {
     private WebResourceResponse asset(String path) {
         String name = path == null ? "" : path.replaceFirst("^/+", "");
         if (!name.matches("[A-Za-z0-9._-]+")) return new WebResourceResponse("text/plain", "utf-8", 404, "Not Found", new HashMap<>(), null);
-        String mime = name.endsWith(".html") ? "text/html" : name.endsWith(".css") ? "text/css" : name.endsWith(".js") ? "application/javascript" : name.endsWith(".png") ? "image/png" : "application/octet-stream";
+        String mime = name.endsWith(".html") ? "text/html" : name.endsWith(".css") ? "text/css" : name.endsWith(".js") ? "application/javascript" : name.endsWith(".png") ? "image/png" : name.endsWith(".jpg") ? "image/jpeg" : "application/octet-stream";
         try {
             return new WebResourceResponse(mime, "utf-8", getAssets().open("app/" + name));
         } catch (Exception e) {

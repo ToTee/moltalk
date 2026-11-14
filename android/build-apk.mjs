@@ -21,7 +21,7 @@ fs.rmSync(work,{recursive:true,force:true});fs.mkdirSync(work,{recursive:true});
 // 1) 화면 묶음
 run(process.execPath,[path.join(root,'tools','build.mjs')],{cwd:root});
 const assets=path.join(work,'assets','app');fs.mkdirSync(assets,{recursive:true});
-for(const f of ['index.html','app.css','app.bundle.js'])fs.copyFileSync(path.join(root,'app',f),path.join(assets,f));
+for(const f of ['index.html','app.css','app.bundle.js','avatars.jpg'])fs.copyFileSync(path.join(root,'app',f),path.join(assets,f));
 
 // 2) 버전을 package.json과 맞춘 매니페스트
 const [major,minor,patch]=pkg.version.split('.').map(Number),code=major*10000+minor*100+patch;

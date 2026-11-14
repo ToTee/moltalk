@@ -66,7 +66,7 @@ export function toHtml(root){
   if(tag==='img'){const src=abs(c.getAttribute('data-original')||c.getAttribute('data-src')||c.getAttribute('src')||'');if(ok(src))out+='<img loading="lazy" src="'+hesc(src)+'" alt="'+hesc(c.getAttribute('alt')||'본문 사진')+'"'+attrs(c)+' data-zoom>';continue}
   if(tag==='video'){const file=abs(c.getAttribute('src')||c.querySelector('source')?.getAttribute('src')||''),pic=abs(c.getAttribute('data-src')||''),poster=abs(c.getAttribute('poster')||'');
    if(/dccon/.test(c.getAttribute('class')||'')&&ok(pic))out+='<img loading="lazy" src="'+hesc(pic)+'" alt="'+hesc(c.getAttribute('title')||'디시콘')+'">';
-   else if(ok(file))out+='<video controls preload="none" src="'+hesc(file)+'"'+(ok(poster)?' poster="'+hesc(poster)+'"':'')+'></video>';
+   else if(ok(file))out+='<video class="gifv" loop muted playsinline preload="metadata" src="'+hesc(file)+'"'+(ok(poster)?' poster="'+hesc(poster)+'"':'')+'></video>';
    continue}
   if(tag==='iframe'||tag==='embed'){const src=abs(c.getAttribute('src')||'');if(/^https?:\/\//.test(src))out+='<button class="embed" data-url="'+hesc(src)+'">동영상·외부 콘텐츠 열기</button>';continue}
   if(tag==='a'){const href=abs(c.getAttribute('href')||''),link=/^https?:\/\//.test(href);out+=link?'<a href="'+hesc(href)+'" data-url="'+hesc(href)+'"'+attrs(c)+'>':'<span'+attrs(c)+'>';walk(c);out+=link?'</a>':'</span>';continue}

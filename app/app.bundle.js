@@ -127,7 +127,7 @@
         if (tag === "video") {
           const file = abs(c.getAttribute("src") || c.querySelector("source")?.getAttribute("src") || ""), pic = abs(c.getAttribute("data-src") || ""), poster = abs(c.getAttribute("poster") || "");
           if (/dccon/.test(c.getAttribute("class") || "") && ok(pic)) out += '<img loading="lazy" src="' + hesc(pic) + '" alt="' + hesc(c.getAttribute("title") || "\uB514\uC2DC\uCF58") + '">';
-          else if (ok(file)) out += '<video controls preload="none" src="' + hesc(file) + '"' + (ok(poster) ? ' poster="' + hesc(poster) + '"' : "") + "></video>";
+          else if (ok(file)) out += '<video class="gifv" loop muted playsinline preload="metadata" src="' + hesc(file) + '"' + (ok(poster) ? ' poster="' + hesc(poster) + '"' : "") + "></video>";
           continue;
         }
         if (tag === "iframe" || tag === "embed") {
@@ -736,7 +736,12 @@
   var COLORS = ["#a4b7e8", "#8fcbd9", "#e9a9a0", "#b6a5e0", "#8ec7a2", "#e3bd7c", "#d99cc0", "#8aa3b8"];
   var hash = (s2) => [...String(s2)].reduce((a, c) => a * 31 + c.charCodeAt(0) >>> 0, 7);
   var hue = (s2) => COLORS[hash(s2) % COLORS.length];
-  var userAv = (n) => '<span class="av" style="background:' + hue(n) + '">' + I.sil + "</span>";
+  var AV_COLS = 8;
+  var AV_ROWS = 6;
+  var userAv = (n, seed) => {
+    const i = hash("av" + n + (seed ? "#" + seed : "")) % (AV_COLS * AV_ROWS);
+    return '<span class="av avp" style="background-color:' + hue(n) + ";background-position:" + i % AV_COLS / (AV_COLS - 1) * 100 + "% " + Math.floor(i / AV_COLS) / (AV_ROWS - 1) * 100 + '%"></span>';
+  };
   function moveKey(o, n) {
     const v = localStorage.getItem(o);
     if (v === null) return n;
@@ -926,6 +931,7 @@
     toBottom: false
   };
   var who = (x) => x.name + (x.ip ? "(" + x.ip + ")" : "");
+  var postAv = (p) => userAv(who(p), p.uid || (p.ip ? "" : p.id));
   function toast(msg) {
     const t = $("#toast");
     t.textContent = msg;
@@ -967,7 +973,7 @@
     const rowHtml = (p) => {
       const pi = pins.indexOf(p), n = unreadOf(p), author = who(p);
       const pv = p.notice ? p.title : R.pv[R.g + "/" + p.id] || (p.hasVideo ? "\uB3D9\uC601\uC0C1\uC744 \uBCF4\uB0C8\uC2B5\uB2C8\uB2E4." : p.hasImage ? "\uC0AC\uC9C4\uC744 \uBCF4\uB0C8\uC2B5\uB2C8\uB2E4." : author + " \xB7 \uC870\uD68C " + p.views.toLocaleString());
-      return '<button class="row post' + (R.room && R.room.g === R.g && R.room.no === p.id ? " sel" : "") + '" data-p="' + p.id + '">' + (p.notice ? '<span class="av grid">' + [0, 1, 2, 3].map((i) => '<i style="background:' + COLORS[(hash(p.id) + i) % COLORS.length] + '"></i>').join("") + "</span>" : userAv(author)) + '<span class="tx"><b><span class="t">' + esc(p.notice ? noticeName(g, pi, p) : p.title) + "</span><small>" + (p.notice ? pins.length : p.comments) + "</small>" + (p.notice ? I.pin : "") + '</b><span class="pv">' + esc(pv) + '</span></span><span class="rt">' + listTime(p.time) + (n ? "<br><em>" + n + "</em>" : "") + "</span></button>";
+      return '<button class="row post' + (R.room && R.room.g === R.g && R.room.no === p.id ? " sel" : "") + '" data-p="' + p.id + '">' + (p.notice ? '<span class="av grid">' + [0, 1, 2, 3].map((i) => '<i style="background:' + COLORS[(hash(p.id) + i) % COLORS.length] + '"></i>').join("") + "</span>" : postAv(p)) + '<span class="tx"><b><span class="t">' + esc(p.notice ? noticeName(g, pi, p) : p.title) + "</span><small>" + (p.notice ? pins.length : p.comments) + "</small>" + (p.notice ? I.pin : "") + '</b><span class="pv">' + esc(pv) + '</span></span><span class="rt">' + listTime(p.time) + (n ? "<br><em>" + n + "</em>" : "") + "</span></button>";
     };
     const shownPins = posts.filter((p) => p.notice), allRest = posts.filter((p) => !p.notice), rest = allRest.slice(0, R.shown);
     R.hidden = allRest.length - rest.length;
@@ -1094,7 +1100,7 @@
     if (b.t === "img") return '<img class="media" loading="lazy" src="' + esc(b.src) + '" alt="' + esc(b.alt || "\uBCF8\uBB38 \uC0AC\uC9C4") + '" data-zoom>';
     if (b.t === "txtcon") return '<div class="tcon" style="' + tstyle(b.v, b.bg, b.fg) + '">' + esc(b.v) + "</div>";
     if (b.t === "dccon") return b.video ? conVideo(b.src, b.alt) : '<img class="dcon1" loading="lazy" src="' + esc(b.src) + '"' + (b.mp4 ? ' data-mp4="' + esc(b.mp4) + '"' : "") + ' alt="' + esc(b.alt || "\uB514\uC2DC\uCF58") + '">';
-    if (b.t === "video") return '<video class="media" controls preload="none" src="' + esc(b.src) + '"' + (b.poster ? ' poster="' + esc(b.poster) + '"' : "") + "></video>";
+    if (b.t === "video") return '<video class="media gifv" loop muted playsinline preload="metadata" src="' + esc(b.src) + '"' + (b.poster ? ' poster="' + esc(b.poster) + '"' : "") + "></video>";
     return '<button class="embed" data-url="' + esc(b.src) + '">\uB3D9\uC601\uC0C1\xB7\uC678\uBD80 \uCF58\uD150\uCE20 \uC5F4\uAE30</button>';
   }
   function renderRoom(keep) {
@@ -1143,14 +1149,14 @@
         const lp2 = m.c ? m.c.deleted ? "" : ' data-lp="msg" data-cid="' + m.c.id + '"' : myPost ? ' data-lp="msg" data-cid="body"' : "";
         const menu = m.c ? R.menu === m.c.id && m.lastBlock ? '<button class="delbtn edit" data-reply="' + m.c.id + '">\uB2F5\uC7A5</button>' + (m.c.mine || myPost ? '<button class="delbtn" data-cdel="' + m.c.id + '">\uC0AD\uC81C</button>' : "") : "" : R.menu === "body" && i === merged.length - 1 ? '<button class="delbtn edit" data-pedit>\uC218\uC815</button><button class="delbtn" data-postdel>' + (R.ask ? "\uC815\uB9D0 \uC0AD\uC81C" : "\uC0AD\uC81C") + "</button>" : "";
         const ln = '<div class="ln"' + lp2 + ">" + body + menu + (last && m.d ? '<span class="tm">' + clock(m.d) + "</span>" : "") + "</div>";
-        h += m.mine ? '<div class="m mine' + (first ? " first" : "") + '"><div class="col">' + ln + "</div></div>" : '<div class="m' + (first ? " first" : "") + '"><div class="avc">' + (first ? userAv(m.w) : "") + '</div><div class="col">' + (first ? '<div class="nm">' + esc(m.w) + (i < merged.length || m.isAuthor ? "<i>\uAE00\uC4F4\uC774</i>" : "") + "</div>" : "") + ln + "</div></div>";
+        h += m.mine ? '<div class="m mine' + (first ? " first" : "") + '"><div class="col">' + ln + "</div></div>" : '<div class="m' + (first ? " first" : "") + '"><div class="avc">' + (first ? m.c ? userAv(m.w, m.c.uid) : postAv(meta) : "") + '</div><div class="col">' + (first ? '<div class="nm">' + esc(m.w) + (i < merged.length || m.isAuthor ? "<i>\uAE00\uC4F4\uC774</i>" : "") + "</div>" : "") + ln + "</div></div>";
       });
       if (r.cerr) h += '<div class="sys err"><span>' + esc(r.cerr) + "</span></div>";
       else if (!r.comments) h += '<div class="sys"><span>\uB313\uAE00 \uBD88\uB7EC\uC624\uB294 \uC911\u2026</span></div>';
       else if (r.total > r.comments.length && !r.noMore) h += '<div class="sys"><button data-cmore>' + (r.cbusy ? "\uBD88\uB7EC\uC624\uB294 \uC911\u2026" : "\uB313\uAE00 \uB354 \uBCF4\uAE30") + "</button></div>";
     } else h = r.err ? '<div class="sys err"><span>' + esc(r.err) + '</span></div><div class="sys"><button data-rreload>\uB2E4\uC2DC \uC2DC\uB3C4</button></div>' : '<div class="sys"><span>\uBD88\uB7EC\uC624\uB294 \uC911\u2026</span></div>';
     const people = p ? (/* @__PURE__ */ new Set([author, ...(r.comments || []).map(who)])).size : 1;
-    el.innerHTML = '<div class="rhead"><button class="ib back" data-back aria-label="\uBAA9\uB85D\uC73C\uB85C">' + I.back + "</button>" + userAv(author) + '<span class="tt"><b>' + esc(title) + "</b><span>" + esc(gname(g)) + " \xB7 \uCC38\uC5EC " + people + '\uBA85</span></span><button class="ib" data-rreload aria-label="\uC0C8\uB85C\uACE0\uCE68">' + I.refresh + '</button><button class="ib" data-rmenu aria-label="\uAE00 \uBA54\uB274" aria-expanded="' + !!R.rmenu + '">' + I.menu + "</button></div>" + /* 오른쪽 위 메뉴: 원본 모양으로 보기(글쓴이가 꾸민 그대로), 디시에서 열기 */
+    el.innerHTML = '<div class="rhead"><button class="ib back" data-back aria-label="\uBAA9\uB85D\uC73C\uB85C">' + I.back + "</button>" + postAv(meta) + '<span class="tt"><b>' + esc(title) + "</b><span>" + esc(gname(g)) + " \xB7 \uCC38\uC5EC " + people + '\uBA85</span></span><button class="ib" data-rreload aria-label="\uC0C8\uB85C\uACE0\uCE68">' + I.refresh + '</button><button class="ib" data-rmenu aria-label="\uAE00 \uBA54\uB274" aria-expanded="' + !!R.rmenu + '">' + I.menu + "</button></div>" + /* 오른쪽 위 메뉴: 원본 모양으로 보기(글쓴이가 꾸민 그대로), 디시에서 열기 */
     (R.rmenu ? '<button class="rdim" data-rmenu aria-label="\uBA54\uB274 \uB2EB\uAE30"></button><div class="rpop"><button data-orig' + (p ? "" : " disabled") + '>\uC6D0\uBCF8 \uBAA8\uC591\uC73C\uB85C \uBCF4\uAE30</button><button data-vote="up"' + (p ? "" : " disabled") + ">\uCD94\uCC9C" + (p ? " " + (p.up || 0) : "") + '</button><button data-vote="down"' + (p ? "" : " disabled") + ">\uBE44\uCD94\uCC9C" + (p && p.down ? " " + p.down : "") + '</button><button data-rmenu data-url="' + esc(postUrl(g, r.no)) + '">\uB514\uC2DC\uC5D0\uC11C \uC5F4\uAE30</button></div>' : "") + (R.orig && p ? '<div class="orig"><div class="ohead"><button class="ib" data-orig aria-label="\uCC44\uD305\uBC29\uC73C\uB85C \uB3CC\uC544\uAC00\uAE30">' + I.back + "</button><b>\uC6D0\uBCF8 \uBCF4\uAE30<small>" + esc(title) + '</small></b></div><div class="scroll" id="oscroll"><div class="oin">' + (p.html || "<p>\uBCF8\uBB38\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.</p>") + "</div></div></div>" : "") + (R.nfold ? '<button class="nmini" data-nfold aria-label="\uACF5\uC9C0 \uD3BC\uCE58\uAE30">' + I.horn + "</button>" : '<div class="notice">' + I.horn + '<span class="tx"><div>' + ((p || meta).head ? "[" + esc((p || meta).head) + "] " : "") + esc(meta.title) + "</div><div>" + esc(author) + " \xB7 \uC870\uD68C " + ((p || meta).views || 0).toLocaleString() + " \xB7 \uCD94\uCC9C " + ((p || meta).up || 0) + '</div></span><button class="nbtn" data-nfold aria-label="\uACF5\uC9C0 \uC811\uAE30">' + I.up + "</button></div>") + '<div class="scroll" id="rscroll"><div class="msgs">' + h + "</div></div>" + (R.cpanel ? '<div class="cpanel">' + consHtml() + "</div>" : "") + (R.tpanel ? txtconHtml() : "") + (R.reply ? '<div class="replybar"><span>' + esc(who(R.reply)) + '\uC5D0\uAC8C \uB2F5\uC7A5</span><button class="ib" data-noreply aria-label="\uB2F5\uC7A5 \uCDE8\uC18C">\u2715</button></div>' : "") + '<form class="inp" id="cform"><textarea placeholder="\uBA54\uC2DC\uC9C0 \uC785\uB825" aria-label="\uB313\uAE00 \uC785\uB825" maxlength="200">' + esc(draft) + '</textarea><div class="bar"><button type="button" class="ib" data-url="' + esc(mView(g, r.no)) + '" aria-label="\uB514\uC2DC \uD654\uBA74\uC5D0\uC11C \uC5F4\uAE30">' + I.plus + '</button><button type="button" class="ib' + (R.cpanel ? " act" : "") + '" data-cpanel aria-expanded="' + R.cpanel + '" aria-label="\uB514\uC2DC\uCF58">' + I.smile + '</button><button type="button" class="ib' + (R.tpanel ? " act" : "") + '" data-tpanel aria-expanded="' + R.tpanel + '" aria-label="\uAE00\uC790\uCF58">' + I.file + '</button><span></span><button class="send' + (draft.trim() && !R.sending ? " ok" : "") + '"' + (R.sending ? " disabled" : "") + ">" + (R.sending ? "\uBCF4\uB0B4\uB294 \uC911\u2026" : "\uC804\uC1A1") + "</button></div></form>";
     if (otop && $("#room .orig .scroll")) $("#room .orig .scroll").scrollTop = otop;
     const sc = $("#rscroll");
@@ -1443,6 +1449,24 @@
   setInterval(poll, 6e5);
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden && Date.now() - lastPoll > 6e5) poll();
+  });
+  var gifIO = new IntersectionObserver((es) => {
+    for (const e of es) {
+      if (e.isIntersecting) e.target.play().catch(() => {
+      });
+      else e.target.pause();
+    }
+  }, { threshold: 0.15 });
+  new MutationObserver(() => {
+    for (const v of document.querySelectorAll("video.gifv:not([data-io])")) {
+      v.dataset.io = "1";
+      v.muted = true;
+      gifIO.observe(v);
+    }
+  }).observe(document.body, { childList: true, subtree: true });
+  document.addEventListener("click", (e) => {
+    const v = e.target.closest?.("video.gifv");
+    if (v && !v.controls) v.controls = true;
   });
   native.onNotify?.(() => {
     R.ov = "noti";
