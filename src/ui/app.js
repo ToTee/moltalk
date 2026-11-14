@@ -37,7 +37,20 @@ const D=Object.assign({
  favs:['normal:dcbest','minor:singlebungle1472'],me:{name:'ㅇㅇ',status:''},photos:{},rooms:[],alias:{},aliasN:0,aliasOn:false,seen:{},top:{},tbg:'3b4890',tfg:'ffffff',trecent:[],watch:[],notis:[]
 },JSON.parse(localStorage.getItem(LS)||native.backup||'{}'));/* 저장소가 비었으면 PC판은 파일로 남겨 둔 사본에서 되살립니다. */
 while(D.rooms.length<10)D.rooms.push({mode:'random',text:''});
-const save=()=>{const keys=Object.keys(D.seen);if(keys.length>3000)for(const k of keys.slice(0,keys.length-2000))delete D.seen[k];const json=JSON.stringify(D);localStorage.setItem(LS,json);native.backupSave?.(json)};
+/* 예전 앱(양지톡)의 설정 가져오기(안드로이드 껍데기가 부릅니다). 새 설정을 저장한 뒤에는, 화면이 새로 그려지기 전까지
+   지금 화면이 들고 있던 예전 내용으로 다시 덮어쓰지 못하게 저장을 막습니다. 원래 있던 설정은 다른 이름으로 남겨 둡니다. */
+let importLock=false;
+window.yjImport=json=>{
+ try{const d=JSON.parse(json);if(!d||!Array.isArray(d.gals))return 'bad'}catch{return 'bad'}
+ importLock=true;
+ try{
+  const old=localStorage.getItem('moltalk-v1');
+  if(old!==null)try{localStorage.setItem('moltalk-v1-before-import',old)}catch{}
+  try{localStorage.setItem('moltalk-v1',json)}catch{localStorage.removeItem('moltalk-v1-before-import');localStorage.removeItem('moltalk-pv');localStorage.setItem('moltalk-v1',json)}/* 자리가 모자라면 보관본과 미리보기 캐시를 비우고 다시 저장합니다. */
+  localStorage.removeItem('yangjitalk-v1');return 'ok';
+ }catch{importLock=false;return 'full'}
+};
+const save=()=>{if(importLock)return;const keys=Object.keys(D.seen);if(keys.length>3000)for(const k of keys.slice(0,keys.length-2000))delete D.seen[k];const json=JSON.stringify(D);localStorage.setItem(LS,json);native.backupSave?.(json)};
 /* 시작할 때 사본을 한 번 맞춰 둡니다(저장소가 비어 사본에서 되살렸으면 저장소에도 다시 씁니다). */
 if(localStorage.getItem(LS))native.backupSave?.(localStorage.getItem(LS));else if(native.backup)save();
 const key=g=>g.type+':'+g.id;

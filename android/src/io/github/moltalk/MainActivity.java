@@ -509,37 +509,43 @@ public class MainActivity extends Activity {
         if (importing) return;
         importing = true;
         pool.execute(() -> {
-            String json;
+            String json, what;
             try (InputStream in = getContentResolver().openInputStream(src)) {
                 ByteArrayOutputStream buf = new ByteArrayOutputStream();
                 byte[] b = new byte[65536];
                 for (int n; (n = in.read(b)) > 0; ) { buf.write(b, 0, n); if (buf.size() > 30000000) throw new Exception("too large"); }
                 json = new String(buf.toByteArray(), StandardCharsets.UTF_8);
-                if (!settingsOk(new JSONObject(json))) throw new Exception("not settings");
+                JSONObject d = new JSONObject(json);
+                if (!settingsOk(d)) throw new Exception("not settings");
+                JSONObject photos = d.optJSONObject("photos");
+                what = "친구 " + d.getJSONArray("gals").length() + "개, 사진 " + (photos == null ? 0 : photos.length()) + "장";
             } catch (Exception e) {
                 ui.post(() -> { importing = false; if (!dead) toast("설정을 읽지 못했습니다."); });
                 return;
             }
-            final String data = json;
-            ui.post(() -> askImport(data, 0));
+            final String data = json, summary = what;
+            ui.post(() -> askImport(data, summary, 0));
         });
     }
     /** 화면이 다 뜬 뒤에 묻습니다(화면이 뜨기 전에는 설정을 저장할 자리가 없습니다). 30초가 지나도 안 뜨면 그만둡니다. */
-    private void askImport(String data, int tries) {
+    private void askImport(String data, String summary, int tries) {
         if (dead || isFinishing()) { importing = false; return; }
         if (!mainReady) {
             if (tries >= 60) { importing = false; toast("화면이 뜨지 않아 가져오지 못했습니다. 양지톡에서 다시 옮겨 주세요."); }
-            else ui.postDelayed(() -> askImport(data, tries + 1), 500);
+            else ui.postDelayed(() -> askImport(data, summary, tries + 1), 500);
             return;
         }
-        // 지금 몰톡에 있던 설정은 지우지 않고 다른 이름(moltalk-v1-before-import)으로 남겨 둡니다.
-        String js = "(function(j){try{if(location.host!=='" + APP_HOST + "')return 'err';var old=localStorage.getItem('moltalk-v1');"
-            + "if(old!==null){try{localStorage.setItem('moltalk-v1-before-import',old)}catch(e){}}"
-            + "localStorage.setItem('moltalk-v1',j);localStorage.removeItem('yangjitalk-v1');setTimeout(function(){location.reload()},0);return 'ok'}catch(e){return 'err'}})(" + JSONObject.quote(data) + ")";
+        // 저장은 화면 쪽 함수(app.js의 yjImport)가 합니다. 그 함수는 저장한 뒤 화면이 예전 내용으로 다시 덮어쓰지 못하게 막습니다.
+        // 화면을 새로 그리는 일은 여기서 직접 합니다(화면 안에서 스스로 새로 고치는 것은 이 앱이 막아 둔 이동에 걸려 되지 않습니다).
+        String js = "(function(){try{return location.host==='" + APP_HOST + "'&&window.yjImport?window.yjImport(" + JSONObject.quote(data) + "):'none'}catch(e){return 'err'}})()";
         new android.app.AlertDialog.Builder(this).setTitle("설정 가져오기")
-            .setMessage("양지톡의 친구·사진·이름을 가져올까요?\n지금 몰톡에 있는 설정은 가져온 것으로 바뀝니다. 로그인은 몰톡에서 다시 해야 합니다.")
+            .setMessage("양지톡의 설정(" + summary + ")을 가져올까요?\n지금 몰톡에 있는 설정은 가져온 것으로 바뀝니다. 로그인은 몰톡에서 다시 해야 합니다.")
             .setNegativeButton("취소", null)
-            .setPositiveButton("가져오기", (dlg, w) -> main.evaluateJavascript(js, r -> { if (!dead) toast("\"ok\"".equals(r) ? "설정을 가져왔습니다." : "설정을 저장하지 못했습니다. 양지톡에서 다시 옮겨 주세요."); }))
+            .setPositiveButton("가져오기", (dlg, w) -> main.evaluateJavascript(js, r -> {
+                if (dead) return;
+                if ("\"ok\"".equals(r)) { mainReady = false; main.loadUrl(APP_URL); toast(summary + "을 가져왔습니다."); }
+                else toast("설정을 저장하지 못했습니다(" + r + "). 양지톡에서 다시 옮겨 주세요.");
+            }))
             .setOnDismissListener(dlg -> importing = false)
             .show();
     }

@@ -775,7 +775,37 @@
     notis: []
   }, JSON.parse(localStorage.getItem(LS) || native.backup || "{}"));
   while (D.rooms.length < 10) D.rooms.push({ mode: "random", text: "" });
+  var importLock = false;
+  window.yjImport = (json) => {
+    try {
+      const d = JSON.parse(json);
+      if (!d || !Array.isArray(d.gals)) return "bad";
+    } catch {
+      return "bad";
+    }
+    importLock = true;
+    try {
+      const old = localStorage.getItem("moltalk-v1");
+      if (old !== null) try {
+        localStorage.setItem("moltalk-v1-before-import", old);
+      } catch {
+      }
+      try {
+        localStorage.setItem("moltalk-v1", json);
+      } catch {
+        localStorage.removeItem("moltalk-v1-before-import");
+        localStorage.removeItem("moltalk-pv");
+        localStorage.setItem("moltalk-v1", json);
+      }
+      localStorage.removeItem("yangjitalk-v1");
+      return "ok";
+    } catch {
+      importLock = false;
+      return "full";
+    }
+  };
   var save = () => {
+    if (importLock) return;
     const keys = Object.keys(D.seen);
     if (keys.length > 3e3) for (const k of keys.slice(0, keys.length - 2e3)) delete D.seen[k];
     const json = JSON.stringify(D);
