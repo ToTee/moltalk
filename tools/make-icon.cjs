@@ -2,10 +2,10 @@
 const {app,BrowserWindow}=require('electron');
 const fs=require('fs'),path=require('path');
 // 노란 바탕에 짙은 말풍선, 그 안에 DALK 글자. 직접 그린 그림입니다.
-const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="58" fill="#fee500"/>
-<ellipse cx="256" cy="226" rx="192" ry="116" fill="#3a1d1d"/>
-<path d="M172 318 148 396c-2 7 5 11 11 7l88-62z" fill="#3a1d1d"/>
-<text x="256" y="257" text-anchor="middle" font-family="'Arial Black','Segoe UI Black','Malgun Gothic',sans-serif" font-weight="900" font-size="88" letter-spacing="-2" fill="#fee500">DALK</text></svg>`;
+const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="82" fill="#fee500"/>
+<ellipse cx="256" cy="238" rx="198" ry="140" fill="#3a1d1d"/>
+<path d="M150 346 126 434c-2 8 6 12 12 8l100-70z" fill="#3a1d1d"/>
+<text x="256" y="280" text-anchor="middle" textLength="270" lengthAdjust="spacingAndGlyphs" font-family="'Arial Black','Segoe UI Black','Malgun Gothic',sans-serif" font-weight="900" font-size="118" fill="#fee500">DALK</text></svg>`;
 app.whenReady().then(async()=>{
  const w=new BrowserWindow({width:512,height:512,show:false,useContentSize:true,frame:false,transparent:true,webPreferences:{offscreen:true}});
  await w.loadURL('data:text/html,'+encodeURIComponent('<body style="margin:0;background:transparent">'+svg+'</body>'));
