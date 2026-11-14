@@ -104,6 +104,8 @@ function helperWindow(show){
 // 공식 화면을 보이지 않는 창에서 열고 스크립트를 실행해 결과를 돌려줍니다. 화면이 다른 주소로 넘어가면(글 등록 완료 등) 그 주소를 돌려줍니다.
 ipcMain.handle('drive',async(event,url,code,opt={})=>{
  if(!dcUrl(url)||typeof code!=='string')throw Error('디시인사이드 주소만 열 수 있습니다.');
+ /* 개발용 확인(YJ_DRYDRIVE): 댓글·디시콘 등록 요청은 디시에 보내지 않고, 보내려던 값만 기록합니다. */
+ if(process.env.YJ_SHOT&&process.env.YJ_DRYDRIVE){const m=code.match(/\)\((\{[^]*\}),h\)\}\)\(\)$/);if(m&&/"parentNo"/.test(m[1])){console.log('[drydrive] '+m[1]);return {error:'(시험: 보내지 않음)'}}}
  const w=helperWindow(false);let timer;const wcId=w.webContents.id;hiddenJobs.add(wcId);
  try{
   await w.loadURL(url).catch(()=>{});

@@ -1742,7 +1742,9 @@
     if (!room || R.sending) return false;
     R.sending = true;
     renderRoom(true);
-    const r = await withAuth(name, { ...args, parentNo: R.reply?.id || "" }, mView(gal(room.g), room.no));
+    const rp = R.reply, nested = !!(rp && rp.parentId);
+    if (nested && name === "comment" && !args.text.startsWith("@")) args = { ...args, text: ("@" + who(rp) + " " + args.text).slice(0, 200) };
+    const r = await withAuth(name, { ...args, parentNo: rp ? nested ? rp.parentId : rp.id : "" }, mView(gal(room.g), room.no));
     R.sending = false;
     if (R.room !== room) return false;
     if (r.manual) {
@@ -2540,6 +2542,8 @@
       });
     } else if (d.reply) {
       R.reply = R.room.comments.find((c) => c.id === d.reply) || null;
+      R.menu = null;
+      R.ask = false;
       renderRoom(true);
       $("#cform textarea").focus();
     } else if (d.noreply != null) {

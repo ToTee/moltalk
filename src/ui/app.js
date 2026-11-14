@@ -481,7 +481,10 @@ async function vote(down){
 async function sendToRoom(name,args){
  const room=R.room;if(!room||R.sending)return false;
  R.sending=true;renderRoom(true);
- const r=await withAuth(name,{...args,parentNo:R.reply?.id||''},mView(gal(room.g),room.no));
+ /* 디시의 답글은 한 단계뿐입니다. 답글에 다시 답장하면 그 답글이 달린 원래 댓글 아래에 달고, 누구에게 하는 말인지 알 수 있게 앞에 @이름을 붙입니다. */
+ const rp=R.reply,nested=!!(rp&&rp.parentId);
+ if(nested&&name==='comment'&&!args.text.startsWith('@'))args={...args,text:('@'+who(rp)+' '+args.text).slice(0,200)};
+ const r=await withAuth(name,{...args,parentNo:rp?(nested?rp.parentId:rp.id):''},mView(gal(room.g),room.no));
  R.sending=false;if(R.room!==room)return false;
  /* 보안 문자 때문에 디시 화면에서 직접 보낸 경우: 보냈는지 알 수 없으므로 쓰던 글은 지우지 않고 방만 새로 읽습니다. */
  if(r.manual){await openPost(room.no,true);return false}
@@ -761,7 +764,7 @@ document.addEventListener('click',e=>{
  else if(d.tuse){R.tcon=d.tuse;renderRoom(true)}
  else if(d.tclear!=null){D.trecent=[];save();renderRoom(true)}
  else if(d.tsend!=null){const t=R.tcon.trim();if(t)sendToRoom('txtcon',{text:t,bg:D.tbg,fg:D.tfg}).then(ok=>{if(ok){D.trecent=[t,...D.trecent.filter(x=>x!==t)].slice(0,6);save();R.tcon='';renderRoom(true)}})}
- else if(d.reply){R.reply=R.room.comments.find(c=>c.id===d.reply)||null;renderRoom(true);$('#cform textarea').focus()}
+ else if(d.reply){R.reply=R.room.comments.find(c=>c.id===d.reply)||null;R.menu=null;R.ask=false;renderRoom(true);$('#cform textarea').focus()}
  else if(d.noreply!=null){R.reply=null;renderRoom(true)}
  else if(d.cdel){removeComment(d.cdel)}
  else if(d.postdel!=null){if(!R.ask){R.ask=true;R.menu='body';renderRoom(true)}else removePost()}
