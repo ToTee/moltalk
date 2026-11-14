@@ -23,9 +23,15 @@ const hue=s=>COLORS[hash(s)%COLORS.length];
 const userAv=n=>'<span class="av" style="background:'+hue(n)+'">'+I.sil+'</span>';
 
 /* ---------- 저장되는 설정 ---------- */
-const LS='moltalk-v1';
-/* 앱 이름을 바꾸기 전(yangjitalk)에 저장한 설정이 있으면 새 이름으로 옮깁니다. */
-for(const [o,n] of [['yangjitalk-v1','moltalk-v1'],['yangjitalk-pv','moltalk-pv']]){const v=localStorage.getItem(o);if(v!==null){if(localStorage.getItem(n)===null)localStorage.setItem(n,v);localStorage.removeItem(o)}}
+/* 앱 이름을 바꾸기 전(yangjitalk)에 저장한 설정이 있으면 새 이름으로 옮기고, 실제로 쓸 이름을 돌려줍니다.
+   저장 공간이 거의 찼을 때 두 벌이 되지 않게 예전 것을 먼저 지우고 새 이름으로 적습니다. 그래도 실패하면 예전 이름에 되돌려 놓고 그 이름을 계속 씁니다. */
+function moveKey(o,n){
+ const v=localStorage.getItem(o);if(v===null)return n;
+ if(localStorage.getItem(n)!==null){localStorage.removeItem(o);return n}
+ localStorage.removeItem(o);
+ try{localStorage.setItem(n,v);return n}catch{try{localStorage.setItem(o,v)}catch{}return o}
+}
+const LS=moveKey('yangjitalk-v1','moltalk-v1');
 const D=Object.assign({
  gals:[{id:'dcbest',type:'normal',name:'실시간 베스트'},{id:'singlebungle1472',type:'minor',name:'싱글벙글 지구촌'},{id:'programming',type:'normal',name:'프로그래밍'}],
  favs:['normal:dcbest','minor:singlebungle1472'],me:{name:'ㅇㅇ',status:''},photos:{},rooms:[],alias:{},aliasN:0,aliasOn:false,seen:{},top:{},tbg:'3b4890',tfg:'ffffff',trecent:[],watch:[],notis:[]
@@ -194,7 +200,7 @@ function renderPane(){
 }
 /* 화면에 나온 글의 본문 첫 부분을 읽어 미리보기 줄에 채웁니다. 한 번에 둘씩만 요청하고, 읽은 본문은 글을 열 때 다시 씁니다. */
 /* 디시는 요청이 잦으면 한동안 막기 때문에, 미리보기는 한 번에 하나씩 간격을 두고 읽고, 읽은 것은 기기에 저장해 다시 읽지 않습니다. 막히면 1분 쉽니다. */
-const pvBusy=new Set(),PVLS='moltalk-pv';
+const pvBusy=new Set(),PVLS=moveKey('yangjitalk-pv','moltalk-pv');
 Object.assign(R.pv,JSON.parse(localStorage.getItem(PVLS)||'{}'));
 const savePv=()=>{const e=Object.entries(R.pv).filter(x=>x[1]);localStorage.setItem(PVLS,JSON.stringify(Object.fromEntries(e.slice(-600))))};
 let pvRunning=false;

@@ -736,14 +736,26 @@
   var hash = (s2) => [...String(s2)].reduce((a, c) => a * 31 + c.charCodeAt(0) >>> 0, 7);
   var hue = (s2) => COLORS[hash(s2) % COLORS.length];
   var userAv = (n) => '<span class="av" style="background:' + hue(n) + '">' + I.sil + "</span>";
-  var LS = "moltalk-v1";
-  for (const [o, n] of [["yangjitalk-v1", "moltalk-v1"], ["yangjitalk-pv", "moltalk-pv"]]) {
+  function moveKey(o, n) {
     const v = localStorage.getItem(o);
-    if (v !== null) {
-      if (localStorage.getItem(n) === null) localStorage.setItem(n, v);
+    if (v === null) return n;
+    if (localStorage.getItem(n) !== null) {
       localStorage.removeItem(o);
+      return n;
+    }
+    localStorage.removeItem(o);
+    try {
+      localStorage.setItem(n, v);
+      return n;
+    } catch {
+      try {
+        localStorage.setItem(o, v);
+      } catch {
+      }
+      return o;
     }
   }
+  var LS = moveKey("yangjitalk-v1", "moltalk-v1");
   var D = Object.assign({
     gals: [{ id: "dcbest", type: "normal", name: "\uC2E4\uC2DC\uAC04 \uBCA0\uC2A4\uD2B8" }, { id: "singlebungle1472", type: "minor", name: "\uC2F1\uAE00\uBC99\uAE00 \uC9C0\uAD6C\uCD0C" }, { id: "programming", type: "normal", name: "\uD504\uB85C\uADF8\uB798\uBC0D" }],
     favs: ["normal:dcbest", "minor:singlebungle1472"],
@@ -974,7 +986,7 @@
     previews();
   }
   var pvBusy = /* @__PURE__ */ new Set();
-  var PVLS = "moltalk-pv";
+  var PVLS = moveKey("yangjitalk-pv", "moltalk-pv");
   Object.assign(R.pv, JSON.parse(localStorage.getItem(PVLS) || "{}"));
   var savePv = () => {
     const e = Object.entries(R.pv).filter((x) => x[1]);

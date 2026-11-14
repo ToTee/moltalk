@@ -1,5 +1,5 @@
 // 몰톡 윈도우용 껍데기. 화면(app/)을 띄우고, 디시로 가는 요청만 대신 보내 줍니다.
-const {app,BrowserWindow,Menu,Tray,desktopCapturer,ipcMain,net,screen,session,shell}=require('electron');
+const {app,BrowserWindow,Menu,Tray,desktopCapturer,dialog,ipcMain,net,screen,session,shell}=require('electron');
 const path=require('path');
 const fs=require('fs');
 const {execFileSync,spawn}=require('child_process');
@@ -148,20 +148,35 @@ app.on('before-quit',writeBackup);
    설치된 앱에서만: 예전 앱이 켜져 있으면 저장 파일이 잠겨 있어 먼저 끄고, 옮긴 뒤에는 예전 앱을 제거합니다(제거해도 예전 저장 폴더는 남습니다). */
 function migrateOld(){
  const neu=app.getPath('userData'),old=path.join(path.dirname(neu),'yangjitalk'),stage=neu+'-import';
- if(fs.existsSync(path.join(neu,'Local Storage'))||!fs.existsSync(path.join(old,'Local Storage')))return;
+ const mark=path.join(neu,'migrated-from-old');/* 옮기기를 끝냈다는 표시. 있으면 다시 하지 않습니다. */
+ if(fs.existsSync(mark)||fs.existsSync(path.join(neu,'Local Storage'))||!fs.existsSync(path.join(old,'Local Storage')))return;
  const skip=new Set(['diag','lockfile','LOCK','Cache','Code Cache','GPUCache','GPUPersistentCache','GrShaderCache','ShaderCache','DawnGraphiteCache','DawnWebGPUCache']);
- if(app.isPackaged)try{execFileSync('taskkill',['/F','/IM','양지톡.exe'],{stdio:'ignore'})}catch{}
- let err=null;const failed=[];
- for(let i=0;i<6;i++){
-  try{fs.rmSync(stage,{recursive:true,force:true});fs.cpSync(old,stage,{recursive:true,filter:s=>!skip.has(path.basename(s))});err=null;break}
-  catch(e){err=e;Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,500)}/* 예전 앱이 꺼지며 파일을 놓을 때까지 잠깐 기다렸다 다시 합니다. */
+ const nap=ms=>Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,ms);
+ if(app.isPackaged){
+  /* 예전 앱은 창을 닫아도 트레이에 남는 방식이라 밖에서 얌전히 끌 방법이 없어 강제로 끕니다. 정말 꺼졌는지 확인하고, 안 꺼졌으면 옮기지 않고 멈춥니다
+     (켜진 채로 복사하면 저장 파일이 반쯤 쓰인 상태로 복사될 수 있습니다). 표시를 남기지 않으므로 다음 실행 때 다시 시도합니다. */
+  const running=()=>{try{return /\.exe/i.test(execFileSync('tasklist',['/FI','IMAGENAME eq 양지톡.exe','/NH'],{encoding:'utf8'}))}catch{return false}};
+  for(let i=0;i<10&&running();i++){try{execFileSync('taskkill',['/F','/IM','양지톡.exe'],{stdio:'ignore'})}catch{}nap(500)}
+  if(running()){diag('migrate',{from:old,ok:false,error:'old app still running'});dialog.showErrorBox('몰톡','예전 앱(양지톡)이 켜져 있어 설정을 옮기지 못했습니다.\n작업 표시줄 오른쪽 알림 영역에서 양지톡 아이콘을 우클릭해 [종료]를 누른 뒤 몰톡을 다시 실행해 주세요.');app.exit(0);return}
+  nap(700);/* 꺼지면서 파일을 놓을 시간을 줍니다. */
  }
- fs.mkdirSync(neu,{recursive:true});
- if(!err)for(const n of fs.readdirSync(stage)){try{fs.rmSync(path.join(neu,n),{recursive:true,force:true});fs.renameSync(path.join(stage,n),path.join(neu,n))}catch(e){failed.push(n+': '+e.message)}}
- /* 통째로 옮기지 못했으면 설정 사본 파일만 가져옵니다. 친구·사진·이름은 되살아나고, 로그인만 다시 하면 됩니다. */
- else try{fs.copyFileSync(path.join(old,'settings-backup.json'),path.join(neu,'settings-backup.json'))}catch(e){failed.push('settings-backup.json: '+e.message)}
+ let err=null;const moved=[];
+ try{
+  fs.rmSync(stage,{recursive:true,force:true});fs.cpSync(old,stage,{recursive:true,filter:s=>!skip.has(path.basename(s))});
+  fs.mkdirSync(neu,{recursive:true});
+  /* 새 폴더에 이미 있던 것은 지우지 않고 이름 뒤에 .pre 를 붙여 비켜 둡니다. 하나라도 실패하면 아래에서 전부 원래대로 돌려놓습니다. */
+  for(const n of fs.readdirSync(stage)){const to=path.join(neu,n),pre=to+'.pre',had=fs.existsSync(to);if(had)fs.renameSync(to,pre);moved.push({to,pre,had});fs.renameSync(path.join(stage,n),to)}
+  for(const m of moved)if(m.had)try{fs.rmSync(m.pre,{recursive:true,force:true})}catch{}
+  fs.writeFileSync(mark,new Date().toISOString());
+ }catch(e){
+  err=e;
+  for(const m of moved.reverse()){try{fs.rmSync(m.to,{recursive:true,force:true})}catch{}if(m.had)try{fs.renameSync(m.pre,m.to)}catch{}}
+  /* 통째로 옮기지 못했으면 설정 사본 파일만 가져옵니다. 친구·사진·이름은 되살아나고, 로그인만 다시 하면 됩니다. */
+  try{fs.mkdirSync(neu,{recursive:true});fs.copyFileSync(path.join(old,'settings-backup.json'),path.join(neu,'settings-backup.json'))}catch{}
+ }
  try{fs.rmSync(stage,{recursive:true,force:true})}catch{}
- diag('migrate',{from:old,ok:!err,error:err&&err.message,failed});
+ diag('migrate',{from:old,ok:!err,error:err&&err.message});
+ /* 예전 앱 제거는 전부 옮긴 것이 확인된 뒤에만 합니다. */
  if(app.isPackaged&&!err){const un=path.join(process.env.LOCALAPPDATA||'','Programs','yangjitalk','Uninstall 양지톡.exe');if(fs.existsSync(un))spawn(un,['/S'],{detached:true,stdio:'ignore'}).unref()}
 }
 
