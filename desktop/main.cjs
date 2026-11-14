@@ -1,5 +1,5 @@
 // 몰톡 윈도우용 껍데기. 화면(app/)을 띄우고, 디시로 가는 요청만 대신 보내 줍니다.
-const {app,BrowserWindow,Menu,Tray,desktopCapturer,dialog,ipcMain,net,screen,session,shell}=require('electron');
+const {app,BrowserWindow,Menu,Notification,Tray,desktopCapturer,dialog,ipcMain,net,screen,session,shell}=require('electron');
 const path=require('path');
 const fs=require('fs');
 const {execFileSync,spawn}=require('child_process');
@@ -11,6 +11,8 @@ const UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, l
    디시 PC 화면을 읽는 요청(아래 'http')만 요청마다 PC 이름(UA)을 따로 붙입니다. */
 const MOBILE_UA='Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/'+CHROME+'.0.0.0 Mobile Safari/537.36';
 app.userAgentFallback=MOBILE_UA;
+/* 윈도우 알림이 뜨려면 앱 식별 이름이 설치할 때 만든 바로가기의 것(package.json의 appId)과 같아야 합니다. */
+app.setAppUserModelId('io.github.moltalk');
 const dcHost=h=>/(^|\.)dcinside\.(com|co\.kr)$/.test(h);
 const dcUrl=u=>{try{const x=new URL(u);return x.protocol==='https:'&&!x.username&&!x.password&&dcHost(x.hostname)?x:null}catch{return null}};
 let win=null;
@@ -128,6 +130,13 @@ ipcMain.handle('official',(event,url,opt={})=>new Promise(resolve=>{
  w.on('closed',()=>finish(false));
  w.loadURL(url).catch(()=>{});
 }));
+/* 새 댓글 알림: 윈도우 알림(화면 오른쪽 아래)으로 띄웁니다. 누르면 창을 열고 알림 목록을 보여 줍니다. */
+let lastNote=null;/* 알림이 사라지기 전에 정리되지 않게 붙잡아 둡니다. */
+ipcMain.on('notify',(e,title,body)=>{
+ const ok=Notification.isSupported();diag('notify',{supported:ok});if(!ok)return;
+ const n=lastNote=new Notification({title:String(title||'몰톡').slice(0,80),body:String(body||'').slice(0,200),icon:path.join(__dirname,'tray.png')});
+ n.on('click',()=>{showWin();win?.webContents.send('notify-click')});n.show();
+});
 ipcMain.handle('logout',async()=>{await session.defaultSession.clearStorageData({storages:['cookies']});return true});
 
 /* 설정 사본: 화면이 설정을 저장할 때마다 파일로도 한 벌 남깁니다. 브라우저 저장소가 지워지거나 깨져도 다음 실행 때 이 파일에서 되살립니다.

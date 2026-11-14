@@ -137,6 +137,23 @@ public class MainActivity extends Activity {
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(helper, true);
         main.loadUrl(APP_URL);
+        // 새 댓글 알림을 띄우려면 안드로이드 13부터는 허락을 받아야 합니다. 처음 한 번 묻습니다.
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != android.content.pm.PackageManager.PERMISSION_GRANTED)
+            requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, 7);
+    }
+
+    /** 새 댓글 알림을 기기 알림 창에 띄웁니다. 누르면 앱이 열립니다. */
+    private void showNote(String title, String body) {
+        android.app.NotificationManager nm = (android.app.NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        android.app.Notification.Builder b;
+        if (Build.VERSION.SDK_INT >= 26) {
+            nm.createNotificationChannel(new android.app.NotificationChannel("reply", "새 댓글", android.app.NotificationManager.IMPORTANCE_DEFAULT));
+            b = new android.app.Notification.Builder(this, "reply");
+        } else b = new android.app.Notification.Builder(this);
+        Intent open = new Intent(this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        b.setSmallIcon(android.R.drawable.stat_notify_chat).setContentTitle(title).setContentText(body).setAutoCancel(true)
+            .setContentIntent(android.app.PendingIntent.getActivity(this, 0, open, android.app.PendingIntent.FLAG_IMMUTABLE | android.app.PendingIntent.FLAG_UPDATE_CURRENT));
+        try { nm.notify(1, b.build()); } catch (Exception ignored) { }
     }
 
     private void setup(WebView w, String userAgent) {
@@ -256,6 +273,9 @@ public class MainActivity extends Activity {
             Uri u = url == null ? null : Uri.parse(url);
             String scheme = u == null ? null : u.getScheme();
             if (u != null && u.getUserInfo() == null && ("https".equals(scheme) || "http".equals(scheme))) ui.post(() -> { try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))); } catch (Exception ignored) { } });
+        }
+        @JavascriptInterface public void notify(String title, String body) {
+            ui.post(() -> showNote(title, body));
         }
         @JavascriptInterface public void logout(String id) {
             ui.post(() -> CookieManager.getInstance().removeAllCookies(ok -> reply(id, "true")));

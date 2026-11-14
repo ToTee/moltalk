@@ -366,7 +366,12 @@ async function sendToRoom(name,args){
  /* 보안 문자 때문에 디시 화면에서 직접 보낸 경우: 보냈는지 알 수 없으므로 쓰던 글은 지우지 않고 방만 새로 읽습니다. */
  if(r.manual){await openPost(room.no,true);return false}
  if(!r.ok){toast(r.error||'보내지 못했습니다.');renderRoom(true);return false}
- R.reply=null;R.toBottom=true;await openPost(room.no,true);return true;
+ R.reply=null;R.toBottom=true;await openPost(room.no,true);
+ /* 내가 댓글을 단 글은 알림 대상으로 기억합니다. 비로그인 댓글은 닉네임이 같은 가장 최근 댓글을 방금 내 것으로 봅니다. */
+ const rm=R.room;if(rm&&rm.no===room.no&&rm.post&&rm.comments){const u=myUid(),nick=D.guest?.nick;
+  const me=[...rm.comments].reverse().find(c=>c.mine||(!u&&!c.uid&&nick&&c.name===nick));
+  watch(rm.g,rm.no,rm.post.title,rm.total??rm.comments.length,!!u&&rm.post.uid===u,me&&!me.mine?me.id:null)}
+ return true;
 }
 async function removeComment(id){const room=R.room;R.menu=null;renderRoom(true);const r=await withAuth('delComment',{no:id},mView(gal(room.g),room.no));if(r.ok){toast('댓글을 삭제했습니다.');if(R.room===room)openPost(room.no,true)}else toast(r.error||'삭제하지 못했습니다.')}
 async function removePost(){const room=R.room,g=room.g;R.menu=null;R.ask=false;renderRoom(true);const r=await withAuth('delPost',{},mView(gal(g),room.no));
@@ -389,24 +394,36 @@ async function jump(v){
  await openGallery(key(g));openPost(v.no,false,{id:v.no,title:v.orig||v.title||'',notice:false,head:'',name:'',uid:'',ip:'',comments:0,views:0,up:0});
 }
 /* 알림: 내가 쓴 글과 내가 댓글을 단 글 가운데 최근 5개만 10분마다 다시 읽어 새 댓글을 찾습니다. 요청은 간격을 두고 하나씩 보냅니다. */
-function watch(gk,no,title,count,mine){
- const old=D.watch.find(w=>w.g===gk&&w.no===no);
- if(old){old.count=count;old.mine=old.mine||mine}else{D.watch.unshift({g:gk,no,title,count,mine});D.watch.length=Math.min(D.watch.length,20)}
+/* id: 방금 내가 쓴 댓글 번호(비로그인 댓글은 디시가 "내 댓글"이라고 알려 주지 않아 따로 기억합니다). 다시 살핀 글은 목록 맨 앞으로 옮깁니다. */
+function watch(gk,no,title,count,mine,id){
+ const i=D.watch.findIndex(w=>w.g===gk&&w.no===no),w=i<0?{g:gk,no,title,count,mine}:D.watch.splice(i,1)[0];
+ w.count=count;w.mine=w.mine||mine;if(id){w.ids=(w.ids||[]).filter(x=>x!==id).concat(id).slice(-20)}
+ D.watch.unshift(w);D.watch.length=Math.min(D.watch.length,20);
  save();
 }
-let polling=false;
+let polling=false,lastPoll=0;
 async function poll(){
- if(polling||!R.user)return;polling=true;
+ if(polling||!D.watch.length)return;polling=true;lastPoll=Date.now();
+ /* 로그인 아이디를 아직 모르면 한 번 확인합니다(내 댓글과 남의 댓글을 가리는 데 필요합니다). */
+ if(!R.userKnown)await checkUser();
+ const fresh=[];
  for(const w of D.watch.slice(0,5)){const g=gal(w.g);if(!g)continue;if(Date.now()<pvPause)break;
   try{await new Promise(r=>setTimeout(r,1500));const post=await dc.readPost(g,w.no);await new Promise(r=>setTimeout(r,1500));const cm=await readCm(g,w.no,post.token,1);
-   if(cm.total>w.count){const mineIds=new Set(cm.comments.filter(c=>c.mine).map(c=>c.id));
-    for(const c of cm.comments.filter(c=>!c.mine&&!c.deleted).slice(-(cm.total-w.count))){const toMe=c.parentId&&mineIds.has(c.parentId);if(!w.mine&&!toMe)continue;
-     D.notis.unshift({g:w.g,no:w.no,id:g.id,mini:g.type==='mini',title:w.title,who:who(c),head:who(c)+(toMe?'님이 답글을 남겼습니다':'님이 댓글을 남겼습니다'),text:c.blocks.map(b=>b.t==='text'?b.v:b.t==='img'?'(사진)':'(디시콘)').join(' ').slice(0,100),read:false})}
+   if(cm.total>w.count){const mineIds=new Set(cm.comments.filter(c=>c.mine).map(c=>c.id).concat(w.ids||[]));
+    for(const c of cm.comments.filter(c=>!c.mine&&!mineIds.has(c.id)&&!c.deleted).slice(-(cm.total-w.count))){const toMe=c.parentId&&mineIds.has(c.parentId);if(!w.mine&&!toMe)continue;
+     const n={g:w.g,no:w.no,id:g.id,mini:g.type==='mini',title:w.title,who:who(c),head:who(c)+(toMe?'님이 답글을 남겼습니다':'님이 댓글을 남겼습니다'),text:c.blocks.map(b=>b.t==='text'?b.v:b.t==='img'?'(사진)':'(디시콘)').join(' ').slice(0,100),read:false};
+     D.notis.unshift(n);fresh.push(n)}
     D.notis.length=Math.min(D.notis.length,50);w.count=cm.total;save();renderRail();if(R.ov==='noti')renderPane()}
   }catch(e){if(e.code==='BUSY')break}}
  polling=false;
+ /* 새 알림은 기기의 알림(윈도우 오른쪽 아래, 안드로이드 알림 창)으로도 띄웁니다. */
+ if(fresh.length)native.notify?.(fresh.length>1?'새 댓글 '+fresh.length+'개':fresh[0].head,fresh[0].text||fresh[0].title);
 }
 setTimeout(poll,90000);setInterval(poll,600000);
+/* 휴대폰은 앱이 뒤에 가 있는 동안 위 시계가 멈출 수 있어, 앱으로 돌아왔을 때 10분이 지났으면 바로 확인합니다. */
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&Date.now()-lastPoll>600000)poll()});
+/* 기기 알림을 누르면 알림 목록을 엽니다. */
+native.onNotify?.(()=>{R.ov='noti';for(const n of D.notis)n.read=true;save();renderRail();renderPane()});
 
 /* ---------- 글쓰기 화면 ---------- */
 function renderWrite(){
@@ -477,11 +494,12 @@ async function openPost(no,fresh,given){
   try{const cm=await readCm(g,no,post.token,1);if(seq!==R.roomSeq)return;R.room.comments=cm.comments;R.room.total=cm.total;
    meta.comments=Math.max(meta.comments,cm.total);D.seen[gk+'/'+no]=meta.comments;
    /* 내 글이거나 내가 댓글을 단 글은 알림 대상으로 기억해 둡니다. */
-   const mine=!!R.user&&post.uid===R.user;
+   const mine=!!myUid()&&post.uid===myUid();
    if(mine||cm.comments.some(c=>c.mine)||D.watch.some(w=>w.g===gk&&w.no===no))watch(gk,no,post.title,cm.total,mine);else save()}
   catch(e){if(seq!==R.roomSeq)return;R.room.cerr=e.message}
   /* 로그인 아이디를 아직 모르는데 "내 댓글" 표시가 있으면, 아이디를 한 번 확인해 다시 가립니다. */
-  const rm=R.room;if(!R.userKnown&&rm.comments?.some(c=>c.my))checkUser().then(()=>{if(R.room===rm){fixMine(rm.comments);renderRoom(true)}})
+  const rm=R.room;if(!R.userKnown&&rm.comments?.some(c=>c.my))checkUser().then(()=>{if(R.room===rm){fixMine(rm.comments);renderRoom(true);
+   const me=!!R.user&&post.uid===R.user;if(me||rm.comments.some(c=>c.mine))watch(gk,no,post.title,rm.total,me)}})
  }catch(e){if(seq!==R.roomSeq)return;R.room.err=e.message}
  renderRoom(true);renderPane();
 }

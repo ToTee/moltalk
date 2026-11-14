@@ -711,7 +711,8 @@
       drive: (url, code, opt) => call("drive", url, code, JSON.stringify(opt || {})),
       official: (url, opt) => call("official", url, JSON.stringify(opt || {})),
       open: (url) => YJ.open(url),
-      logout: () => call("logout")
+      logout: () => call("logout"),
+      notify: (title, body) => YJ.notify(String(title || ""), String(body || ""))
     };
   }
 
@@ -1291,6 +1292,12 @@
     R.reply = null;
     R.toBottom = true;
     await openPost(room.no, true);
+    const rm = R.room;
+    if (rm && rm.no === room.no && rm.post && rm.comments) {
+      const u = myUid(), nick = D.guest?.nick;
+      const me = [...rm.comments].reverse().find((c) => c.mine || !u && !c.uid && nick && c.name === nick);
+      watch(rm.g, rm.no, rm.post.title, rm.total ?? rm.comments.length, !!u && rm.post.uid === u, me && !me.mine ? me.id : null);
+    }
     return true;
   }
   async function removeComment(id) {
@@ -1352,21 +1359,25 @@
     await openGallery(key(g));
     openPost(v.no, false, { id: v.no, title: v.orig || v.title || "", notice: false, head: "", name: "", uid: "", ip: "", comments: 0, views: 0, up: 0 });
   }
-  function watch(gk, no, title, count, mine) {
-    const old = D.watch.find((w) => w.g === gk && w.no === no);
-    if (old) {
-      old.count = count;
-      old.mine = old.mine || mine;
-    } else {
-      D.watch.unshift({ g: gk, no, title, count, mine });
-      D.watch.length = Math.min(D.watch.length, 20);
+  function watch(gk, no, title, count, mine, id) {
+    const i = D.watch.findIndex((w2) => w2.g === gk && w2.no === no), w = i < 0 ? { g: gk, no, title, count, mine } : D.watch.splice(i, 1)[0];
+    w.count = count;
+    w.mine = w.mine || mine;
+    if (id) {
+      w.ids = (w.ids || []).filter((x) => x !== id).concat(id).slice(-20);
     }
+    D.watch.unshift(w);
+    D.watch.length = Math.min(D.watch.length, 20);
     save();
   }
   var polling = false;
+  var lastPoll = 0;
   async function poll() {
-    if (polling || !R.user) return;
+    if (polling || !D.watch.length) return;
     polling = true;
+    lastPoll = Date.now();
+    if (!R.userKnown) await checkUser();
+    const fresh = [];
     for (const w of D.watch.slice(0, 5)) {
       const g = gal(w.g);
       if (!g) continue;
@@ -1377,11 +1388,13 @@
         await new Promise((r) => setTimeout(r, 1500));
         const cm = await readCm(g, w.no, post.token, 1);
         if (cm.total > w.count) {
-          const mineIds = new Set(cm.comments.filter((c) => c.mine).map((c) => c.id));
-          for (const c of cm.comments.filter((c2) => !c2.mine && !c2.deleted).slice(-(cm.total - w.count))) {
+          const mineIds = new Set(cm.comments.filter((c) => c.mine).map((c) => c.id).concat(w.ids || []));
+          for (const c of cm.comments.filter((c2) => !c2.mine && !mineIds.has(c2.id) && !c2.deleted).slice(-(cm.total - w.count))) {
             const toMe = c.parentId && mineIds.has(c.parentId);
             if (!w.mine && !toMe) continue;
-            D.notis.unshift({ g: w.g, no: w.no, id: g.id, mini: g.type === "mini", title: w.title, who: who(c), head: who(c) + (toMe ? "\uB2D8\uC774 \uB2F5\uAE00\uC744 \uB0A8\uACBC\uC2B5\uB2C8\uB2E4" : "\uB2D8\uC774 \uB313\uAE00\uC744 \uB0A8\uACBC\uC2B5\uB2C8\uB2E4"), text: c.blocks.map((b) => b.t === "text" ? b.v : b.t === "img" ? "(\uC0AC\uC9C4)" : "(\uB514\uC2DC\uCF58)").join(" ").slice(0, 100), read: false });
+            const n = { g: w.g, no: w.no, id: g.id, mini: g.type === "mini", title: w.title, who: who(c), head: who(c) + (toMe ? "\uB2D8\uC774 \uB2F5\uAE00\uC744 \uB0A8\uACBC\uC2B5\uB2C8\uB2E4" : "\uB2D8\uC774 \uB313\uAE00\uC744 \uB0A8\uACBC\uC2B5\uB2C8\uB2E4"), text: c.blocks.map((b) => b.t === "text" ? b.v : b.t === "img" ? "(\uC0AC\uC9C4)" : "(\uB514\uC2DC\uCF58)").join(" ").slice(0, 100), read: false };
+            D.notis.unshift(n);
+            fresh.push(n);
           }
           D.notis.length = Math.min(D.notis.length, 50);
           w.count = cm.total;
@@ -1394,9 +1407,20 @@
       }
     }
     polling = false;
+    if (fresh.length) native.notify?.(fresh.length > 1 ? "\uC0C8 \uB313\uAE00 " + fresh.length + "\uAC1C" : fresh[0].head, fresh[0].text || fresh[0].title);
   }
   setTimeout(poll, 9e4);
   setInterval(poll, 6e5);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && Date.now() - lastPoll > 6e5) poll();
+  });
+  native.onNotify?.(() => {
+    R.ov = "noti";
+    for (const n of D.notis) n.read = true;
+    save();
+    renderRail();
+    renderPane();
+  });
   function renderWrite() {
     const el = $("#room"), w = R.write, g = gal(w.g), heads = R.list?.heads || [];
     el.className = "room";
@@ -1559,7 +1583,7 @@
         R.room.total = cm.total;
         meta.comments = Math.max(meta.comments, cm.total);
         D.seen[gk + "/" + no] = meta.comments;
-        const mine = !!R.user && post.uid === R.user;
+        const mine = !!myUid() && post.uid === myUid();
         if (mine || cm.comments.some((c2) => c2.mine) || D.watch.some((w) => w.g === gk && w.no === no)) watch(gk, no, post.title, cm.total, mine);
         else save();
       } catch (e) {
@@ -1571,6 +1595,8 @@
         if (R.room === rm) {
           fixMine(rm.comments);
           renderRoom(true);
+          const me = !!R.user && post.uid === R.user;
+          if (me || rm.comments.some((c2) => c2.mine)) watch(gk, no, post.title, rm.total, me);
         }
       });
     } catch (e) {

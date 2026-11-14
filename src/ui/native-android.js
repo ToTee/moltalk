@@ -9,6 +9,7 @@ export function androidNative(YJ){
   drive:(url,code,opt)=>call('drive',url,code,JSON.stringify(opt||{})),
   official:(url,opt)=>call('official',url,JSON.stringify(opt||{})),
   open:url=>YJ.open(url),
-  logout:()=>call('logout')
+  logout:()=>call('logout'),
+  notify:(title,body)=>YJ.notify(String(title||''),String(body||''))
  };
 }
