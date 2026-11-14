@@ -118,6 +118,8 @@ ipcMain.handle('drive',async(event,url,code,opt={})=>{
     if(/turnstile|cloudflare/i.test(String(m||'')))diag('human',String(m).slice(0,300));
     /* 사진·동영상 올리기 진행 상황: 작업을 맡긴 앱 화면에 그대로 전합니다. */
     if(typeof m==='string'&&m.startsWith('__YJ_PROG__')){if(!event.sender.isDestroyed())event.sender.send('drive-progress',m.slice(11));return}
+    /* 개발용 확인: 숨겨 둔 공식 화면이 __YJ_HSNAP__이름 을 남기면 그 화면을 tmp/hsnap-이름.png 로 찍습니다. */
+    if(process.env.YJ_SHOT&&/^__YJ_HSNAP__[a-z0-9-]+$/.test(String(m||''))){w.webContents.capturePage(undefined,{stayHidden:true}).then(i=>fs.writeFileSync(path.join(path.dirname(process.env.YJ_SHOT),'hsnap-'+m.slice(12)+'.png'),i.toPNG())).catch(x=>console.log('[hsnap 실패]',x.message));return}
     if(m==='__YJ_SHOW__'||m==='__YJ_HIDE__')diag('human',m);
     if(m==='__YJ_SHOW__'){w.setContentSize(380,260);w.center();w.setTitle('확인');w.show();arm(200000)}else if(m==='__YJ_HIDE__'){w.hide();arm(limit)}});
   });

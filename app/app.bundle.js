@@ -453,31 +453,50 @@
       let host = inp.parentElement;
       while (host && host !== root && !host.querySelector("img")) host = host.parentElement;
       if (!host || host === root || host === document.body || !host.querySelector("img")) return null;
-      reveal(true, host);
-      const tip = document.querySelector("#yj-tip");
+      const img = host.querySelector("img"), code = img.closest(".code") || img;
+      const back = [code, inp].map((n) => ({ n, parent: n.parentNode, next: n.nextSibling, style: n.getAttribute("style") }));
+      reveal(true, null);
+      const box = document.querySelector("#yj-tip");
       let ok = false;
-      if (tip) {
-        tip.textContent = "\uADF8\uB9BC\uC758 \uAE00\uC790\uB97C \uC544\uB798 \uCE78\uC5D0 \uC785\uB825\uD558\uACE0 \uD655\uC778\uC744 \uB204\uB974\uBA74 \uB4F1\uB85D\uB429\uB2C8\uB2E4.";
-        const b = document.createElement("button");
-        b.type = "button";
-        b.textContent = "\uD655\uC778";
-        b.style.cssText = "display:block;margin:10px auto 0;padding:8px 28px;border:0;border-radius:4px;background:#fee500;color:#111;font-size:15px;font-weight:700";
-        b.onclick = () => {
-          ok = true;
-        };
-        tip.appendChild(b);
-      }
-      inp.addEventListener("keydown", (e) => {
+      box.textContent = "";
+      box.style.cssText = "position:fixed;left:0;top:0;right:0;bottom:0;z-index:2147483647;background:#fff;color:#444;font-size:14px;line-height:1.4;padding:12px 14px;box-sizing:border-box;overflow:auto;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center";
+      const el = (tag, css, text) => {
+        const n = document.createElement(tag);
+        n.style.cssText = css;
+        if (text) n.textContent = text;
+        return n;
+      };
+      const row = el("div", "display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;width:100%");
+      const btn = el("button", "flex:none;width:100%;max-width:260px;height:44px;border:0;border-radius:6px;background:#fee500;color:#111;font-size:16px;font-weight:700", "\uD655\uC778");
+      btn.type = "button";
+      btn.onclick = () => {
+        ok = true;
+      };
+      code.style.cssText = "display:flex;align-items:center;gap:8px;flex:none;margin:0;padding:0;position:static;float:none;width:auto";
+      inp.style.cssText = "flex:none;width:150px;height:40px;box-sizing:border-box;margin:0;padding:0 8px;border:1px solid #bbb;border-radius:6px;font-size:15px;background:#fff;color:#111;position:static;float:none";
+      row.appendChild(code);
+      row.appendChild(inp);
+      box.appendChild(el("div", "flex:none", "\uADF8\uB9BC\uC758 \uAE00\uC790\uB97C \uC785\uB825\uD558\uACE0 \uD655\uC778\uC744 \uB204\uB974\uBA74 \uB4F1\uB85D\uB429\uB2C8\uB2E4."));
+      box.appendChild(row);
+      box.appendChild(btn);
+      const onKey = (e) => {
         if (e.key === "Enter") {
           e.preventDefault();
           ok = true;
         }
-      });
+      };
+      inp.addEventListener("keydown", onKey);
       try {
         inp.focus();
       } catch (e) {
       }
       await until(() => ok && inp.value.trim(), 17e4);
+      inp.removeEventListener("keydown", onKey);
+      for (const x of back) {
+        if (x.style === null) x.n.removeAttribute("style");
+        else x.n.setAttribute("style", x.style);
+        x.parent.insertBefore(x.n, x.next && x.next.parentNode === x.parent ? x.next : null);
+      }
       reveal(false);
       return !!inp.value.trim() && ok;
     };
