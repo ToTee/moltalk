@@ -161,7 +161,7 @@ function friendsHtml(){
   adM(false)+
   '<div class="me">'+meAv()+'<span><b>'+esc(D.me.name)+'</b><span>'+esc(D.me.status)+'</span></span><button class="pill" data-ov="log">프로필</button></div>'+
   (favs.length?'<div class="sec"><span>즐겨찾기 &nbsp;'+favs.length+'</span>'+I.down+'</div><div class="favs">'+favs.map(g=>'<button class="fav" data-g="'+esc(key(g))+'" data-lp="gal" title="'+esc(gname(g))+'">'+(R.updated[key(g)]?'<i class="dot"></i>':'')+galAv(g)+'<span>'+esc(gname(g))+'</span></button>').join('')+'</div>':'')+
-  (upd.length?'<div class="upd"><div class="sec"><span>업데이트한 친구 &nbsp;'+upd.length+'</span>'+I.down+'</div>'+upd.map(row).join('')+'</div>':'')+
+  (upd.length&&!D.hideUpd?'<div class="upd"><div class="sec"><span>업데이트한 친구 &nbsp;'+upd.length+'</span>'+I.down+'</div>'+upd.map(row).join('')+'</div>':'')+
   '<div class="sec" style="margin-top:6px"><span>친구 &nbsp;'+D.gals.length+'</span>'+I.down+'</div>'+
   (all.length?all.map(row).join(''):'<div class="empty">아직 추가한 갤러리가 없습니다.<br><button class="pill" data-ov="find">갤러리 추가</button></div>')+'</div>';
 }
@@ -174,9 +174,12 @@ function chatsHtml(){
  /* 말머리 탭은 갤러리마다 한 번 읽은 것을 기억해 둡니다. 탭을 눌러 목록을 다시 읽는 동안에도 같은 탭이 그대로 보입니다. */
  const L=R.list;if(L&&(L.heads?.length||!R.hk[R.g]))R.hk[R.g]=L.heads||[];
  const heads=R.hk[R.g]||[],plain=!!R.hk[R.g]&&!heads.length;
- const tabs=plain?PLAIN.map(n=>({id:n==='전체'?'':n,name:n})):[{id:'',name:'전체'},...heads];
- const pins=(L?.posts||[]).filter(p=>p.notice);
- let posts=L?L.posts:[];
+ /* 공지를 숨기면 공지만 보여 주는 ChatGPT 탭도 뺍니다. 그 탭을 보던 중이었다면 전체로 돌아갑니다. */
+ if(D.hideNotice&&plain&&R.head==='ChatGPT')R.head='';
+ const tabs=plain?PLAIN.filter(n=>!(D.hideNotice&&n==='ChatGPT')).map(n=>({id:n==='전체'?'':n,name:n})):[{id:'',name:'전체'},...heads];
+ /* 설정 > 화면에서 공지를 숨기면 공지 줄과 공지 펼치기 단추를 모두 뺍니다. */
+ const pins=D.hideNotice?[]:(L?.posts||[]).filter(p=>p.notice);
+ let posts=L?L.posts:[];if(D.hideNotice)posts=posts.filter(p=>!p.notice);
  if(plain&&R.head==='안읽음')posts=posts.filter(p=>p.notice||unreadOf(p));
  if(plain&&R.head==='ChatGPT')posts=posts.filter(p=>p.notice);
  if(R.filter)posts=posts.filter(p=>p.notice||p.title.includes(R.filter));
@@ -201,7 +204,7 @@ function chatsHtml(){
   /* 개념글만 보기: 켜면 디시의 개념글 목록을 읽어 옵니다. 말머리 탭과 함께 쓸 수 있습니다. 맨 앞 '전체' 탭 바로 오른쪽에 둡니다. */
   '<div class="chips" id="chips">'+tabs.map((t,i)=>'<button class="chip'+(String(t.id)===String(R.head)?' on':'')+'" data-h="'+esc(t.id)+'">'+esc(t.name)+'</button>'+
    (i?'':'<button class="chip'+(R.rec?' on':'')+'" data-rec aria-pressed="'+!!R.rec+'">개념글</button>')).join('')+
-  '<button class="chip ico'+(R.pinOpen?' on':'')+'" data-pintog aria-pressed="'+R.pinOpen+'" aria-label="'+(R.pinOpen?'공지 접기':'공지 모두 보기')+'">'+I.listp+(!R.pinOpen&&pins.length>1?'<i class="cdot"></i>':'')+'</button></div>'+
+  (D.hideNotice?'':'<button class="chip ico'+(R.pinOpen?' on':'')+'" data-pintog aria-pressed="'+R.pinOpen+'" aria-label="'+(R.pinOpen?'공지 접기':'공지 모두 보기')+'">'+I.listp+(!R.pinOpen&&pins.length>1?'<i class="cdot"></i>':'')+'</button>')+'</div>'+
   '<div class="scroll" id="cscroll">'+(R.g===BLINK?adM(true):'')+body+'</div>';
 }
 
@@ -230,14 +233,16 @@ function overlayHtml(){
  if(R.ov==='con')return '<div class="ov"><div class="head"><h2>디시콘</h2>'+x+'</div><div class="scroll cpanel">'+(consHtml()||'<div class="spin">디시콘 불러오는 중…</div>')+'</div></div>';
  return '';
 }
-const TABS=['프로필','공지 채팅방 이름','계정','정보'];
+const TABS=['프로필','공지 채팅방 이름','화면','계정','정보'];
 function settingsHtml(x){
  if(!R.stab){const custom=D.rooms.filter(r=>r.mode==='custom'&&r.text).length;
-  const sum={'프로필':D.me.name+(D.me.status?' · '+D.me.status:''),'공지 채팅방 이름':'직접 입력 '+custom+'개 · 랜덤 '+(D.rooms.length-custom)+'개','계정':!R.userKnown?'확인 중…':R.user?'로그인됨':'로그인하지 않음','정보':'몰톡 '+(native.version||'')};
+  const sum={'프로필':D.me.name+(D.me.status?' · '+D.me.status:''),'공지 채팅방 이름':'직접 입력 '+custom+'개 · 랜덤 '+(D.rooms.length-custom)+'개','화면':'업데이트한 친구 '+(D.hideUpd?'숨김':'보임')+' · 공지 '+(D.hideNotice?'숨김':'보임'),'계정':!R.userKnown?'확인 중…':R.user?'로그인됨':'로그인하지 않음','정보':'몰톡 '+(native.version||'')};
   return '<div class="ov"><div class="head"><h2>설정</h2>'+x+'</div><div class="scroll setlist">'+TABS.map(t=>'<button class="row" data-stab="'+t+'"><span class="tx"><b>'+t+'</b><span class="st">'+esc(sum[t])+'</span></span>'+I.next+'</button>').join('')+'</div></div>'}
  const body=R.stab==='프로필'?'<div class="photoset">'+meAv()+'<button type="button" class="pill" data-mephoto>'+(D.me.photo?'사진 바꾸기':'사진 고르기')+'</button>'+(D.me.photo?'<button type="button" class="pill" data-mephotodel>사진 지우기</button>':'')+'</div><label>이름<input name="name" maxlength="20" value="'+esc(D.me.name)+'"></label><label>상태메시지<input name="status" maxlength="40" value="'+esc(D.me.status)+'"></label><p>친구 화면 맨 위 내 프로필에 표시되는 문구입니다.</p>':
   R.stab==='공지 채팅방 이름'?D.rooms.map((r,i)=>'<div class="slot"><span>'+(i+1)+'</span><select name="m'+i+'" aria-label="공지 '+(i+1)+' 이름 방식"><option value="random"'+(r.mode==='random'?' selected':'')+'>랜덤 이름</option><option value="custom"'+(r.mode==='custom'?' selected':'')+'>직접 입력</option></select><input name="t'+i+'" maxlength="30" placeholder="예: 대학 동기 모임" aria-label="공지 '+(i+1)+' 이름" value="'+esc(r.text)+'"'+(r.mode==='custom'?'':' disabled')+'></div>').join('')+'<p>갤러리마다 위에서부터 1번째, 2번째 공지에 차례로 적용됩니다. 직접 입력 칸이 비어 있으면 랜덤 이름이 쓰입니다.</p>':
-  R.stab==='계정'?'<p>'+(!R.userKnown?'로그인 상태를 확인하는 중입니다…':R.user?'로그인됨: '+esc(R.user):'로그인하지 않았습니다.')+'</p><p>로그인은 디시인사이드 공식 로그인 화면에서 직접 합니다. 몰톡은 비밀번호를 저장하지도, 볼 수도 없습니다.</p><div class="savebar">'+(R.user?'<button type="button" class="pill" data-logout>로그아웃</button>':'<button type="button" class="save" data-login>로그인</button>')+'</div>'+
+  /* 화면: 친구 화면의 '업데이트한 친구' 묶음과 글 목록의 공지를 숨길 수 있습니다. 숨겨도 갤러리 옆의 새 글 점은 그대로 나옵니다. */
+   R.stab==='화면'?'<label class="chk"><input type="checkbox" name="hideupd"'+(D.hideUpd?' checked':'')+'><span>업데이트한 친구 숨기기</span></label><p>친구 화면에서 새 글이 올라온 갤러리를 따로 모아 보여 주는 묶음을 숨깁니다. 갤러리 옆의 빨간 점은 그대로 나옵니다.</p><label class="chk"><input type="checkbox" name="hidenotice"'+(D.hideNotice?' checked':'')+'><span>공지 숨기기</span></label><p>글 목록에서 공지 글과 공지 펼치기 단추를 모두 숨깁니다.</p>':
+   R.stab==='계정'?'<p>'+(!R.userKnown?'로그인 상태를 확인하는 중입니다…':R.user?'로그인됨: '+esc(R.user):'로그인하지 않았습니다.')+'</p><p>로그인은 디시인사이드 공식 로그인 화면에서 직접 합니다. 몰톡은 비밀번호를 저장하지도, 볼 수도 없습니다.</p><div class="savebar">'+(R.user?'<button type="button" class="pill" data-logout>로그아웃</button>':'<button type="button" class="save" data-login>로그인</button>')+'</div>'+
    '<label>비로그인 닉네임<input name="gnick" maxlength="20" placeholder="닉네임" value="'+esc(D.guest?.nick||'')+'"></label><label>비로그인 비밀번호<input name="gpw" type="password" maxlength="20" placeholder="2자 이상" value="'+esc(D.guest?.pw||'')+'"></label>'+
    '<p>로그인하지 않았을 때 글·댓글·디시콘을 이 닉네임으로 올립니다. 비밀번호는 디시에서 글을 지울 때 쓰는 것으로, 이 기기에만 저장됩니다. 둘 다 비우면 쓸 때마다 물어봅니다.</p><div class="savebar"><span role="status">'+(R.saved?'저장했습니다.':'')+'</span><button class="save">확인</button></div>':
   '<p>몰톡 '+esc(native.version||'')+'</p><p>디시인사이드를 메신저 화면으로 보는 비공식 열람 앱입니다. 디시인사이드와 관련이 없으며, 게시물과 첨부물의 권리는 각 작성자에게 있습니다.</p>';
@@ -467,7 +472,7 @@ async function withAuth(name,args,url,opt){
 async function vote(down){
  const room=R.room;R.rmenu=false;renderRoom(true);if(!room||!room.post||R.voting)return;
  R.voting=true;toast(down?'비추천하는 중…':'추천하는 중…');
- const r=await drive('recommend',{down},mView(gal(room.g),room.no),{timeout:30000});R.voting=false;
+ const r=await drive('recommend',{down},mView(gal(room.g),room.no),{timeout:200000});/* 보안 문자를 입력할 시간을 넉넉히 둡니다. */R.voting=false;
  if(r.need==='captcha'){toast('보안 문자 입력이 필요해 디시 화면을 엽니다.');await native.official(mView(gal(room.g),room.no));if(R.room===room)openPost(room.no,true);return}
  if(!r.ok){toast(r.error||'추천하지 못했습니다.');return}
  if(R.room===room){room.post.up=r.up;room.post.down=r.down;if(room.meta)room.meta.up=r.up;renderRoom(true)}
@@ -774,7 +779,8 @@ function pickCon(i,held){
  sendToRoom('dccon',{items:[C[i]]});
 }
 document.addEventListener('input',e=>{const t=e.target;
- if(t.id==='filter'){R.filter=t.value.trim();const pos=t.selectionStart;renderPane();const n=$('#filter');n.focus();n.setSelectionRange(pos,pos)}
+ /* 글 검색: 입력칸은 그대로 두고 목록만 다시 그립니다. 입력칸까지 새로 그리면 한글 조합이 끊겨 'ㄱㅓㅁㅅㅐㄱ'처럼 풀려 써집니다. */
+ if(t.id==='filter'){R.filter=t.value.trim();const box=document.createElement('div');box.innerHTML=chatsHtml();const a=$('#cscroll'),b=box.querySelector('#cscroll');if(a&&b){a.innerHTML=b.innerHTML;previews()}}
  else if(t.matches('#cform textarea'))t.form.querySelector('.send').classList.toggle('ok',!!t.value.trim()&&!R.sending);
  else if(t.id==='wtitle')R.write.title=t.value;
  else if(t.id==='wbody')R.write.text=t.value;
@@ -793,7 +799,7 @@ document.addEventListener('change',e=>{
 document.addEventListener('submit',async e=>{e.preventDefault();const f=e.target;
  if(f.id==='findf'){const S=R.search;S.q=$('#findq').value.trim();if(!S.q)return;S.busy=true;S.err='';renderPane();try{S.res=await dc.searchGalleries(S.q)}catch(x){S.err=x.message;S.res=null}S.busy=false;renderPane()}
  else if(f.id==='gform'){const nick=f.elements.gnick.value.trim(),pw=f.elements.gpw.value;if(!nick||pw.length<2){f.querySelector('.gerr').textContent='닉네임과 비밀번호(2자 이상)를 입력해 주세요.';return}D.guest={nick,pw};save();gaskClose('guest')}
- else if(f.id==='setf'){const el=f.elements;if(R.stab==='계정'){const nick=el.gnick.value.trim(),pw=el.gpw.value;D.guest=nick&&pw.length>=2?{nick,pw}:null;if((nick||pw)&&!D.guest){toast('닉네임과 비밀번호(2자 이상)를 모두 입력해 주세요.');return}}else if(R.stab==='프로필'){D.me.name=el.name.value.trim()||'ㅇㅇ';D.me.status=el.status.value.trim()}else D.rooms=D.rooms.map((r,i)=>({mode:el['m'+i].value,text:el['t'+i].value.trim()}));save();R.saved=true;renderPane();renderRoom(true)}
+ else if(f.id==='setf'){const el=f.elements;if(R.stab==='계정'){const nick=el.gnick.value.trim(),pw=el.gpw.value;D.guest=nick&&pw.length>=2?{nick,pw}:null;if((nick||pw)&&!D.guest){toast('닉네임과 비밀번호(2자 이상)를 모두 입력해 주세요.');return}}else if(R.stab==='화면'){D.hideUpd=el.hideupd.checked;D.hideNotice=el.hidenotice.checked}else if(R.stab==='프로필'){D.me.name=el.name.value.trim()||'ㅇㅇ';D.me.status=el.status.value.trim()}else D.rooms=D.rooms.map((r,i)=>({mode:el['m'+i].value,text:el['t'+i].value.trim()}));save();R.saved=true;renderPane();renderRoom(true)}
  else if(f.id==='cform'){const text=f.querySelector('textarea').value.trim();if(text&&await sendToRoom('comment',{text})){const t=$('#cform textarea');if(t){t.value='';t.form.querySelector('.send').classList.remove('ok')}}}
  else if(f.id==='wform')sendDraft()});
 /* 뒤로 가기(안드로이드 뒤로 버튼, Esc): 열린 창을 하나씩 닫고, 닫을 것이 없으면 false를 돌려 앱이 종료 처리하게 합니다. */

@@ -67,10 +67,25 @@ function helpers(){
   const ok=await until(()=>token()||ts.state!=='interactive',170000);reveal(false);
   return !!ok;
  };
+ // 보안 문자(그림 속 글자 입력). 댓글 폼에 입력 칸이 있으면 그림과 입력 칸만 작은 창으로 보여 주고, 사용자가 글자를 넣고 확인을 누를 때까지 기다립니다.
+ // 돌려주는 값: true(칸이 없거나 입력을 마침), false(입력하지 않음), null(그림을 찾지 못함: 예전처럼 디시 화면을 엽니다).
+ const captcha=async(root,sel='[id^="captcha_codeC"]')=>{
+  const inp=root.querySelector(sel);if(!inp)return true;
+  let host=inp.parentElement;while(host&&host!==root&&!host.querySelector('img'))host=host.parentElement;
+  if(!host||host===root||host===document.body||!host.querySelector('img'))return null;
+  reveal(true,host);
+  const tip=document.querySelector('#yj-tip');let ok=false;
+  if(tip){tip.textContent='그림의 글자를 입력하고 확인을 누르면 등록됩니다. ';const b=document.createElement('button');b.type='button';b.textContent='확인';b.style.cssText='margin-left:6px;padding:6px 16px;border:0;border-radius:4px;background:#fee500;color:#111;font-size:14px;font-weight:700';b.onclick=()=>{ok=true};tip.appendChild(b)}
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();ok=true}});
+  try{inp.focus()}catch(e){}
+  await until(()=>ok&&inp.value.trim(),170000);reveal(false);
+  return !!inp.value.trim()&&ok;
+ };
+ const CAP_FAIL={error:'보안 문자를 입력하지 않아 등록하지 않았습니다.'};
  const HUMAN_FAIL={error:"'사람인지 확인'을 마치지 못해 등록하지 않았습니다. 다시 시도해 주세요."};
  // 오래 걸리는 작업(사진·동영상 올리기)의 진행 상황을 앱 화면에 알립니다(안드로이드는 YJD.progress, 윈도우는 콘솔 신호).
  const prog=o=>{const s=JSON.stringify(o);try{if(window.__yjProg)window.__yjProg(s)}catch(e){}console.log('__YJ_PROG__'+s)};
- return {alerts,wait,until,ajax,user,guest,done,form,human,HUMAN_FAIL,prog};
+ return {alerts,wait,until,ajax,user,guest,done,form,human,captcha,CAP_FAIL,HUMAN_FAIL,prog};
 }
 
 const SCRIPTS={
@@ -115,6 +130,8 @@ const SCRIPTS={
  // 추천·비추천: 디시 화면의 단추를 그대로 누릅니다(로그인하지 않아도 됩니다).
  async recommend(a,h){
   const btn=document.querySelector(a.down?'#nonrecommend_join':'#recommend_join');if(!btn)return {error:'이 글은 추천할 수 없습니다.'};
+  /* 추천에도 보안 문자가 붙는 갤러리가 있습니다(추천 코드 입력 칸). */
+  {const cap=await h.captcha(document.body,'#captcha_codeR');if(cap===null)return {need:'captcha'};if(!cap)return h.CAP_FAIL}
   const p=h.ajax(/recommend/,12000);btn.click();const r=await p;
   const num=s=>Number(((document.querySelector(s)||{}).textContent||'').replace(/[^\d]/g,''))||0;
   if(!r)return {error:h.alerts.join(' ')||'디시에서 응답이 없습니다.'};
@@ -127,8 +144,8 @@ const SCRIPTS={
  async comment(a,h){
   const f=h.form(a.parentNo);if(!f||!f.form)return {error:a.parentNo?'답글을 달 댓글을 찾지 못했습니다.':'댓글을 쓸 수 없는 글입니다.'};
   const gq=h.guest(a,f.form,'[id^="comment_nick"]','[id^="comment_pw"]');if(gq)return gq;
-  if(f.form.querySelector('[id^="captcha_codeC"]'))return {need:'captcha'};
   f.form.querySelector(f.memo).value=a.text;
+  const cap=await h.captcha(f.form);if(cap===null)return {need:'captcha'};if(!cap)return h.CAP_FAIL;
   if(!await h.human(f.form))return h.HUMAN_FAIL;
   const p=h.ajax(/\/ajax\/comment-write/);window.comment_write_ok(f.form);
   return h.done(await p);
@@ -161,6 +178,7 @@ const SCRIPTS={
   window.show_dccon(f.mode);
   const box=await h.until(()=>{const b=document.querySelector(f.mode==='commentWrite'?'#dcconBoxComment':'#dcconBoxReple');return b&&!b.querySelector('.dccon-loading')?b:null},12000);
   if(!box)return {error:'디시콘 창을 열지 못했습니다.'};
+  {const cap=await h.captcha(f.form);if(cap===null)return {need:'captcha'};if(!cap)return h.CAP_FAIL}
   if(!await h.human(f.form))return h.HUMAN_FAIL;
   const p=h.ajax(/\/ajax\/comment-write/);
   if(a.items.length===2){const chk=document.querySelector('#dbl_con_chk');if(!chk)return {error:'이 화면에서는 더블콘을 쓸 수 없습니다.'};if(!chk.checked)chk.click()}
@@ -178,6 +196,7 @@ const SCRIPTS={
   const pick=(list,c)=>{const b=document.querySelector(list+' [data-txtcon-color="'+c+'"]');if(b)b.click()};
   pick('#txtcon_bg_list',a.bg);pick('#txtcon_font_list',a.fg);
   memo.value=a.text;memo.dispatchEvent(new Event('input',{bubbles:true}));memo.dispatchEvent(new Event('keyup',{bubbles:true}));
+  {const cap=await h.captcha(f.form);if(cap===null)return {need:'captcha'};if(!cap)return h.CAP_FAIL}
   if(!await h.human(f.form))return h.HUMAN_FAIL;
   const p=h.ajax(/\/ajax\/comment-write/);window.insertTxtcon();
   return h.done(await p);

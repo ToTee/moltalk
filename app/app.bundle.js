@@ -447,6 +447,41 @@
       reveal(false);
       return !!ok;
     };
+    const captcha = async (root, sel = '[id^="captcha_codeC"]') => {
+      const inp = root.querySelector(sel);
+      if (!inp) return true;
+      let host = inp.parentElement;
+      while (host && host !== root && !host.querySelector("img")) host = host.parentElement;
+      if (!host || host === root || host === document.body || !host.querySelector("img")) return null;
+      reveal(true, host);
+      const tip = document.querySelector("#yj-tip");
+      let ok = false;
+      if (tip) {
+        tip.textContent = "\uADF8\uB9BC\uC758 \uAE00\uC790\uB97C \uC785\uB825\uD558\uACE0 \uD655\uC778\uC744 \uB204\uB974\uBA74 \uB4F1\uB85D\uB429\uB2C8\uB2E4. ";
+        const b = document.createElement("button");
+        b.type = "button";
+        b.textContent = "\uD655\uC778";
+        b.style.cssText = "margin-left:6px;padding:6px 16px;border:0;border-radius:4px;background:#fee500;color:#111;font-size:14px;font-weight:700";
+        b.onclick = () => {
+          ok = true;
+        };
+        tip.appendChild(b);
+      }
+      inp.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          ok = true;
+        }
+      });
+      try {
+        inp.focus();
+      } catch (e) {
+      }
+      await until(() => ok && inp.value.trim(), 17e4);
+      reveal(false);
+      return !!inp.value.trim() && ok;
+    };
+    const CAP_FAIL = { error: "\uBCF4\uC548 \uBB38\uC790\uB97C \uC785\uB825\uD558\uC9C0 \uC54A\uC544 \uB4F1\uB85D\uD558\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4." };
     const HUMAN_FAIL = { error: "'\uC0AC\uB78C\uC778\uC9C0 \uD655\uC778'\uC744 \uB9C8\uCE58\uC9C0 \uBABB\uD574 \uB4F1\uB85D\uD558\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4. \uB2E4\uC2DC \uC2DC\uB3C4\uD574 \uC8FC\uC138\uC694." };
     const prog = (o) => {
       const s2 = JSON.stringify(o);
@@ -456,7 +491,7 @@
       }
       console.log("__YJ_PROG__" + s2);
     };
-    return { alerts, wait, until, ajax, user, guest, done, form, human, HUMAN_FAIL, prog };
+    return { alerts, wait, until, ajax, user, guest, done, form, human, captcha, CAP_FAIL, HUMAN_FAIL, prog };
   }
   var SCRIPTS = {
     // 로그인 상태 확인
@@ -519,6 +554,11 @@
     async recommend(a, h) {
       const btn = document.querySelector(a.down ? "#nonrecommend_join" : "#recommend_join");
       if (!btn) return { error: "\uC774 \uAE00\uC740 \uCD94\uCC9C\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4." };
+      {
+        const cap = await h.captcha(document.body, "#captcha_codeR");
+        if (cap === null) return { need: "captcha" };
+        if (!cap) return h.CAP_FAIL;
+      }
       const p = h.ajax(/recommend/, 12e3);
       btn.click();
       const r = await p;
@@ -534,8 +574,10 @@
       if (!f2 || !f2.form) return { error: a.parentNo ? "\uB2F5\uAE00\uC744 \uB2EC \uB313\uAE00\uC744 \uCC3E\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4." : "\uB313\uAE00\uC744 \uC4F8 \uC218 \uC5C6\uB294 \uAE00\uC785\uB2C8\uB2E4." };
       const gq = h.guest(a, f2.form, '[id^="comment_nick"]', '[id^="comment_pw"]');
       if (gq) return gq;
-      if (f2.form.querySelector('[id^="captcha_codeC"]')) return { need: "captcha" };
       f2.form.querySelector(f2.memo).value = a.text;
+      const cap = await h.captcha(f2.form);
+      if (cap === null) return { need: "captcha" };
+      if (!cap) return h.CAP_FAIL;
       if (!await h.human(f2.form)) return h.HUMAN_FAIL;
       const p = h.ajax(/\/ajax\/comment-write/);
       window.comment_write_ok(f2.form);
@@ -587,6 +629,11 @@
         return b && !b.querySelector(".dccon-loading") ? b : null;
       }, 12e3);
       if (!box) return { error: "\uB514\uC2DC\uCF58 \uCC3D\uC744 \uC5F4\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4." };
+      {
+        const cap = await h.captcha(f2.form);
+        if (cap === null) return { need: "captcha" };
+        if (!cap) return h.CAP_FAIL;
+      }
       if (!await h.human(f2.form)) return h.HUMAN_FAIL;
       const p = h.ajax(/\/ajax\/comment-write/);
       if (a.items.length === 2) {
@@ -620,6 +667,11 @@
       memo.value = a.text;
       memo.dispatchEvent(new Event("input", { bubbles: true }));
       memo.dispatchEvent(new Event("keyup", { bubbles: true }));
+      {
+        const cap = await h.captcha(f2.form);
+        if (cap === null) return { need: "captcha" };
+        if (!cap) return h.CAP_FAIL;
+      }
       if (!await h.human(f2.form)) return h.HUMAN_FAIL;
       const p = h.ajax(/\/ajax\/comment-write/);
       window.insertTxtcon();
@@ -1152,7 +1204,7 @@
     };
     const favs = D.favs.map(gal).filter(Boolean), upd = D.gals.filter((g) => R.updated[key(g)]), all = [...D.gals].sort((a, b) => gname(a).localeCompare(gname(b), "ko"));
     return '<div class="head fr"><h2>\uCE5C\uAD6C</h2><button class="who m-only" data-ov="log" aria-label="\uB0B4 \uD504\uB85C\uD544 \uC5F4\uAE30">' + meAv() + "<span>" + esc(D.me.name) + '</span></button><button class="ib" data-ov="find" aria-label="\uAC24\uB7EC\uB9AC \uAC80\uC0C9">' + I.search + '</button><button class="ib" data-ov="find" aria-label="\uAC24\uB7EC\uB9AC \uCD94\uAC00">' + I.plusGal + '</button><button class="ib d-only" data-refresh aria-label="\uC0C8\uB85C\uACE0\uCE68 (F5)" title="\uC0C8\uB85C\uACE0\uCE68 (F5)">' + I.refresh + "</button>" + cogM + '</div><div class="scroll" id="fscroll">' + /* 휴대폰 친구 화면 맨 위의 광고 칸: 장식용 사이버펑크 광고(눌러도 아무 일 없음). 블카이브 광고는 블랙핑크 갤러리 글 목록 맨 위에만 나옵니다. */
-    adM(false) + '<div class="me">' + meAv() + "<span><b>" + esc(D.me.name) + "</b><span>" + esc(D.me.status) + '</span></span><button class="pill" data-ov="log">\uD504\uB85C\uD544</button></div>' + (favs.length ? '<div class="sec"><span>\uC990\uACA8\uCC3E\uAE30 &nbsp;' + favs.length + "</span>" + I.down + '</div><div class="favs">' + favs.map((g) => '<button class="fav" data-g="' + esc(key(g)) + '" data-lp="gal" title="' + esc(gname(g)) + '">' + (R.updated[key(g)] ? '<i class="dot"></i>' : "") + galAv(g) + "<span>" + esc(gname(g)) + "</span></button>").join("") + "</div>" : "") + (upd.length ? '<div class="upd"><div class="sec"><span>\uC5C5\uB370\uC774\uD2B8\uD55C \uCE5C\uAD6C &nbsp;' + upd.length + "</span>" + I.down + "</div>" + upd.map(row).join("") + "</div>" : "") + '<div class="sec" style="margin-top:6px"><span>\uCE5C\uAD6C &nbsp;' + D.gals.length + "</span>" + I.down + "</div>" + (all.length ? all.map(row).join("") : '<div class="empty">\uC544\uC9C1 \uCD94\uAC00\uD55C \uAC24\uB7EC\uB9AC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.<br><button class="pill" data-ov="find">\uAC24\uB7EC\uB9AC \uCD94\uAC00</button></div>') + "</div>";
+    adM(false) + '<div class="me">' + meAv() + "<span><b>" + esc(D.me.name) + "</b><span>" + esc(D.me.status) + '</span></span><button class="pill" data-ov="log">\uD504\uB85C\uD544</button></div>' + (favs.length ? '<div class="sec"><span>\uC990\uACA8\uCC3E\uAE30 &nbsp;' + favs.length + "</span>" + I.down + '</div><div class="favs">' + favs.map((g) => '<button class="fav" data-g="' + esc(key(g)) + '" data-lp="gal" title="' + esc(gname(g)) + '">' + (R.updated[key(g)] ? '<i class="dot"></i>' : "") + galAv(g) + "<span>" + esc(gname(g)) + "</span></button>").join("") + "</div>" : "") + (upd.length && !D.hideUpd ? '<div class="upd"><div class="sec"><span>\uC5C5\uB370\uC774\uD2B8\uD55C \uCE5C\uAD6C &nbsp;' + upd.length + "</span>" + I.down + "</div>" + upd.map(row).join("") + "</div>" : "") + '<div class="sec" style="margin-top:6px"><span>\uCE5C\uAD6C &nbsp;' + D.gals.length + "</span>" + I.down + "</div>" + (all.length ? all.map(row).join("") : '<div class="empty">\uC544\uC9C1 \uCD94\uAC00\uD55C \uAC24\uB7EC\uB9AC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.<br><button class="pill" data-ov="find">\uAC24\uB7EC\uB9AC \uCD94\uAC00</button></div>') + "</div>";
   }
   var PLAIN = ["\uC804\uCCB4", "\uC548\uC77D\uC74C", "ChatGPT"];
   function chatsHtml() {
@@ -1161,9 +1213,11 @@
     const L = R.list;
     if (L && (L.heads?.length || !R.hk[R.g])) R.hk[R.g] = L.heads || [];
     const heads = R.hk[R.g] || [], plain = !!R.hk[R.g] && !heads.length;
-    const tabs = plain ? PLAIN.map((n) => ({ id: n === "\uC804\uCCB4" ? "" : n, name: n })) : [{ id: "", name: "\uC804\uCCB4" }, ...heads];
-    const pins = (L?.posts || []).filter((p) => p.notice);
+    if (D.hideNotice && plain && R.head === "ChatGPT") R.head = "";
+    const tabs = plain ? PLAIN.filter((n) => !(D.hideNotice && n === "ChatGPT")).map((n) => ({ id: n === "\uC804\uCCB4" ? "" : n, name: n })) : [{ id: "", name: "\uC804\uCCB4" }, ...heads];
+    const pins = D.hideNotice ? [] : (L?.posts || []).filter((p) => p.notice);
     let posts = L ? L.posts : [];
+    if (D.hideNotice) posts = posts.filter((p) => !p.notice);
     if (plain && R.head === "\uC548\uC77D\uC74C") posts = posts.filter((p) => p.notice || unreadOf(p));
     if (plain && R.head === "ChatGPT") posts = posts.filter((p) => p.notice);
     if (R.filter) posts = posts.filter((p) => p.notice || p.title.includes(R.filter));
@@ -1185,7 +1239,7 @@
     R.hidden = allRest.length - rest.length;
     const body = !L ? R.listErr ? '<div class="empty">' + esc(R.listErr) + '<br><button class="pill" data-reload>\uB2E4\uC2DC \uC2DC\uB3C4</button></div>' : '<div class="spin">\uBD88\uB7EC\uC624\uB294 \uC911\u2026</div>' : (R.pinOpen ? shownPins : shownPins.slice(0, 1)).map(rowHtml).join("") + (shownPins.length > 1 ? '<button class="pintog" data-pintog aria-expanded="' + R.pinOpen + '" aria-label="' + (R.pinOpen ? "\uACF5\uC9C0 \uC811\uAE30" : "\uACF5\uC9C0 " + (shownPins.length - 1) + "\uAC1C \uB354 \uBCF4\uAE30") + '"></button>' : "") + (rest.length ? rest.map(rowHtml).join("") : '<div class="empty">\uC774 \uD0ED\uC5D0\uB294 \uC544\uC9C1 \uAE00\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.</div>') + (R.hidden > 0 || L.more && !(plain && R.head) ? '<button class="more-row" data-more>' + (R.listBusy ? "\uBD88\uB7EC\uC624\uB294 \uC911\u2026" : "\uC774\uC804 \uAE00 \uB354 \uBCF4\uAE30") + "</button>" : "");
     return '<div class="head"><h2>\uCC44\uD305 <small>\u25BC</small></h2><button class="ib' + (R.filterOn ? " act" : "") + '" data-filter aria-label="\uAE00 \uAC80\uC0C9">' + I.search + '</button><button class="ib" data-write aria-label="\uAE00\uC4F0\uAE30">' + I.write + '</button><button class="ib d-only" data-refresh aria-label="\uC0C8\uB85C\uACE0\uCE68 (F5)" title="\uC0C8\uB85C\uACE0\uCE68 (F5)">' + I.refresh + "</button>" + cogM + "</div>" + (R.filterOn ? '<div class="searchbar"><input id="filter" placeholder="\uBD88\uB7EC\uC628 \uAE00 \uC81C\uBAA9\uC5D0\uC11C \uCC3E\uAE30" value="' + esc(R.filter) + '"></div>' : "") + /* 개념글만 보기: 켜면 디시의 개념글 목록을 읽어 옵니다. 말머리 탭과 함께 쓸 수 있습니다. 맨 앞 '전체' 탭 바로 오른쪽에 둡니다. */
-    '<div class="chips" id="chips">' + tabs.map((t, i) => '<button class="chip' + (String(t.id) === String(R.head) ? " on" : "") + '" data-h="' + esc(t.id) + '">' + esc(t.name) + "</button>" + (i ? "" : '<button class="chip' + (R.rec ? " on" : "") + '" data-rec aria-pressed="' + !!R.rec + '">\uAC1C\uB150\uAE00</button>')).join("") + '<button class="chip ico' + (R.pinOpen ? " on" : "") + '" data-pintog aria-pressed="' + R.pinOpen + '" aria-label="' + (R.pinOpen ? "\uACF5\uC9C0 \uC811\uAE30" : "\uACF5\uC9C0 \uBAA8\uB450 \uBCF4\uAE30") + '">' + I.listp + (!R.pinOpen && pins.length > 1 ? '<i class="cdot"></i>' : "") + '</button></div><div class="scroll" id="cscroll">' + (R.g === BLINK ? adM(true) : "") + body + "</div>";
+    '<div class="chips" id="chips">' + tabs.map((t, i) => '<button class="chip' + (String(t.id) === String(R.head) ? " on" : "") + '" data-h="' + esc(t.id) + '">' + esc(t.name) + "</button>" + (i ? "" : '<button class="chip' + (R.rec ? " on" : "") + '" data-rec aria-pressed="' + !!R.rec + '">\uAC1C\uB150\uAE00</button>')).join("") + (D.hideNotice ? "" : '<button class="chip ico' + (R.pinOpen ? " on" : "") + '" data-pintog aria-pressed="' + R.pinOpen + '" aria-label="' + (R.pinOpen ? "\uACF5\uC9C0 \uC811\uAE30" : "\uACF5\uC9C0 \uBAA8\uB450 \uBCF4\uAE30") + '">' + I.listp + (!R.pinOpen && pins.length > 1 ? '<i class="cdot"></i>' : "") + "</button>") + '</div><div class="scroll" id="cscroll">' + (R.g === BLINK ? adM(true) : "") + body + "</div>";
   }
   function overlayHtml() {
     const x = '<button class="ib" data-ov="" aria-label="\uB2EB\uAE30">\u2715</button>';
@@ -1209,14 +1263,17 @@
     if (R.ov === "con") return '<div class="ov"><div class="head"><h2>\uB514\uC2DC\uCF58</h2>' + x + '</div><div class="scroll cpanel">' + (consHtml() || '<div class="spin">\uB514\uC2DC\uCF58 \uBD88\uB7EC\uC624\uB294 \uC911\u2026</div>') + "</div></div>";
     return "";
   }
-  var TABS = ["\uD504\uB85C\uD544", "\uACF5\uC9C0 \uCC44\uD305\uBC29 \uC774\uB984", "\uACC4\uC815", "\uC815\uBCF4"];
+  var TABS = ["\uD504\uB85C\uD544", "\uACF5\uC9C0 \uCC44\uD305\uBC29 \uC774\uB984", "\uD654\uBA74", "\uACC4\uC815", "\uC815\uBCF4"];
   function settingsHtml(x) {
     if (!R.stab) {
       const custom = D.rooms.filter((r) => r.mode === "custom" && r.text).length;
-      const sum = { "\uD504\uB85C\uD544": D.me.name + (D.me.status ? " \xB7 " + D.me.status : ""), "\uACF5\uC9C0 \uCC44\uD305\uBC29 \uC774\uB984": "\uC9C1\uC811 \uC785\uB825 " + custom + "\uAC1C \xB7 \uB79C\uB364 " + (D.rooms.length - custom) + "\uAC1C", "\uACC4\uC815": !R.userKnown ? "\uD655\uC778 \uC911\u2026" : R.user ? "\uB85C\uADF8\uC778\uB428" : "\uB85C\uADF8\uC778\uD558\uC9C0 \uC54A\uC74C", "\uC815\uBCF4": "\uBAB0\uD1A1 " + (native.version || "") };
+      const sum = { "\uD504\uB85C\uD544": D.me.name + (D.me.status ? " \xB7 " + D.me.status : ""), "\uACF5\uC9C0 \uCC44\uD305\uBC29 \uC774\uB984": "\uC9C1\uC811 \uC785\uB825 " + custom + "\uAC1C \xB7 \uB79C\uB364 " + (D.rooms.length - custom) + "\uAC1C", "\uD654\uBA74": "\uC5C5\uB370\uC774\uD2B8\uD55C \uCE5C\uAD6C " + (D.hideUpd ? "\uC228\uAE40" : "\uBCF4\uC784") + " \xB7 \uACF5\uC9C0 " + (D.hideNotice ? "\uC228\uAE40" : "\uBCF4\uC784"), "\uACC4\uC815": !R.userKnown ? "\uD655\uC778 \uC911\u2026" : R.user ? "\uB85C\uADF8\uC778\uB428" : "\uB85C\uADF8\uC778\uD558\uC9C0 \uC54A\uC74C", "\uC815\uBCF4": "\uBAB0\uD1A1 " + (native.version || "") };
       return '<div class="ov"><div class="head"><h2>\uC124\uC815</h2>' + x + '</div><div class="scroll setlist">' + TABS.map((t) => '<button class="row" data-stab="' + t + '"><span class="tx"><b>' + t + '</b><span class="st">' + esc(sum[t]) + "</span></span>" + I.next + "</button>").join("") + "</div></div>";
     }
-    const body = R.stab === "\uD504\uB85C\uD544" ? '<div class="photoset">' + meAv() + '<button type="button" class="pill" data-mephoto>' + (D.me.photo ? "\uC0AC\uC9C4 \uBC14\uAFB8\uAE30" : "\uC0AC\uC9C4 \uACE0\uB974\uAE30") + "</button>" + (D.me.photo ? '<button type="button" class="pill" data-mephotodel>\uC0AC\uC9C4 \uC9C0\uC6B0\uAE30</button>' : "") + '</div><label>\uC774\uB984<input name="name" maxlength="20" value="' + esc(D.me.name) + '"></label><label>\uC0C1\uD0DC\uBA54\uC2DC\uC9C0<input name="status" maxlength="40" value="' + esc(D.me.status) + '"></label><p>\uCE5C\uAD6C \uD654\uBA74 \uB9E8 \uC704 \uB0B4 \uD504\uB85C\uD544\uC5D0 \uD45C\uC2DC\uB418\uB294 \uBB38\uAD6C\uC785\uB2C8\uB2E4.</p>' : R.stab === "\uACF5\uC9C0 \uCC44\uD305\uBC29 \uC774\uB984" ? D.rooms.map((r, i) => '<div class="slot"><span>' + (i + 1) + '</span><select name="m' + i + '" aria-label="\uACF5\uC9C0 ' + (i + 1) + ' \uC774\uB984 \uBC29\uC2DD"><option value="random"' + (r.mode === "random" ? " selected" : "") + '>\uB79C\uB364 \uC774\uB984</option><option value="custom"' + (r.mode === "custom" ? " selected" : "") + '>\uC9C1\uC811 \uC785\uB825</option></select><input name="t' + i + '" maxlength="30" placeholder="\uC608: \uB300\uD559 \uB3D9\uAE30 \uBAA8\uC784" aria-label="\uACF5\uC9C0 ' + (i + 1) + ' \uC774\uB984" value="' + esc(r.text) + '"' + (r.mode === "custom" ? "" : " disabled") + "></div>").join("") + "<p>\uAC24\uB7EC\uB9AC\uB9C8\uB2E4 \uC704\uC5D0\uC11C\uBD80\uD130 1\uBC88\uC9F8, 2\uBC88\uC9F8 \uACF5\uC9C0\uC5D0 \uCC28\uB840\uB85C \uC801\uC6A9\uB429\uB2C8\uB2E4. \uC9C1\uC811 \uC785\uB825 \uCE78\uC774 \uBE44\uC5B4 \uC788\uC73C\uBA74 \uB79C\uB364 \uC774\uB984\uC774 \uC4F0\uC785\uB2C8\uB2E4.</p>" : R.stab === "\uACC4\uC815" ? "<p>" + (!R.userKnown ? "\uB85C\uADF8\uC778 \uC0C1\uD0DC\uB97C \uD655\uC778\uD558\uB294 \uC911\uC785\uB2C8\uB2E4\u2026" : R.user ? "\uB85C\uADF8\uC778\uB428: " + esc(R.user) : "\uB85C\uADF8\uC778\uD558\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4.") + '</p><p>\uB85C\uADF8\uC778\uC740 \uB514\uC2DC\uC778\uC0AC\uC774\uB4DC \uACF5\uC2DD \uB85C\uADF8\uC778 \uD654\uBA74\uC5D0\uC11C \uC9C1\uC811 \uD569\uB2C8\uB2E4. \uBAB0\uD1A1\uC740 \uBE44\uBC00\uBC88\uD638\uB97C \uC800\uC7A5\uD558\uC9C0\uB3C4, \uBCFC \uC218\uB3C4 \uC5C6\uC2B5\uB2C8\uB2E4.</p><div class="savebar">' + (R.user ? '<button type="button" class="pill" data-logout>\uB85C\uADF8\uC544\uC6C3</button>' : '<button type="button" class="save" data-login>\uB85C\uADF8\uC778</button>') + '</div><label>\uBE44\uB85C\uADF8\uC778 \uB2C9\uB124\uC784<input name="gnick" maxlength="20" placeholder="\uB2C9\uB124\uC784" value="' + esc(D.guest?.nick || "") + '"></label><label>\uBE44\uB85C\uADF8\uC778 \uBE44\uBC00\uBC88\uD638<input name="gpw" type="password" maxlength="20" placeholder="2\uC790 \uC774\uC0C1" value="' + esc(D.guest?.pw || "") + '"></label><p>\uB85C\uADF8\uC778\uD558\uC9C0 \uC54A\uC558\uC744 \uB54C \uAE00\xB7\uB313\uAE00\xB7\uB514\uC2DC\uCF58\uC744 \uC774 \uB2C9\uB124\uC784\uC73C\uB85C \uC62C\uB9BD\uB2C8\uB2E4. \uBE44\uBC00\uBC88\uD638\uB294 \uB514\uC2DC\uC5D0\uC11C \uAE00\uC744 \uC9C0\uC6B8 \uB54C \uC4F0\uB294 \uAC83\uC73C\uB85C, \uC774 \uAE30\uAE30\uC5D0\uB9CC \uC800\uC7A5\uB429\uB2C8\uB2E4. \uB458 \uB2E4 \uBE44\uC6B0\uBA74 \uC4F8 \uB54C\uB9C8\uB2E4 \uBB3C\uC5B4\uBD05\uB2C8\uB2E4.</p><div class="savebar"><span role="status">' + (R.saved ? "\uC800\uC7A5\uD588\uC2B5\uB2C8\uB2E4." : "") + '</span><button class="save">\uD655\uC778</button></div>' : "<p>\uBAB0\uD1A1 " + esc(native.version || "") + "</p><p>\uB514\uC2DC\uC778\uC0AC\uC774\uB4DC\uB97C \uBA54\uC2E0\uC800 \uD654\uBA74\uC73C\uB85C \uBCF4\uB294 \uBE44\uACF5\uC2DD \uC5F4\uB78C \uC571\uC785\uB2C8\uB2E4. \uB514\uC2DC\uC778\uC0AC\uC774\uB4DC\uC640 \uAD00\uB828\uC774 \uC5C6\uC73C\uBA70, \uAC8C\uC2DC\uBB3C\uACFC \uCCA8\uBD80\uBB3C\uC758 \uAD8C\uB9AC\uB294 \uAC01 \uC791\uC131\uC790\uC5D0\uAC8C \uC788\uC2B5\uB2C8\uB2E4.</p>";
+    const body = R.stab === "\uD504\uB85C\uD544" ? '<div class="photoset">' + meAv() + '<button type="button" class="pill" data-mephoto>' + (D.me.photo ? "\uC0AC\uC9C4 \uBC14\uAFB8\uAE30" : "\uC0AC\uC9C4 \uACE0\uB974\uAE30") + "</button>" + (D.me.photo ? '<button type="button" class="pill" data-mephotodel>\uC0AC\uC9C4 \uC9C0\uC6B0\uAE30</button>' : "") + '</div><label>\uC774\uB984<input name="name" maxlength="20" value="' + esc(D.me.name) + '"></label><label>\uC0C1\uD0DC\uBA54\uC2DC\uC9C0<input name="status" maxlength="40" value="' + esc(D.me.status) + '"></label><p>\uCE5C\uAD6C \uD654\uBA74 \uB9E8 \uC704 \uB0B4 \uD504\uB85C\uD544\uC5D0 \uD45C\uC2DC\uB418\uB294 \uBB38\uAD6C\uC785\uB2C8\uB2E4.</p>' : R.stab === "\uACF5\uC9C0 \uCC44\uD305\uBC29 \uC774\uB984" ? D.rooms.map((r, i) => '<div class="slot"><span>' + (i + 1) + '</span><select name="m' + i + '" aria-label="\uACF5\uC9C0 ' + (i + 1) + ' \uC774\uB984 \uBC29\uC2DD"><option value="random"' + (r.mode === "random" ? " selected" : "") + '>\uB79C\uB364 \uC774\uB984</option><option value="custom"' + (r.mode === "custom" ? " selected" : "") + '>\uC9C1\uC811 \uC785\uB825</option></select><input name="t' + i + '" maxlength="30" placeholder="\uC608: \uB300\uD559 \uB3D9\uAE30 \uBAA8\uC784" aria-label="\uACF5\uC9C0 ' + (i + 1) + ' \uC774\uB984" value="' + esc(r.text) + '"' + (r.mode === "custom" ? "" : " disabled") + "></div>").join("") + "<p>\uAC24\uB7EC\uB9AC\uB9C8\uB2E4 \uC704\uC5D0\uC11C\uBD80\uD130 1\uBC88\uC9F8, 2\uBC88\uC9F8 \uACF5\uC9C0\uC5D0 \uCC28\uB840\uB85C \uC801\uC6A9\uB429\uB2C8\uB2E4. \uC9C1\uC811 \uC785\uB825 \uCE78\uC774 \uBE44\uC5B4 \uC788\uC73C\uBA74 \uB79C\uB364 \uC774\uB984\uC774 \uC4F0\uC785\uB2C8\uB2E4.</p>" : (
+      /* 화면: 친구 화면의 '업데이트한 친구' 묶음과 글 목록의 공지를 숨길 수 있습니다. 숨겨도 갤러리 옆의 새 글 점은 그대로 나옵니다. */
+      R.stab === "\uD654\uBA74" ? '<label class="chk"><input type="checkbox" name="hideupd"' + (D.hideUpd ? " checked" : "") + '><span>\uC5C5\uB370\uC774\uD2B8\uD55C \uCE5C\uAD6C \uC228\uAE30\uAE30</span></label><p>\uCE5C\uAD6C \uD654\uBA74\uC5D0\uC11C \uC0C8 \uAE00\uC774 \uC62C\uB77C\uC628 \uAC24\uB7EC\uB9AC\uB97C \uB530\uB85C \uBAA8\uC544 \uBCF4\uC5EC \uC8FC\uB294 \uBB36\uC74C\uC744 \uC228\uAE41\uB2C8\uB2E4. \uAC24\uB7EC\uB9AC \uC606\uC758 \uBE68\uAC04 \uC810\uC740 \uADF8\uB300\uB85C \uB098\uC635\uB2C8\uB2E4.</p><label class="chk"><input type="checkbox" name="hidenotice"' + (D.hideNotice ? " checked" : "") + "><span>\uACF5\uC9C0 \uC228\uAE30\uAE30</span></label><p>\uAE00 \uBAA9\uB85D\uC5D0\uC11C \uACF5\uC9C0 \uAE00\uACFC \uACF5\uC9C0 \uD3BC\uCE58\uAE30 \uB2E8\uCD94\uB97C \uBAA8\uB450 \uC228\uAE41\uB2C8\uB2E4.</p>" : R.stab === "\uACC4\uC815" ? "<p>" + (!R.userKnown ? "\uB85C\uADF8\uC778 \uC0C1\uD0DC\uB97C \uD655\uC778\uD558\uB294 \uC911\uC785\uB2C8\uB2E4\u2026" : R.user ? "\uB85C\uADF8\uC778\uB428: " + esc(R.user) : "\uB85C\uADF8\uC778\uD558\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4.") + '</p><p>\uB85C\uADF8\uC778\uC740 \uB514\uC2DC\uC778\uC0AC\uC774\uB4DC \uACF5\uC2DD \uB85C\uADF8\uC778 \uD654\uBA74\uC5D0\uC11C \uC9C1\uC811 \uD569\uB2C8\uB2E4. \uBAB0\uD1A1\uC740 \uBE44\uBC00\uBC88\uD638\uB97C \uC800\uC7A5\uD558\uC9C0\uB3C4, \uBCFC \uC218\uB3C4 \uC5C6\uC2B5\uB2C8\uB2E4.</p><div class="savebar">' + (R.user ? '<button type="button" class="pill" data-logout>\uB85C\uADF8\uC544\uC6C3</button>' : '<button type="button" class="save" data-login>\uB85C\uADF8\uC778</button>') + '</div><label>\uBE44\uB85C\uADF8\uC778 \uB2C9\uB124\uC784<input name="gnick" maxlength="20" placeholder="\uB2C9\uB124\uC784" value="' + esc(D.guest?.nick || "") + '"></label><label>\uBE44\uB85C\uADF8\uC778 \uBE44\uBC00\uBC88\uD638<input name="gpw" type="password" maxlength="20" placeholder="2\uC790 \uC774\uC0C1" value="' + esc(D.guest?.pw || "") + '"></label><p>\uB85C\uADF8\uC778\uD558\uC9C0 \uC54A\uC558\uC744 \uB54C \uAE00\xB7\uB313\uAE00\xB7\uB514\uC2DC\uCF58\uC744 \uC774 \uB2C9\uB124\uC784\uC73C\uB85C \uC62C\uB9BD\uB2C8\uB2E4. \uBE44\uBC00\uBC88\uD638\uB294 \uB514\uC2DC\uC5D0\uC11C \uAE00\uC744 \uC9C0\uC6B8 \uB54C \uC4F0\uB294 \uAC83\uC73C\uB85C, \uC774 \uAE30\uAE30\uC5D0\uB9CC \uC800\uC7A5\uB429\uB2C8\uB2E4. \uB458 \uB2E4 \uBE44\uC6B0\uBA74 \uC4F8 \uB54C\uB9C8\uB2E4 \uBB3C\uC5B4\uBD05\uB2C8\uB2E4.</p><div class="savebar"><span role="status">' + (R.saved ? "\uC800\uC7A5\uD588\uC2B5\uB2C8\uB2E4." : "") + '</span><button class="save">\uD655\uC778</button></div>' : "<p>\uBAB0\uD1A1 " + esc(native.version || "") + "</p><p>\uB514\uC2DC\uC778\uC0AC\uC774\uB4DC\uB97C \uBA54\uC2E0\uC800 \uD654\uBA74\uC73C\uB85C \uBCF4\uB294 \uBE44\uACF5\uC2DD \uC5F4\uB78C \uC571\uC785\uB2C8\uB2E4. \uB514\uC2DC\uC778\uC0AC\uC774\uB4DC\uC640 \uAD00\uB828\uC774 \uC5C6\uC73C\uBA70, \uAC8C\uC2DC\uBB3C\uACFC \uCCA8\uBD80\uBB3C\uC758 \uAD8C\uB9AC\uB294 \uAC01 \uC791\uC131\uC790\uC5D0\uAC8C \uC788\uC2B5\uB2C8\uB2E4.</p>"
+    );
     return '<div class="ov"><div class="head"><button type="button" class="ib bk" data-stab="" aria-label="\uC124\uC815 \uBAA9\uB85D\uC73C\uB85C">' + I.back + "</button><h2>" + R.stab + "</h2>" + x + '</div><form id="setf" class="setf">' + body + (R.stab === "\uC815\uBCF4" || R.stab === "\uACC4\uC815" ? "" : '<div class="savebar"><span role="status">' + (R.saved ? "\uC800\uC7A5\uD588\uC2B5\uB2C8\uB2E4." : "") + '</span><button class="save">\uD655\uC778</button></div>') + "</form></div>";
   }
   function renderPane() {
@@ -1641,7 +1698,7 @@
     if (!room || !room.post || R.voting) return;
     R.voting = true;
     toast(down ? "\uBE44\uCD94\uCC9C\uD558\uB294 \uC911\u2026" : "\uCD94\uCC9C\uD558\uB294 \uC911\u2026");
-    const r = await drive("recommend", { down }, mView(gal(room.g), room.no), { timeout: 3e4 });
+    const r = await drive("recommend", { down }, mView(gal(room.g), room.no), { timeout: 2e5 });
     R.voting = false;
     if (r.need === "captcha") {
       toast("\uBCF4\uC548 \uBB38\uC790 \uC785\uB825\uC774 \uD544\uC694\uD574 \uB514\uC2DC \uD654\uBA74\uC744 \uC5FD\uB2C8\uB2E4.");
@@ -2527,11 +2584,13 @@
     const t = e.target;
     if (t.id === "filter") {
       R.filter = t.value.trim();
-      const pos = t.selectionStart;
-      renderPane();
-      const n = $("#filter");
-      n.focus();
-      n.setSelectionRange(pos, pos);
+      const box = document.createElement("div");
+      box.innerHTML = chatsHtml();
+      const a = $("#cscroll"), b = box.querySelector("#cscroll");
+      if (a && b) {
+        a.innerHTML = b.innerHTML;
+        previews();
+      }
     } else if (t.matches("#cform textarea")) t.form.querySelector(".send").classList.toggle("ok", !!t.value.trim() && !R.sending);
     else if (t.id === "wtitle") R.write.title = t.value;
     else if (t.id === "wbody") R.write.text = t.value;
@@ -2612,6 +2671,9 @@
           toast("\uB2C9\uB124\uC784\uACFC \uBE44\uBC00\uBC88\uD638(2\uC790 \uC774\uC0C1)\uB97C \uBAA8\uB450 \uC785\uB825\uD574 \uC8FC\uC138\uC694.");
           return;
         }
+      } else if (R.stab === "\uD654\uBA74") {
+        D.hideUpd = el.hideupd.checked;
+        D.hideNotice = el.hidenotice.checked;
       } else if (R.stab === "\uD504\uB85C\uD544") {
         D.me.name = el.name.value.trim() || "\u3147\u3147";
         D.me.status = el.status.value.trim();
