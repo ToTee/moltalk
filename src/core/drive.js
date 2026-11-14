@@ -108,6 +108,17 @@ const SCRIPTS={
   return r&&r.gall_id?{id:String(r.gall_id)}:{error:'글이 있는 갤러리를 찾지 못했습니다.'};
  },
 
+ // 추천·비추천: 디시 화면의 단추를 그대로 누릅니다(로그인하지 않아도 됩니다).
+ async recommend(a,h){
+  const btn=document.querySelector(a.down?'#nonrecommend_join':'#recommend_join');if(!btn)return {error:'이 글은 추천할 수 없습니다.'};
+  const p=h.ajax(/recommend/,12000);btn.click();const r=await p;
+  const num=s=>Number(((document.querySelector(s)||{}).textContent||'').replace(/[^\d]/g,''))||0;
+  if(!r)return {error:h.alerts.join(' ')||'디시에서 응답이 없습니다.'};
+  if(r.result===true||r.result===1||r.result==='1'||r.result==='success')return {ok:true,up:num('#recomm_btn'),down:num('#nonrecomm_btn')};
+  if(r.cause==='captcha')return {need:'captcha'};
+  return {error:String(r.cause||r.msg||h.alerts.join(' ')||'추천하지 못했습니다.')};
+ },
+
  // 댓글·답글 쓰기
  async comment(a,h){
   const f=h.form(a.parentNo);if(!f||!f.form)return {error:a.parentNo?'답글을 달 댓글을 찾지 못했습니다.':'댓글을 쓸 수 없는 글입니다.'};

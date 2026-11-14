@@ -467,6 +467,19 @@
       });
       return r && r.gall_id ? { id: String(r.gall_id) } : { error: "\uAE00\uC774 \uC788\uB294 \uAC24\uB7EC\uB9AC\uB97C \uCC3E\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4." };
     },
+    // 추천·비추천: 디시 화면의 단추를 그대로 누릅니다(로그인하지 않아도 됩니다).
+    async recommend(a, h) {
+      const btn = document.querySelector(a.down ? "#nonrecommend_join" : "#recommend_join");
+      if (!btn) return { error: "\uC774 \uAE00\uC740 \uCD94\uCC9C\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4." };
+      const p = h.ajax(/recommend/, 12e3);
+      btn.click();
+      const r = await p;
+      const num2 = (s2) => Number(((document.querySelector(s2) || {}).textContent || "").replace(/[^\d]/g, "")) || 0;
+      if (!r) return { error: h.alerts.join(" ") || "\uB514\uC2DC\uC5D0\uC11C \uC751\uB2F5\uC774 \uC5C6\uC2B5\uB2C8\uB2E4." };
+      if (r.result === true || r.result === 1 || r.result === "1" || r.result === "success") return { ok: true, up: num2("#recomm_btn"), down: num2("#nonrecomm_btn") };
+      if (r.cause === "captcha") return { need: "captcha" };
+      return { error: String(r.cause || r.msg || h.alerts.join(" ") || "\uCD94\uCC9C\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.") };
+    },
     // 댓글·답글 쓰기
     async comment(a, h) {
       const f2 = h.form(a.parentNo);
@@ -1088,7 +1101,7 @@
     } else h = r.err ? '<div class="sys err"><span>' + esc(r.err) + '</span></div><div class="sys"><button data-rreload>\uB2E4\uC2DC \uC2DC\uB3C4</button></div>' : '<div class="sys"><span>\uBD88\uB7EC\uC624\uB294 \uC911\u2026</span></div>';
     const people = p ? (/* @__PURE__ */ new Set([author, ...(r.comments || []).map(who)])).size : 1;
     el.innerHTML = '<div class="rhead"><button class="ib back" data-back aria-label="\uBAA9\uB85D\uC73C\uB85C">' + I.back + "</button>" + userAv(author) + '<span class="tt"><b>' + esc(title) + "</b><span>" + esc(gname(g)) + " \xB7 \uCC38\uC5EC " + people + '\uBA85</span></span><button class="ib" data-rreload aria-label="\uC0C8\uB85C\uACE0\uCE68">' + I.refresh + '</button><button class="ib" data-rmenu aria-label="\uAE00 \uBA54\uB274" aria-expanded="' + !!R.rmenu + '">' + I.menu + "</button></div>" + /* 오른쪽 위 메뉴: 원본 모양으로 보기(글쓴이가 꾸민 그대로), 디시에서 열기 */
-    (R.rmenu ? '<button class="rdim" data-rmenu aria-label="\uBA54\uB274 \uB2EB\uAE30"></button><div class="rpop"><button data-orig' + (p ? "" : " disabled") + '>\uC6D0\uBCF8 \uBAA8\uC591\uC73C\uB85C \uBCF4\uAE30</button><button data-rmenu data-url="' + esc(postUrl(g, r.no)) + '">\uB514\uC2DC\uC5D0\uC11C \uC5F4\uAE30</button></div>' : "") + (R.orig && p ? '<div class="orig"><div class="ohead"><button class="ib" data-orig aria-label="\uCC44\uD305\uBC29\uC73C\uB85C \uB3CC\uC544\uAC00\uAE30">' + I.back + "</button><b>\uC6D0\uBCF8 \uBCF4\uAE30<small>" + esc(title) + '</small></b></div><div class="scroll" id="oscroll"><div class="oin">' + (p.html || "<p>\uBCF8\uBB38\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.</p>") + "</div></div></div>" : "") + (R.nfold ? '<button class="nmini" data-nfold aria-label="\uACF5\uC9C0 \uD3BC\uCE58\uAE30">' + I.horn + "</button>" : '<div class="notice">' + I.horn + '<span class="tx"><div>' + ((p || meta).head ? "[" + esc((p || meta).head) + "] " : "") + esc(meta.title) + "</div><div>" + esc(author) + " \xB7 \uC870\uD68C " + ((p || meta).views || 0).toLocaleString() + " \xB7 \uCD94\uCC9C " + ((p || meta).up || 0) + '</div></span><button class="nbtn" data-nfold aria-label="\uACF5\uC9C0 \uC811\uAE30">' + I.up + "</button></div>") + '<div class="scroll" id="rscroll"><div class="msgs">' + h + "</div></div>" + (R.cpanel ? '<div class="cpanel">' + consHtml() + "</div>" : "") + (R.tpanel ? txtconHtml() : "") + (R.reply ? '<div class="replybar"><span>' + esc(who(R.reply)) + '\uC5D0\uAC8C \uB2F5\uC7A5</span><button class="ib" data-noreply aria-label="\uB2F5\uC7A5 \uCDE8\uC18C">\u2715</button></div>' : "") + '<form class="inp" id="cform"><textarea placeholder="\uBA54\uC2DC\uC9C0 \uC785\uB825" aria-label="\uB313\uAE00 \uC785\uB825" maxlength="200">' + esc(draft) + '</textarea><div class="bar"><button type="button" class="ib" data-url="' + esc(mView(g, r.no)) + '" aria-label="\uB514\uC2DC \uD654\uBA74\uC5D0\uC11C \uC5F4\uAE30">' + I.plus + '</button><button type="button" class="ib' + (R.cpanel ? " act" : "") + '" data-cpanel aria-expanded="' + R.cpanel + '" aria-label="\uB514\uC2DC\uCF58">' + I.smile + '</button><button type="button" class="ib' + (R.tpanel ? " act" : "") + '" data-tpanel aria-expanded="' + R.tpanel + '" aria-label="\uAE00\uC790\uCF58">' + I.file + '</button><span></span><button class="send' + (draft.trim() && !R.sending ? " ok" : "") + '"' + (R.sending ? " disabled" : "") + ">" + (R.sending ? "\uBCF4\uB0B4\uB294 \uC911\u2026" : "\uC804\uC1A1") + "</button></div></form>";
+    (R.rmenu ? '<button class="rdim" data-rmenu aria-label="\uBA54\uB274 \uB2EB\uAE30"></button><div class="rpop"><button data-orig' + (p ? "" : " disabled") + '>\uC6D0\uBCF8 \uBAA8\uC591\uC73C\uB85C \uBCF4\uAE30</button><button data-vote="up"' + (p ? "" : " disabled") + ">\uCD94\uCC9C" + (p ? " " + (p.up || 0) : "") + '</button><button data-vote="down"' + (p ? "" : " disabled") + ">\uBE44\uCD94\uCC9C" + (p && p.down ? " " + p.down : "") + '</button><button data-rmenu data-url="' + esc(postUrl(g, r.no)) + '">\uB514\uC2DC\uC5D0\uC11C \uC5F4\uAE30</button></div>' : "") + (R.orig && p ? '<div class="orig"><div class="ohead"><button class="ib" data-orig aria-label="\uCC44\uD305\uBC29\uC73C\uB85C \uB3CC\uC544\uAC00\uAE30">' + I.back + "</button><b>\uC6D0\uBCF8 \uBCF4\uAE30<small>" + esc(title) + '</small></b></div><div class="scroll" id="oscroll"><div class="oin">' + (p.html || "<p>\uBCF8\uBB38\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.</p>") + "</div></div></div>" : "") + (R.nfold ? '<button class="nmini" data-nfold aria-label="\uACF5\uC9C0 \uD3BC\uCE58\uAE30">' + I.horn + "</button>" : '<div class="notice">' + I.horn + '<span class="tx"><div>' + ((p || meta).head ? "[" + esc((p || meta).head) + "] " : "") + esc(meta.title) + "</div><div>" + esc(author) + " \xB7 \uC870\uD68C " + ((p || meta).views || 0).toLocaleString() + " \xB7 \uCD94\uCC9C " + ((p || meta).up || 0) + '</div></span><button class="nbtn" data-nfold aria-label="\uACF5\uC9C0 \uC811\uAE30">' + I.up + "</button></div>") + '<div class="scroll" id="rscroll"><div class="msgs">' + h + "</div></div>" + (R.cpanel ? '<div class="cpanel">' + consHtml() + "</div>" : "") + (R.tpanel ? txtconHtml() : "") + (R.reply ? '<div class="replybar"><span>' + esc(who(R.reply)) + '\uC5D0\uAC8C \uB2F5\uC7A5</span><button class="ib" data-noreply aria-label="\uB2F5\uC7A5 \uCDE8\uC18C">\u2715</button></div>' : "") + '<form class="inp" id="cform"><textarea placeholder="\uBA54\uC2DC\uC9C0 \uC785\uB825" aria-label="\uB313\uAE00 \uC785\uB825" maxlength="200">' + esc(draft) + '</textarea><div class="bar"><button type="button" class="ib" data-url="' + esc(mView(g, r.no)) + '" aria-label="\uB514\uC2DC \uD654\uBA74\uC5D0\uC11C \uC5F4\uAE30">' + I.plus + '</button><button type="button" class="ib' + (R.cpanel ? " act" : "") + '" data-cpanel aria-expanded="' + R.cpanel + '" aria-label="\uB514\uC2DC\uCF58">' + I.smile + '</button><button type="button" class="ib' + (R.tpanel ? " act" : "") + '" data-tpanel aria-expanded="' + R.tpanel + '" aria-label="\uAE00\uC790\uCF58">' + I.file + '</button><span></span><button class="send' + (draft.trim() && !R.sending ? " ok" : "") + '"' + (R.sending ? " disabled" : "") + ">" + (R.sending ? "\uBCF4\uB0B4\uB294 \uC911\u2026" : "\uC804\uC1A1") + "</button></div></form>";
     if (otop && $("#room .orig .scroll")) $("#room .orig .scroll").scrollTop = otop;
     const sc = $("#rscroll");
     if (R.toBottom) {
@@ -1211,6 +1224,33 @@
     }
     if (r.need) return { error: "\uB85C\uADF8\uC778\uC774 \uD544\uC694\uD569\uB2C8\uB2E4." };
     return r;
+  }
+  async function vote(down) {
+    const room = R.room;
+    R.rmenu = false;
+    renderRoom(true);
+    if (!room || !room.post || R.voting) return;
+    R.voting = true;
+    toast(down ? "\uBE44\uCD94\uCC9C\uD558\uB294 \uC911\u2026" : "\uCD94\uCC9C\uD558\uB294 \uC911\u2026");
+    const r = await drive("recommend", { down }, mView(gal(room.g), room.no), { timeout: 3e4 });
+    R.voting = false;
+    if (r.need === "captcha") {
+      toast("\uBCF4\uC548 \uBB38\uC790 \uC785\uB825\uC774 \uD544\uC694\uD574 \uB514\uC2DC \uD654\uBA74\uC744 \uC5FD\uB2C8\uB2E4.");
+      await native.official(mView(gal(room.g), room.no));
+      if (R.room === room) openPost(room.no, true);
+      return;
+    }
+    if (!r.ok) {
+      toast(r.error || "\uCD94\uCC9C\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.");
+      return;
+    }
+    if (R.room === room) {
+      room.post.up = r.up;
+      room.post.down = r.down;
+      if (room.meta) room.meta.up = r.up;
+      renderRoom(true);
+    }
+    toast(down ? "\uBE44\uCD94\uCC9C\uD588\uC2B5\uB2C8\uB2E4." : "\uCD94\uCC9C\uD588\uC2B5\uB2C8\uB2E4.");
   }
   async function sendToRoom(name, args) {
     const room = R.room;
@@ -1755,6 +1795,8 @@
       gaskClose(null);
     } else if (d.glogin != null) {
       gaskClose("login");
+    } else if (d.vote) {
+      vote(d.vote === "down");
     } else if (d.orig != null) {
       R.orig = !R.orig;
       R.rmenu = false;

@@ -277,7 +277,7 @@ function renderRoom(keep){
  el.innerHTML='<div class="rhead"><button class="ib back" data-back aria-label="목록으로">'+I.back+'</button>'+userAv(author)+'<span class="tt"><b>'+esc(title)+'</b><span>'+esc(gname(g))+' · 참여 '+people+'명</span></span>'+
   '<button class="ib" data-rreload aria-label="새로고침">'+I.refresh+'</button><button class="ib" data-rmenu aria-label="글 메뉴" aria-expanded="'+!!R.rmenu+'">'+I.menu+'</button></div>'+
   /* 오른쪽 위 메뉴: 원본 모양으로 보기(글쓴이가 꾸민 그대로), 디시에서 열기 */
-  (R.rmenu?'<button class="rdim" data-rmenu aria-label="메뉴 닫기"></button><div class="rpop"><button data-orig'+(p?'':' disabled')+'>원본 모양으로 보기</button><button data-rmenu data-url="'+esc(postUrl(g,r.no))+'">디시에서 열기</button></div>':'')+
+  (R.rmenu?'<button class="rdim" data-rmenu aria-label="메뉴 닫기"></button><div class="rpop"><button data-orig'+(p?'':' disabled')+'>원본 모양으로 보기</button><button data-vote="up"'+(p?'':' disabled')+'>추천'+(p?' '+(p.up||0):'')+'</button><button data-vote="down"'+(p?'':' disabled')+'>비추천'+(p&&p.down?' '+p.down:'')+'</button><button data-rmenu data-url="'+esc(postUrl(g,r.no))+'">디시에서 열기</button></div>':'')+
   (R.orig&&p?'<div class="orig"><div class="ohead"><button class="ib" data-orig aria-label="채팅방으로 돌아가기">'+I.back+'</button><b>원본 보기<small>'+esc(title)+'</small></b></div><div class="scroll" id="oscroll"><div class="oin">'+(p.html||'<p>본문이 없습니다.</p>')+'</div></div></div>':'')+
   (R.nfold?'<button class="nmini" data-nfold aria-label="공지 펼치기">'+I.horn+'</button>':'<div class="notice">'+I.horn+'<span class="tx"><div>'+((p||meta).head?'['+esc((p||meta).head)+'] ':'')+esc(meta.title)+'</div><div>'+esc(author)+' · 조회 '+((p||meta).views||0).toLocaleString()+' · 추천 '+((p||meta).up||0)+'</div></span><button class="nbtn" data-nfold aria-label="공지 접기">'+I.up+'</button></div>')+
   '<div class="scroll" id="rscroll"><div class="msgs">'+h+'</div></div>'+
@@ -339,6 +339,16 @@ async function withAuth(name,args,url,opt){
  if(r.need==='captcha'){toast('보안 문자 입력이 필요해 디시 화면을 엽니다.');await native.official(url);return {manual:true,error:'디시 화면에서 직접 마무리해 주세요. 처리됐는지는 새로고침하면 보입니다.'}}
  if(r.need)return {error:'로그인이 필요합니다.'};
  return r;
+}
+/* 추천·비추천: 채팅방 오른쪽 위 메뉴에서 누릅니다. */
+async function vote(down){
+ const room=R.room;R.rmenu=false;renderRoom(true);if(!room||!room.post||R.voting)return;
+ R.voting=true;toast(down?'비추천하는 중…':'추천하는 중…');
+ const r=await drive('recommend',{down},mView(gal(room.g),room.no),{timeout:30000});R.voting=false;
+ if(r.need==='captcha'){toast('보안 문자 입력이 필요해 디시 화면을 엽니다.');await native.official(mView(gal(room.g),room.no));if(R.room===room)openPost(room.no,true);return}
+ if(!r.ok){toast(r.error||'추천하지 못했습니다.');return}
+ if(R.room===room){room.post.up=r.up;room.post.down=r.down;if(room.meta)room.meta.up=r.up;renderRoom(true)}
+ toast(down?'비추천했습니다.':'추천했습니다.');
 }
 async function sendToRoom(name,args){
  const room=R.room;if(!room||R.sending)return false;
@@ -541,6 +551,7 @@ document.addEventListener('click',e=>{
  else if(d.refresh!=null){refresh()}
  else if(d.gcancel!=null){gaskClose(null)}
  else if(d.glogin!=null){gaskClose('login')}
+ else if(d.vote){vote(d.vote==='down')}
  else if(d.orig!=null){R.orig=!R.orig;R.rmenu=false;renderRoom(true)}
  else if(d.rmenu!=null){R.rmenu=!R.rmenu;renderRoom(true);if(d.url)native.open(d.url)}
  else if(d.rreload!=null){if(R.room)openPost(R.room.no,true)}
