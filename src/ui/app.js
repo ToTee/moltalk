@@ -59,7 +59,7 @@ const dayLabel=d=>d.getFullYear()+'년 '+(d.getMonth()+1)+'월 '+d.getDate()+'�
 
 /* ---------- 실행 중 상태 ---------- */
 const R={view:'friends',g:null,head:'',list:null,listErr:'',listBusy:false,seq:0,room:null,roomSeq:0,ov:'',pinOpen:false,nfold:false,stab:'',saved:false,
- latest:{},updated:{},cache:{},pv:{},pc:{},shown:20,hidden:0,search:{q:'',res:null,busy:false,err:''},filter:'',filterOn:false,gmenu:null,log:'게시글',
+ latest:{},updated:{},cache:{},hk:{},pv:{},pc:{},shown:20,hidden:0,search:{q:'',res:null,busy:false,err:''},filter:'',filterOn:false,gmenu:null,log:'게시글',
  gallog:{},user:'',userKnown:false,reply:null,menu:null,ask:false,cpanel:false,tpanel:false,cons:{items:null,busy:false,err:''},con1:null,tcon:'',write:null,sending:false,toBottom:false};
 const who=x=>x.name+(x.ip?'('+x.ip+')':'');
 function toast(msg){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>t.hidden=true,2600)}
@@ -101,7 +101,9 @@ const PLAIN=['전체','안읽음','ChatGPT'];
 function chatsHtml(){
  const g=gal(R.g);
  if(!g)return '<div class="head"><h2>채팅 <small>▼</small></h2>'+cogM+'</div><div class="empty">친구 목록에서 갤러리를 고르면<br>글 목록이 여기에 나옵니다.</div>';
- const L=R.list,heads=L?.heads||[],plain=!heads.length;
+ /* 말머리 탭은 갤러리마다 한 번 읽은 것을 기억해 둡니다. 탭을 눌러 목록을 다시 읽는 동안에도 같은 탭이 그대로 보입니다. */
+ const L=R.list;if(L&&(L.heads?.length||!R.hk[R.g]))R.hk[R.g]=L.heads||[];
+ const heads=R.hk[R.g]||[],plain=!!R.hk[R.g]&&!heads.length;
  const tabs=plain?PLAIN.map(n=>({id:n==='전체'?'':n,name:n})):[{id:'',name:'전체'},...heads];
  const pins=(L?.posts||[]).filter(p=>p.notice);
  let posts=L?L.posts:[];
@@ -432,7 +434,8 @@ async function moreComments(){
 }
 /* 친구 목록의 "최근 글" 문구와 새 글 표시를 채웁니다. 하나씩 요청하고, 1분 안에 읽은 갤러리는 건너뛰며, 막히면 멈춥니다. */
 const latestQ=[];let latestRun=false;
-async function loadLatest(list=D.gals){
+/* 최근 글과 새 글 표시는 즐겨찾기만 확인합니다(친구 목록 전체를 읽으면 요청이 너무 많아집니다). */
+async function loadLatest(list=D.favs.map(gal).filter(Boolean)){
  latestQ.push(...list.filter(g=>!latestQ.includes(g)));if(latestRun)return;latestRun=true;
  const queue=latestQ,work=async()=>{for(let g;(g=queue.shift());){const k=key(g),c=R.cache[k+'|'];if(Date.now()<pvPause){queue.length=0;break}if(c&&Date.now()-c.at<60000)continue;try{const res=await dc.listPosts(g),t=res.posts.find(p=>!p.notice);if(!t)continue;
    R.latest[k]={id:t.id,title:t.title};R.cache[k+'|']={list:{posts:res.posts,heads:res.heads,page:1,more:true},at:Date.now()};
@@ -493,7 +496,7 @@ document.addEventListener('click',e=>{
  else if(d.back!=null){R.room=null;R.roomSeq++;renderRoom();renderPane()}
  else if(d.filter!=null){R.filterOn=!R.filterOn;if(!R.filterOn)R.filter='';renderPane();$('#filter')?.focus()}
  else if(d.add!=null){const g=R.search.res[+d.add];if(g&&!gal(key(g))){D.gals.push(g);save();renderPane();loadLatest([g])}}
- else if(d.fav){const i=D.favs.indexOf(d.fav);if(i<0)D.favs.push(d.fav);else D.favs.splice(i,1);save();R.ov='';renderPane()}
+ else if(d.fav){const i=D.favs.indexOf(d.fav);if(i<0){D.favs.push(d.fav);loadLatest([gal(d.fav)].filter(Boolean))}else D.favs.splice(i,1);save();R.ov='';renderPane()}
  else if(d.remove){D.gals=D.gals.filter(g=>key(g)!==d.remove);D.favs=D.favs.filter(k=>k!==d.remove);if(R.g===d.remove){R.g=null;R.list=null;R.room=null;renderRoom()}save();R.ov='';renderPane()}
  else if(d.open){const g=gal(d.open);native.open('https://gall.dcinside.com/'+(g.type==='minor'?'mgallery/':g.type==='mini'?'mini/':'')+'board/lists/?id='+g.id)}
  else if(d.url){native.open(d.url)}
@@ -555,4 +558,13 @@ window.yjBack=()=>{if(!$('#viewer').hidden){$('#viewer').hidden=true;return true
  if(R.room){R.room=null;R.roomSeq++;renderRoom();renderPane();return true}if(R.view==='chats'){R.view='friends';renderPane();return true}return false};
 document.addEventListener('keydown',e=>{if(e.key==='Escape')window.yjBack()});
 
-renderPane();renderRoom();loadLatest().then(checkUser);
+/* 처음 한 번, 친구 목록이 비어 보이지 않게 디시의 흥한 갤러리 순위에서 20개를 채워 넣습니다. 이후에는 다시 넣지 않으며, 지운 갤러리가 되살아나지 않습니다. */
+async function seedFriends(){
+ if(D.seeded)return;
+ try{const r=await native.http('https://json2.dcinside.com/json1/ranking_gallery.php?jsoncallback=cb',{headers:{Referer:'https://gall.dcinside.com/'}});
+  const list=JSON.parse(r.text.trim().replace(/^cb\(/,'').replace(/\)\s*;?$/,''));let n=0;
+  for(const x of list){if(n>=20)break;const g={id:String(x.id||''),type:'normal',name:String(x.ko_name||'').trim()};if(!/^[A-Za-z0-9_]{1,80}$/.test(g.id)||!g.name||gal(key(g)))continue;D.gals.push(g);n++}
+  D.seeded=true;save();if(R.view==='friends'&&!R.ov)renderPane();
+ }catch{}
+}
+renderPane();renderRoom();seedFriends();loadLatest().then(checkUser);

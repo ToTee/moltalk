@@ -689,6 +689,7 @@
     latest: {},
     updated: {},
     cache: {},
+    hk: {},
     pv: {},
     pc: {},
     shown: 20,
@@ -743,7 +744,9 @@
   function chatsHtml() {
     const g = gal(R.g);
     if (!g) return '<div class="head"><h2>\uCC44\uD305 <small>\u25BC</small></h2>' + cogM + '</div><div class="empty">\uCE5C\uAD6C \uBAA9\uB85D\uC5D0\uC11C \uAC24\uB7EC\uB9AC\uB97C \uACE0\uB974\uBA74<br>\uAE00 \uBAA9\uB85D\uC774 \uC5EC\uAE30\uC5D0 \uB098\uC635\uB2C8\uB2E4.</div>';
-    const L = R.list, heads = L?.heads || [], plain = !heads.length;
+    const L = R.list;
+    if (L && (L.heads?.length || !R.hk[R.g])) R.hk[R.g] = L.heads || [];
+    const heads = R.hk[R.g] || [], plain = !!R.hk[R.g] && !heads.length;
     const tabs = plain ? PLAIN.map((n) => ({ id: n === "\uC804\uCCB4" ? "" : n, name: n })) : [{ id: "", name: "\uC804\uCCB4" }, ...heads];
     const pins = (L?.posts || []).filter((p) => p.notice);
     let posts = L ? L.posts : [];
@@ -1330,7 +1333,7 @@
   }
   var latestQ = [];
   var latestRun = false;
-  async function loadLatest(list = D.gals) {
+  async function loadLatest(list = D.favs.map(gal).filter(Boolean)) {
     latestQ.push(...list.filter((g) => !latestQ.includes(g)));
     if (latestRun) return;
     latestRun = true;
@@ -1551,8 +1554,10 @@
       }
     } else if (d.fav) {
       const i = D.favs.indexOf(d.fav);
-      if (i < 0) D.favs.push(d.fav);
-      else D.favs.splice(i, 1);
+      if (i < 0) {
+        D.favs.push(d.fav);
+        loadLatest([gal(d.fav)].filter(Boolean));
+      } else D.favs.splice(i, 1);
       save();
       R.ov = "";
       renderPane();
@@ -1814,7 +1819,27 @@
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") window.yjBack();
   });
+  async function seedFriends() {
+    if (D.seeded) return;
+    try {
+      const r = await native.http("https://json2.dcinside.com/json1/ranking_gallery.php?jsoncallback=cb", { headers: { Referer: "https://gall.dcinside.com/" } });
+      const list = JSON.parse(r.text.trim().replace(/^cb\(/, "").replace(/\)\s*;?$/, ""));
+      let n = 0;
+      for (const x of list) {
+        if (n >= 20) break;
+        const g = { id: String(x.id || ""), type: "normal", name: String(x.ko_name || "").trim() };
+        if (!/^[A-Za-z0-9_]{1,80}$/.test(g.id) || !g.name || gal(key(g))) continue;
+        D.gals.push(g);
+        n++;
+      }
+      D.seeded = true;
+      save();
+      if (R.view === "friends" && !R.ov) renderPane();
+    } catch {
+    }
+  }
   renderPane();
   renderRoom();
+  seedFriends();
   loadLatest().then(checkUser);
 })();

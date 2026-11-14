@@ -1,11 +1,43 @@
 // 양지톡 윈도우용 껍데기. 화면(app/)을 띄우고, 디시로 가는 요청만 대신 보내 줍니다.
-const {app,BrowserWindow,ipcMain,net,session,shell}=require('electron');
+const {app,BrowserWindow,desktopCapturer,ipcMain,net,screen,session,shell}=require('electron');
 const path=require('path');
 const fs=require('fs');
 const UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
 const dcHost=h=>/(^|\.)dcinside\.(com|co\.kr)$/.test(h);
 const dcUrl=u=>{try{const x=new URL(u);return x.protocol==='https:'&&!x.username&&!x.password&&dcHost(x.hostname)?x:null}catch{return null}};
 let win=null;
+
+/* ---------- 진단 기록 ----------
+   창 크기를 끌 때 화면이 회색으로 덮이는 문제를 조사하기 위한 기록입니다. 이 컴퓨터의 저장 폴더(diag/)에만 남고 어디로도 보내지 않습니다.
+   창이 생기고 보이고 크기가 바뀌는 순간, 그래픽 처리 상태, 화면 응답 시간을 적고, 크기를 끌기 시작하면 모니터 화면을 몇 장 찍어 둡니다. */
+const diagDir=()=>path.join(app.getPath('userData'),'diag');
+function diag(...a){try{fs.mkdirSync(diagDir(),{recursive:true});fs.appendFileSync(path.join(diagDir(),'diagnostic.log'),new Date().toISOString()+' '+a.map(x=>typeof x==='string'?x:JSON.stringify(x)).join(' ')+'\n')}catch{}}
+const allWindows=()=>BrowserWindow.getAllWindows().map(w=>({id:w.id,title:w.getTitle(),visible:w.isVisible(),bounds:w.getBounds()}));
+let shots=0,shotBusy=false;
+async function diagShot(tag){
+ if(shotBusy||shots>=12)return;shotBusy=true;shots++;
+ try{const d=screen.getPrimaryDisplay(),src=await desktopCapturer.getSources({types:['screen'],thumbnailSize:{width:Math.round(d.size.width/2),height:Math.round(d.size.height/2)}});
+  const name='shot-'+Date.now()+'-'+tag+'.png';if(src[0]){fs.writeFileSync(path.join(diagDir(),name),src[0].thumbnail.toPNG());diag('shot',name)}}catch(e){diag('shot-error',e.message)}
+ shotBusy=false;
+}
+function diagSetup(){
+ try{const f=path.join(diagDir(),'diagnostic.log');if(fs.existsSync(f)&&fs.statSync(f).size>1500000)fs.rmSync(f);
+  for(const n of fs.existsSync(diagDir())?fs.readdirSync(diagDir()):[])if(/^shot-/.test(n))fs.rmSync(path.join(diagDir(),n))}catch{}
+ diag('start',{version:app.getVersion(),electron:process.versions.electron,chrome:process.versions.chrome,exe:process.execPath,displays:screen.getAllDisplays().map(d=>({bounds:d.bounds,workArea:d.workArea,scale:d.scaleFactor})),gpu:app.getGPUFeatureStatus()});
+ app.getGPUInfo('basic').then(i=>diag('gpu-info',i)).catch(()=>{});
+ app.on('child-process-gone',(e,d)=>diag('child-process-gone',d));
+ app.on('render-process-gone',(e,wc,d)=>diag('render-process-gone',d));
+ app.on('browser-window-created',(e,w)=>{
+  diag('window-created',{id:w.id});
+  for(const ev of ['show','hide','closed','maximize','unmaximize','minimize','restore','focus','blur','unresponsive','responsive','moved','resized'])w.on(ev,()=>diag('window-'+ev,{id:w.id,bounds:w.isDestroyed()?null:w.getBounds()}));
+  let last=0,ping=0;
+  w.on('will-resize',(e2,b,d)=>{const now=Date.now(),fresh=now-last>1500;last=now;diag('will-resize',{id:w.id,to:b,edge:d&&d.edge,from:w.getBounds()});
+   if(fresh){diag('resize-begin',{windows:allWindows(),cursor:screen.getCursorScreenPoint()});diagShot('begin');setTimeout(()=>diagShot('400ms'),400);setTimeout(()=>diagShot('1200ms'),1200)}
+   /* 화면(렌더러)이 제때 응답하는지 잽니다. */
+   if(now-ping>300){ping=now;const t=Date.now();w.webContents.executeJavaScript('1').then(()=>diag('renderer-reply-ms',Date.now()-t)).catch(()=>{})}});
+  w.on('resize',()=>diag('resize',{id:w.id,bounds:w.getBounds(),content:w.getContentBounds()}));
+ });
+}
 
 function setupSession(){
  const ses=session.defaultSession;
@@ -99,6 +131,6 @@ function createWindow(){
 if(!process.env.YJ_SHOT&&!app.requestSingleInstanceLock())app.quit();
 else{
  app.on('second-instance',()=>{if(win){if(win.isMinimized())win.restore();win.focus()}});
- app.whenReady().then(()=>{setupSession();createWindow()});
+ app.whenReady().then(()=>{diagSetup();setupSession();createWindow()});
 }
 app.on('window-all-closed',()=>app.quit());
