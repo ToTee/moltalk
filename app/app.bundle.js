@@ -401,9 +401,9 @@
         }
       };
       await until(() => token() || ts.state === "interactive" || ts.state === "error", 2e4);
-      if (token()) return true;
+      if (token() || ts.state !== "interactive") return true;
       reveal(true, ts.host || slot);
-      const ok = await until(token, 17e4);
+      const ok = await until(() => token() || ts.state !== "interactive", 17e4);
       reveal(false);
       return !!ok;
     };

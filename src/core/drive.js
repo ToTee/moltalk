@@ -60,9 +60,11 @@ function helpers(){
   window.dcTsLoad();window.dcTsUse(root);
   const token=()=>{try{return window.turnstile&&ts.id!==null&&window.turnstile.getResponse(ts.id)||''}catch(e){return ''}};
   await until(()=>token()||ts.state==='interactive'||ts.state==='error',20000);
-  if(token())return true;
+  /* 디시 화면은 확인값이 없어도 등록 요청을 보내고(확인 상태만 함께 알림), 받아 줄지는 디시 서버가 정합니다.
+     그래서 확인이 오류로 끝났을 때는 여기서 막지 않고 디시 화면과 똑같이 등록을 진행합니다. 직접 눌러야 할 때만 창을 보여 주고 기다립니다. */
+  if(token()||ts.state!=='interactive')return true;
   reveal(true,ts.host||slot);
-  const ok=await until(token,170000);reveal(false);
+  const ok=await until(()=>token()||ts.state!=='interactive',170000);reveal(false);
   return !!ok;
  };
  const HUMAN_FAIL={error:"'사람인지 확인'을 마치지 못해 등록하지 않았습니다. 다시 시도해 주세요."};

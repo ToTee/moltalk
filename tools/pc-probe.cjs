@@ -22,7 +22,7 @@ app.whenReady().then(async()=>{
    const ta=box.querySelector('textarea');try{ts_cmt_touch.call(ta)}catch(e){out.touchErr=e.message}
    const tok=()=>{try{return window.turnstile&&ts_cmt.id!==null&&turnstile.getResponse(ts_cmt.id)||''}catch(e){return ''}};
    if(window.__ask){const tip=document.createElement('div');tip.textContent='양지톡 시험용 창입니다. 아래 댓글 칸의 [사람인지 확인] 상자를 한 번만 눌러 주세요. 아무것도 등록되지 않고, 누르면 잠시 뒤 창이 저절로 닫힙니다.';tip.style.cssText='position:fixed;left:0;right:0;top:0;z-index:2147483647;background:#fee500;color:#111;font:700 15px/1.5 sans-serif;padding:12px 16px;text-align:center';document.body.appendChild(tip);box.scrollIntoView({block:'center'})}
-   const seen=[],s0=Date.now(),lim=window.__ask?200:40;let endAt=0;for(let i=0;i<lim;i++){const s=String(ts_cmt.st)+(ts_cmt.ix?'+clicked':'');if(seen[seen.length-1]!==s)seen.push(s+'@'+((Date.now()-s0)/1000).toFixed(0));if(tok()&&!endAt)endAt=i+2;if(/error|fail/i.test(s)&&!endAt)endAt=i+6;if(endAt&&i>=endAt)break;await wait(500)}
+   const seen=[],s0=Date.now(),lim=window.__ask?200:40;let endAt=0,last=null;for(let i=0;i<lim;i++){const s=String(ts_cmt.st)+(ts_cmt.ix?'+clicked':'');if(last!==s){last=s;seen.push(s+'@'+((Date.now()-s0)/1000).toFixed(0))}if(tok()&&!endAt)endAt=i+2;if(/error|fail/i.test(s)&&!endAt)endAt=i+6;if(endAt&&i>=endAt)break;await wait(500)}
    out.pc={states:seen,final:String(ts_cmt.st),token:tok().length,took:((Date.now()-s0)/1000).toFixed(1),keys:Object.keys(ts_cmt).join(','),iframe:!!box.querySelector('iframe')};
   }
   const ts=window.dcTs;
