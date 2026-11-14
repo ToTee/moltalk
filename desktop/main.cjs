@@ -42,15 +42,19 @@ function diagSetup(){
 }
 
 /* 숨겨서 진행하는 공식 화면 작업(댓글 등록 등)의 창 번호. 이 창들은 디시 밖의 광고·통계 요청을 받지 않아 빨리 열립니다. */
-const hiddenJobs=new Set();
+const hiddenJobs=new Set(),blockedSeen=new Set();
 function setupSession(){
  const ses=session.defaultSession;
  ses.setUserAgent(UA);
  ses.webRequest.onBeforeRequest((d,done)=>{
   if(!hiddenJobs.has(d.webContentsId))return done({});
-  let host='';try{host=new URL(d.url).hostname}catch{}
-  const human=host==='challenges.cloudflare.com';/* '사람인지 확인' 상자는 그대로 둡니다. */
-  done({cancel:!human&&!dcUrl(d.url)});
+  let host='',proto='';try{const u=new URL(d.url);host=u.hostname;proto=u.protocol}catch{}
+  /* 막는 것은 다른 사이트로 나가는 웹 요청(광고·통계)뿐입니다. 화면 안에서 만든 주소(blob:, data: 등)는 '사람인지 확인' 상자가 쓰므로 그대로 둡니다. */
+  if(!/^(https?|wss?):$/.test(proto))return done({});
+  const human=host==='challenges.cloudflare.com'||host.endsWith('.cloudflare.com');/* '사람인지 확인' 상자는 그대로 둡니다. */
+  const cancel=!human&&!dcUrl(d.url);
+  if(cancel&&!blockedSeen.has(host)){blockedSeen.add(host);diag('blocked-host',host)}/* 어떤 사이트를 막았는지 한 번씩만 적어 둡니다(원인 조사용). */
+  done({cancel});
  });
  // 디시 이미지 서버는 Referer가 없으면 거절합니다. 화면에서 보낸 요청에 Referer를 채웁니다.
  ses.webRequest.onBeforeSendHeaders({urls:['https://*.dcinside.com/*','https://*.dcinside.co.kr/*']},(details,done)=>{
@@ -102,6 +106,9 @@ ipcMain.handle('drive',async(event,url,code,opt={})=>{
    const arm=ms=>{clearTimeout(timer);timer=setTimeout(()=>res({error:'시간이 초과되었습니다.'}),ms)};arm(limit);
    // '사람인지 확인'을 직접 눌러야 하면 공식 화면이 신호를 보냅니다. 그동안 창을 보여 주고 기다리는 시간을 늘립니다.
    w.webContents.on('console-message',(e,level,message)=>{const m=typeof message==='string'?message:e&&e.message;
+    /* '사람인지 확인'이 실패하면 클라우드플레어가 실패 번호를 콘솔에 남깁니다. 원인을 찾을 수 있게 진단 기록에 적어 둡니다(글 내용은 적지 않습니다). */
+    if(/turnstile|cloudflare/i.test(String(m||'')))diag('human',String(m).slice(0,300));
+    if(m==='__YJ_SHOW__'||m==='__YJ_HIDE__')diag('human',m);
     if(m==='__YJ_SHOW__'){w.setContentSize(380,230);w.center();w.setTitle('사람인지 확인');w.show();arm(200000)}else if(m==='__YJ_HIDE__'){w.hide();arm(limit)}});
   });
   const closed=new Promise(res=>w.once('closed',()=>res({error:'창을 닫아 등록을 취소했습니다.'})));
