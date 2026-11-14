@@ -55,7 +55,7 @@ ipcMain.handle('drive',async(event,url,code,opt={})=>{
   await w.loadURL(url).catch(()=>{});
   if(!dcUrl(w.webContents.getURL()))return {error:'화면을 열지 못했습니다.'};
   const nav=new Promise(res=>w.webContents.once('did-navigate',(e,u)=>res({navigated:u})));
-  const limit=Math.min(Number(opt.timeout)||45000,300000);
+  const limit=Math.min(Number(opt.timeout)||90000,300000);/* 사람인지 확인(최대 20초)과 등록 응답(최대 20초)을 모두 기다릴 수 있는 시간 */
   const timeout=new Promise(res=>{
    const arm=ms=>{clearTimeout(timer);timer=setTimeout(()=>res({error:'시간이 초과되었습니다.'}),ms)};arm(limit);
    // '사람인지 확인'을 직접 눌러야 하면 공식 화면이 신호를 보냅니다. 그동안 창을 보여 주고 기다리는 시간을 늘립니다.
@@ -80,8 +80,9 @@ ipcMain.handle('logout',async()=>{await session.defaultSession.clearStorageData(
 
 function createWindow(){
  const test=!!process.env.YJ_SHOT;/* 확인용 실행은 창을 화면에 띄우지 않습니다. */
- win=new BrowserWindow({width:Number(process.env.YJ_W)||440,height:800,minWidth:360,minHeight:520,title:'양지톡',autoHideMenuBar:true,backgroundColor:'#ffffff',show:!test,
+ win=new BrowserWindow({width:Number(process.env.YJ_W)||440,height:800,minWidth:360,minHeight:520,title:'양지톡',autoHideMenuBar:true,backgroundColor:'#ffffff',show:!test||!!process.env.YJ_VISIBLE,/* YJ_VISIBLE: 확인용 실행에서도 창을 실제로 띄웁니다. */
   webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true,additionalArguments:['--yj-version='+app.getVersion()]}});
+ if(process.env.YJ_VISIBLE)win.setAlwaysOnTop(true);
  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
  win.webContents.on('will-navigate',e=>e.preventDefault());
  win.loadFile(path.join(__dirname,'..','app','index.html'));
@@ -94,5 +95,10 @@ function createWindow(){
  });
  win.webContents.on('console-message',(e,level,message)=>{if(process.env.YJ_SHOT&&level>=2)console.log('[page]',message)});
 }
-app.whenReady().then(()=>{setupSession();createWindow()});
+// 앱은 하나만 실행합니다(두 개가 같은 저장 공간을 함께 쓰면 서로 방해합니다). 확인용 실행은 예외입니다.
+if(!process.env.YJ_SHOT&&!app.requestSingleInstanceLock())app.quit();
+else{
+ app.on('second-instance',()=>{if(win){if(win.isMinimized())win.restore();win.focus()}});
+ app.whenReady().then(()=>{setupSession();createWindow()});
+}
 app.on('window-all-closed',()=>app.quit());

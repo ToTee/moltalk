@@ -39,7 +39,7 @@ function helpers(){
    if(st)st.remove();if(tip)tip.remove();
    for(const n of document.querySelectorAll('.yj-host'))n.classList.remove('yj-host');
   }
-  try{if(window.YJD&&window.YJD.show)window.YJD.show(!!on)}catch(e){}
+  try{if(window.__yjShow)window.__yjShow(!!on)}catch(e){}
   console.log(on?'__YJ_SHOW__':'__YJ_HIDE__');
  };
  // 사람인지 확인(디시가 글·댓글 등록에 붙인 클라우드플레어 확인 상자). root 안에 확인 칸이 있으면 불러와서

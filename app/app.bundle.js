@@ -66,7 +66,7 @@
         if (tag === "a") {
           const href = abs(c.getAttribute("href") || ""), before = buf.length;
           walk(c);
-          if (/^https?:\/\//.test(href) && !/https?:\/\//.test(buf.slice(before))) buf += (buf.length > before ? " " : "") + href;
+          if (/^https?:\/\//.test(href) && !/https?:\/\//.test(buf.slice(before))) buf += (buf.length > before ? " " : "") + href + " ";
           continue;
         }
         const block = /^(p|div|li|tr|h[1-6]|blockquote|ul|ol|table)$/.test(tag);
@@ -288,7 +288,7 @@
         for (const n of document.querySelectorAll(".yj-host")) n.classList.remove("yj-host");
       }
       try {
-        if (window.YJD && window.YJD.show) window.YJD.show(!!on);
+        if (window.__yjShow) window.__yjShow(!!on);
       } catch (e) {
       }
       console.log(on ? "__YJ_SHOW__" : "__YJ_HIDE__");
@@ -1319,23 +1319,28 @@
     const t = e.target.closest("[data-lp]");
     if (t && !e.button) {
       const x = e.clientX, y = e.clientY;
-      clearTimeout(lp);
+      lpEnd();
       lp = setTimeout(() => {
-        lp = null;
+        lpEnd();
         lpSkip = true;
         drag = null;
         longPress(t);
       }, 500);
-      const mv = (v) => {
-        if (Math.abs(v.clientX - x) + Math.abs(v.clientY - y) > 8) {
-          clearTimeout(lp);
-          lp = null;
-          document.removeEventListener("pointermove", mv);
-        }
+      lpMove = (v) => {
+        if (Math.abs(v.clientX - x) + Math.abs(v.clientY - y) > 8) lpEnd();
       };
-      document.addEventListener("pointermove", mv);
+      document.addEventListener("pointermove", lpMove);
     }
   });
+  var lpMove = null;
+  function lpEnd() {
+    clearTimeout(lp);
+    lp = null;
+    if (lpMove) {
+      document.removeEventListener("pointermove", lpMove);
+      lpMove = null;
+    }
+  }
   document.addEventListener("pointermove", (e) => {
     if (!drag) return;
     const d = e.clientX - drag.x;
@@ -1343,8 +1348,7 @@
     if (drag.moved) drag.c.scrollLeft = drag.l - d;
   });
   document.addEventListener("pointerup", () => {
-    clearTimeout(lp);
-    lp = null;
+    lpEnd();
     if (drag && drag.moved) {
       dragged = true;
       setTimeout(() => dragged = false);
@@ -1353,8 +1357,7 @@
     if (lpSkip) setTimeout(() => lpSkip = false, 50);
   });
   document.addEventListener("pointercancel", () => {
-    clearTimeout(lp);
-    lp = null;
+    lpEnd();
     drag = null;
   });
   document.addEventListener("wheel", (e) => {

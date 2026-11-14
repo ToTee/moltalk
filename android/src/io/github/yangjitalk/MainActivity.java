@@ -66,6 +66,7 @@ public class MainActivity extends Activity {
     // 보조 웹뷰에서 진행 중인 작업 하나의 상태
     private String jobId;
     private boolean jobVisible;
+    private String jobToken; // 작업마다 새로 만드는 표식. 공식 화면이 결과를 돌려줄 때 확인합니다.
     private boolean jobShown; // 숨겨서 진행하던 작업을 잠깐 보여 주는 중
     private String jobCloseOn;
     private String jobCode;
@@ -262,16 +263,16 @@ public class MainActivity extends Activity {
         @JavascriptInterface public void done(String id, String json) {
             // 공식 화면에서 온 글자는 그대로 코드에 붙이지 않고, 문자열로 감싼 뒤 화면 쪽에서 JSON으로만 해석합니다.
             String safe = "(()=>{try{return JSON.parse(" + JSONObject.quote(json == null ? "null" : json) + ")}catch(e){return {error:'응답을 해석하지 못했습니다.'}}})()";
-            ui.post(() -> { if (id != null && id.equals(jobId) && !jobVisible) finishJob(safe); });
+            ui.post(() -> { if (id != null && id.equals(jobToken) && jobId != null && !jobVisible) finishJob(safe); });
         }
         /** '사람인지 확인'처럼 직접 눌러야 하는 일이 생기면 숨겨 둔 공식 화면을 잠깐 보여 줍니다. */
-        @JavascriptInterface public void show(boolean on) {
+        @JavascriptInterface public void show(String token, boolean on) {
             ui.post(() -> {
-                if (jobId == null || jobVisible) return;
+                if (jobId == null || jobVisible || token == null || !token.equals(jobToken)) return;
                 jobShown = on;
                 popup(on);
                 helperBox.setVisibility(on ? View.VISIBLE : View.INVISIBLE);
-                if (jobTimeout != null) { ui.removeCallbacks(jobTimeout); ui.postDelayed(jobTimeout, on ? 200000 : 45000); }
+                if (jobTimeout != null) { ui.removeCallbacks(jobTimeout); ui.postDelayed(jobTimeout, on ? 200000 : 90000); }
             });
         }
     }
@@ -279,14 +280,15 @@ public class MainActivity extends Activity {
     private void startJob(String id, String url, String code, boolean visible, String closeOptJson, String optJson) {
         if (!dcUrl(url)) { reply(id, error("디시인사이드 주소만 열 수 있습니다.")); return; }
         if (jobId != null) { reply(id, "{\"error\":\"다른 작업이 진행 중입니다. 잠시 뒤에 다시 시도해 주세요.\"}"); return; }
-        long timeout = 45000;
+        long timeout = 90000; // 화면 열기, 사람인지 확인(최대 20초), 등록 응답(최대 20초)을 모두 기다릴 수 있는 시간
         String closeOn = null;
         try {
             JSONObject opt = new JSONObject(optJson == null || optJson.isEmpty() ? "{}" : optJson);
-            timeout = Math.min(Math.max(opt.optLong("timeout", 45000), 5000), 300000);
+            timeout = Math.min(Math.max(opt.optLong("timeout", 90000), 5000), 300000);
             if (visible && opt.has("closeOn")) closeOn = opt.optString("closeOn");
         } catch (Exception ignored) { }
         jobId = id;
+        jobToken = java.util.UUID.randomUUID().toString();
         jobVisible = visible;
         jobCloseOn = closeOn;
         jobCode = code;
@@ -339,8 +341,9 @@ public class MainActivity extends Activity {
             if (jobInjectedUrl == null) {
                 // 스크립트 결과(Promise)를 기다렸다가 YJD.done으로 돌려줍니다.
                 jobInjectedUrl = url;
-                String id = JSONObject.quote(jobId);
-                view.evaluateJavascript("(async()=>{try{const r=await (" + jobCode + ");YJD.done(" + id + ",JSON.stringify(r===undefined?null:r))}catch(e){YJD.done(" + id + ",JSON.stringify({error:'처리 중 오류가 났습니다: '+(e&&e.message||e)}))}})()", null);
+                // 결과를 돌려줄 때는 작업마다 새로 만든 표식을 함께 보내야 합니다. 화면 안에 끼워진 다른 사이트의 틀은 이 표식을 볼 수 없습니다.
+                String id = JSONObject.quote(jobToken);
+                view.evaluateJavascript("window.__yjShow=on=>YJD.show(" + id + ",!!on);(async()=>{try{const r=await (" + jobCode + ");YJD.done(" + id + ",JSON.stringify(r===undefined?null:r))}catch(e){YJD.done(" + id + ",JSON.stringify({error:'처리 중 오류가 났습니다: '+(e&&e.message||e)}))}})()", null);
             } else if (!url.equals(jobInjectedUrl)) {
                 // 스크립트 실행 뒤 화면이 다른 주소로 넘어갔습니다(글 등록 완료 등).
                 try { finishJob(new JSONObject().put("navigated", url).toString()); } catch (Exception e) { finishJob("{\"navigated\":\"\"}"); }

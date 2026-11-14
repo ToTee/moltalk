@@ -439,14 +439,17 @@ async function loadLatest(list=D.gals){
 let drag=null,dragged=false,lp=null,lpSkip=false;
 document.addEventListener('pointerdown',e=>{
  const c=e.target.closest('.chips,.favs');if(c)drag={c,x:e.clientX,l:c.scrollLeft,moved:false};
- const t=e.target.closest('[data-lp]');if(t&&!e.button){const x=e.clientX,y=e.clientY;clearTimeout(lp);
+ const t=e.target.closest('[data-lp]');if(t&&!e.button){const x=e.clientX,y=e.clientY;lpEnd();
   /* 꾹 누르는 동안 손가락이 조금 흔들려도(8픽셀 이내) 길게 누르기로 봅니다. 그보다 많이 움직이면 아래 mv가 취소합니다. */
-  lp=setTimeout(()=>{lp=null;lpSkip=true;drag=null;longPress(t)},500);
-  const mv=v=>{if(Math.abs(v.clientX-x)+Math.abs(v.clientY-y)>8){clearTimeout(lp);lp=null;document.removeEventListener('pointermove',mv)}};document.addEventListener('pointermove',mv)}
+  lp=setTimeout(()=>{lpEnd();lpSkip=true;drag=null;longPress(t)},500);
+  lpMove=v=>{if(Math.abs(v.clientX-x)+Math.abs(v.clientY-y)>8)lpEnd()};document.addEventListener('pointermove',lpMove)}
 });
+/* 길게 누르기 대기를 끝냅니다(손을 뗌, 취소, 많이 움직임, 길게 누르기 성립 모두). */
+let lpMove=null;
+function lpEnd(){clearTimeout(lp);lp=null;if(lpMove){document.removeEventListener('pointermove',lpMove);lpMove=null}}
 document.addEventListener('pointermove',e=>{if(!drag)return;const d=e.clientX-drag.x;if(Math.abs(d)>8)drag.moved=true;if(drag.moved)drag.c.scrollLeft=drag.l-d});
-document.addEventListener('pointerup',()=>{clearTimeout(lp);lp=null;if(drag&&drag.moved){dragged=true;setTimeout(()=>dragged=false)}drag=null;if(lpSkip)setTimeout(()=>lpSkip=false,50)});
-document.addEventListener('pointercancel',()=>{clearTimeout(lp);lp=null;drag=null});
+document.addEventListener('pointerup',()=>{lpEnd();if(drag&&drag.moved){dragged=true;setTimeout(()=>dragged=false)}drag=null;if(lpSkip)setTimeout(()=>lpSkip=false,50)});
+document.addEventListener('pointercancel',()=>{lpEnd();drag=null});
 document.addEventListener('wheel',e=>{const c=e.target.closest('.chips,.favs');if(c&&c.scrollWidth>c.clientWidth){c.scrollLeft+=e.deltaY;e.preventDefault()}},{passive:false});
 document.addEventListener('contextmenu',e=>{const t=e.target.closest('[data-lp]');if(t){e.preventDefault();longPress(t)}});
 function longPress(t){

@@ -3,7 +3,7 @@
 디시인사이드를 메신저 화면으로 보는 **비공식** 앱입니다. 갤러리는 친구, 글은 채팅방, 댓글은 대화로 보입니다.
 디시인사이드와 관계없는 개인 프로젝트이며, 내려받기는 [Releases](../../releases)에서 할 수 있습니다.
 
-- 윈도우: `YangjiTalk-<버전>.exe` (설치 없이 실행)
+- 윈도우: `YangjiTalk-Setup-<버전>.exe` (실행하면 설치되고 바탕 화면에 바로 가기가 생깁니다)
 - 안드로이드: `YangjiTalk-<버전>.apk` (안드로이드 7.0 이상)
 
 ## 기능
@@ -26,7 +26,7 @@ Node.js 20 이상이 필요합니다.
 ```
 npm install
 npm start          # 윈도우에서 바로 실행
-npm run build:exe  # release/ 에 EXE 생성
+npm run build:exe  # release/ 에 설치 파일(EXE) 생성
 npm run build:apk  # android/out/ 에 APK 생성
 ```
 
