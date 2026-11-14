@@ -10,7 +10,7 @@ if(process.env.P_ONEUA)app.userAgentFallback=MOBILE_UA;
 app.whenReady().then(async()=>{
  const w=new BrowserWindow({width:440,height:780,show:!!process.env.P_SHOW,webPreferences:{contextIsolation:true,nodeIntegration:false,sandbox:true}});
  if(!process.env.P_ONEUA)w.webContents.setUserAgent(process.env.P_UA==='real'?REAL_UA:MOBILE_UA);
- if(process.env.P_ASK){w.setAlwaysOnTop(true);w.center();w.setTitle('양지톡 시험 창');w.show();w.focus()}
+ if(process.env.P_ASK){w.setAlwaysOnTop(true);w.center();w.setTitle('몰톡 시험 창');w.show();w.focus()}
  const t0=Date.now(),logs=[];w.webContents.on('console-message',(e,l,m)=>{const s=String(typeof m==='string'?m:e.message);if(/turnstile|cloudflare/i.test(s))logs.push(((Date.now()-t0)/1000).toFixed(1)+'s '+s.slice(0,160))});
  /* P_EMU=1: 크롬 개발자 도구의 '기기 모드'와 같은 방법으로, 브라우저가 알리는 정보(종류·터치·화면)를 휴대폰으로 일관되게 맞춥니다. */
  if(process.env.P_EMU){stage='emu';await w.loadURL('about:blank');const d=w.webContents.debugger,V=process.versions.chrome.split('.')[0];d.attach('1.3');
@@ -29,7 +29,7 @@ app.whenReady().then(async()=>{
   window.dcTsLoad();window.dcTsUse(root);
   const token=()=>{try{return window.turnstile&&ts.id!==null&&window.turnstile.getResponse(ts.id)||''}catch(e){return ''}};
   const seen=[];
-  if(window.__ask){const tip=document.createElement('div');tip.textContent='양지톡 시험용 창입니다. [사람인지 확인] 상자를 한 번만 눌러 주세요. 아무것도 등록되지 않고, 누르면 잠시 뒤 저절로 닫힙니다.';tip.style.cssText='position:fixed;left:0;right:0;top:0;z-index:2147483647;background:#fee500;color:#111;font:700 14px/1.5 sans-serif;padding:10px 12px;text-align:center';document.body.appendChild(tip);
+  if(window.__ask){const tip=document.createElement('div');tip.textContent='몰톡 시험용 창입니다. [사람인지 확인] 상자를 한 번만 눌러 주세요. 아무것도 등록되지 않고, 누르면 잠시 뒤 저절로 닫힙니다.';tip.style.cssText='position:fixed;left:0;right:0;top:0;z-index:2147483647;background:#fee500;color:#111;font:700 14px/1.5 sans-serif;padding:10px 12px;text-align:center';document.body.appendChild(tip);
    for(let i=0;i<40&&ts.state!=='interactive'&&!token();i++)await wait(500);(ts.host||slot).scrollIntoView({block:'center'});
    let last=null,endAt=0;const s0=Date.now();for(let i=0;i<200;i++){const s=String(ts.state);if(last!==s){last=s;seen.push(s+'@'+((Date.now()-s0)/1000).toFixed(0))}if(token()&&!endAt)endAt=i+2;if(/error/.test(s)&&!endAt)endAt=i+8;if(endAt&&i>=endAt)break;await wait(500)}
    return {env:{ua:env.ua,uaData:env.uaData,platform:env.platform},states:seen,final:ts.state,token:token().length}}

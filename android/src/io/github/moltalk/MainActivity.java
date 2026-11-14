@@ -1,4 +1,4 @@
-package io.github.yangjitalk;
+package io.github.moltalk;
 
 import android.app.Activity;
 import android.content.ClipData;
@@ -43,14 +43,14 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * 양지톡 안드로이드 껍데기.
+ * 몰톡 안드로이드 껍데기.
  * 화면(app/)은 앱에 들어 있는 파일을 그대로 보여 주고, 디시로 가는 요청만 대신 보내 줍니다.
  * 쓰기·삭제·로그인은 디시 공식 모바일 화면을 보조 웹뷰에서 열어 처리합니다.
  */
 public class MainActivity extends Activity {
     private static final String UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
     private static final String MOBILE_UA = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36";
-    private static final String APP_HOST = "app.yangjitalk.invalid";
+    private static final String APP_HOST = "app.moltalk.invalid";
     private static final String APP_URL = "https://" + APP_HOST + "/index.html";
     private static final int PICK_FILE = 1;
 

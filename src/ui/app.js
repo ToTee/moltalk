@@ -1,4 +1,4 @@
-// 양지톡 화면. 디시 읽기 코어(dc.js)의 결과를 메신저 모양으로 보여 줍니다.
+// 몰톡 화면. 디시 읽기 코어(dc.js)의 결과를 메신저 모양으로 보여 줍니다.
 import {createDc} from '../core/dc.js';
 import {script,mView,mList,mWrite,mModify,mGallog,LOGIN_URL,LOGIN_DONE} from '../core/drive.js';
 import {I} from './icons.js';
@@ -23,7 +23,9 @@ const hue=s=>COLORS[hash(s)%COLORS.length];
 const userAv=n=>'<span class="av" style="background:'+hue(n)+'">'+I.sil+'</span>';
 
 /* ---------- 저장되는 설정 ---------- */
-const LS='yangjitalk-v1';
+const LS='moltalk-v1';
+/* 앱 이름을 바꾸기 전(yangjitalk)에 저장한 설정이 있으면 새 이름으로 옮깁니다. */
+for(const [o,n] of [['yangjitalk-v1','moltalk-v1'],['yangjitalk-pv','moltalk-pv']]){const v=localStorage.getItem(o);if(v!==null){if(localStorage.getItem(n)===null)localStorage.setItem(n,v);localStorage.removeItem(o)}}
 const D=Object.assign({
  gals:[{id:'dcbest',type:'normal',name:'실시간 베스트'},{id:'singlebungle1472',type:'minor',name:'싱글벙글 지구촌'},{id:'programming',type:'normal',name:'프로그래밍'}],
  favs:['normal:dcbest','minor:singlebungle1472'],me:{name:'ㅇㅇ',status:''},photos:{},rooms:[],alias:{},aliasN:0,aliasOn:false,seen:{},top:{},tbg:'3b4890',tfg:'ffffff',trecent:[],watch:[],notis:[]
@@ -172,14 +174,14 @@ function overlayHtml(){
 const TABS=['프로필','공지 채팅방 이름','계정','정보'];
 function settingsHtml(x){
  if(!R.stab){const custom=D.rooms.filter(r=>r.mode==='custom'&&r.text).length;
-  const sum={'프로필':D.me.name+(D.me.status?' · '+D.me.status:''),'공지 채팅방 이름':'직접 입력 '+custom+'개 · 랜덤 '+(D.rooms.length-custom)+'개','계정':!R.userKnown?'확인 중…':R.user?'로그인됨':'로그인하지 않음','정보':'양지톡 '+(native.version||'')};
+  const sum={'프로필':D.me.name+(D.me.status?' · '+D.me.status:''),'공지 채팅방 이름':'직접 입력 '+custom+'개 · 랜덤 '+(D.rooms.length-custom)+'개','계정':!R.userKnown?'확인 중…':R.user?'로그인됨':'로그인하지 않음','정보':'몰톡 '+(native.version||'')};
   return '<div class="ov"><div class="head"><h2>설정</h2>'+x+'</div><div class="scroll setlist">'+TABS.map(t=>'<button class="row" data-stab="'+t+'"><span class="tx"><b>'+t+'</b><span class="st">'+esc(sum[t])+'</span></span>'+I.next+'</button>').join('')+'</div></div>'}
  const body=R.stab==='프로필'?'<div class="photoset">'+meAv()+'<button type="button" class="pill" data-mephoto>'+(D.me.photo?'사진 바꾸기':'사진 고르기')+'</button>'+(D.me.photo?'<button type="button" class="pill" data-mephotodel>사진 지우기</button>':'')+'</div><label>이름<input name="name" maxlength="20" value="'+esc(D.me.name)+'"></label><label>상태메시지<input name="status" maxlength="40" value="'+esc(D.me.status)+'"></label><p>친구 화면 맨 위 내 프로필에 표시되는 문구입니다.</p>':
   R.stab==='공지 채팅방 이름'?D.rooms.map((r,i)=>'<div class="slot"><span>'+(i+1)+'</span><select name="m'+i+'" aria-label="공지 '+(i+1)+' 이름 방식"><option value="random"'+(r.mode==='random'?' selected':'')+'>랜덤 이름</option><option value="custom"'+(r.mode==='custom'?' selected':'')+'>직접 입력</option></select><input name="t'+i+'" maxlength="30" placeholder="예: 대학 동기 모임" aria-label="공지 '+(i+1)+' 이름" value="'+esc(r.text)+'"'+(r.mode==='custom'?'':' disabled')+'></div>').join('')+'<p>갤러리마다 위에서부터 1번째, 2번째 공지에 차례로 적용됩니다. 직접 입력 칸이 비어 있으면 랜덤 이름이 쓰입니다.</p>':
-  R.stab==='계정'?'<p>'+(!R.userKnown?'로그인 상태를 확인하는 중입니다…':R.user?'로그인됨: '+esc(R.user):'로그인하지 않았습니다.')+'</p><p>로그인은 디시인사이드 공식 로그인 화면에서 직접 합니다. 양지톡은 비밀번호를 저장하지도, 볼 수도 없습니다.</p><div class="savebar">'+(R.user?'<button type="button" class="pill" data-logout>로그아웃</button>':'<button type="button" class="save" data-login>로그인</button>')+'</div>'+
+  R.stab==='계정'?'<p>'+(!R.userKnown?'로그인 상태를 확인하는 중입니다…':R.user?'로그인됨: '+esc(R.user):'로그인하지 않았습니다.')+'</p><p>로그인은 디시인사이드 공식 로그인 화면에서 직접 합니다. 몰톡은 비밀번호를 저장하지도, 볼 수도 없습니다.</p><div class="savebar">'+(R.user?'<button type="button" class="pill" data-logout>로그아웃</button>':'<button type="button" class="save" data-login>로그인</button>')+'</div>'+
    '<label>비로그인 닉네임<input name="gnick" maxlength="20" placeholder="닉네임" value="'+esc(D.guest?.nick||'')+'"></label><label>비로그인 비밀번호<input name="gpw" type="password" maxlength="20" placeholder="2자 이상" value="'+esc(D.guest?.pw||'')+'"></label>'+
    '<p>로그인하지 않았을 때 글·댓글·디시콘을 이 닉네임으로 올립니다. 비밀번호는 디시에서 글을 지울 때 쓰는 것으로, 이 기기에만 저장됩니다. 둘 다 비우면 쓸 때마다 물어봅니다.</p><div class="savebar"><span role="status">'+(R.saved?'저장했습니다.':'')+'</span><button class="save">확인</button></div>':
-  '<p>양지톡 '+esc(native.version||'')+'</p><p>디시인사이드를 메신저 화면으로 보는 비공식 열람 앱입니다. 디시인사이드와 관련이 없으며, 게시물과 첨부물의 권리는 각 작성자에게 있습니다.</p>';
+  '<p>몰톡 '+esc(native.version||'')+'</p><p>디시인사이드를 메신저 화면으로 보는 비공식 열람 앱입니다. 디시인사이드와 관련이 없으며, 게시물과 첨부물의 권리는 각 작성자에게 있습니다.</p>';
  return '<div class="ov"><div class="head"><button type="button" class="ib bk" data-stab="" aria-label="설정 목록으로">'+I.back+'</button><h2>'+R.stab+'</h2>'+x+'</div><form id="setf" class="setf">'+body+
   (R.stab==='정보'||R.stab==='계정'?'':'<div class="savebar"><span role="status">'+(R.saved?'저장했습니다.':'')+'</span><button class="save">확인</button></div>')+'</form></div>';
 }
@@ -192,7 +194,7 @@ function renderPane(){
 }
 /* 화면에 나온 글의 본문 첫 부분을 읽어 미리보기 줄에 채웁니다. 한 번에 둘씩만 요청하고, 읽은 본문은 글을 열 때 다시 씁니다. */
 /* 디시는 요청이 잦으면 한동안 막기 때문에, 미리보기는 한 번에 하나씩 간격을 두고 읽고, 읽은 것은 기기에 저장해 다시 읽지 않습니다. 막히면 1분 쉽니다. */
-const pvBusy=new Set(),PVLS='yangjitalk-pv';
+const pvBusy=new Set(),PVLS='moltalk-pv';
 Object.assign(R.pv,JSON.parse(localStorage.getItem(PVLS)||'{}'));
 const savePv=()=>{const e=Object.entries(R.pv).filter(x=>x[1]);localStorage.setItem(PVLS,JSON.stringify(Object.fromEntries(e.slice(-600))))};
 let pvRunning=false;

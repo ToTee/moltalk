@@ -11,6 +11,6 @@
  out.asked=!box.hidden;out.fields=[...box.querySelectorAll('input')].map(i=>i.name+':'+i.type);out.buttons=[...box.querySelectorAll('button')].map(b=>b.textContent);
  if(out.asked){box.querySelector('.gok').click();await wait(200);out.emptyError=box.querySelector('.gerr')?.textContent;box.querySelector('[data-gcancel]').click();await wait(1500)}
  out.closed=box.hidden;out.toast=document.querySelector('#toast').textContent;out.draftKept=document.querySelector('#cform textarea')?.value;
- out.savedGuest=JSON.parse(localStorage.getItem('yangjitalk-v1')).guest||null;
+ out.savedGuest=JSON.parse(localStorage.getItem('moltalk-v1')).guest||null;
  return JSON.stringify(out,null,1);
 })()

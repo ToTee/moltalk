@@ -9,7 +9,7 @@ app.whenReady().then(async()=>{
  const w=new BrowserWindow({width:1100,height:800,show:!!process.env.P_SHOW,webPreferences:{contextIsolation:true,nodeIntegration:false,sandbox:true}});
  /* P_ONEUA=1: 창뿐 아니라 앱 전체가 같은 브라우저 이름을 쓰게 합니다(보조 작업·워커 포함). */
  if(!process.env.P_ONEUA)w.webContents.setUserAgent(UA);
- if(process.env.P_SHOW){w.setAlwaysOnTop(true);w.center();w.setTitle('양지톡 시험 창');w.show();w.focus();w.flashFrame(true)}
+ if(process.env.P_SHOW){w.setAlwaysOnTop(true);w.center();w.setTitle('몰톡 시험 창');w.show();w.focus();w.flashFrame(true)}
  const t0=Date.now(),logs=[];w.webContents.on('console-message',e=>{const s=String(e.message||'');if(/turnstile|cloudflare/i.test(s))logs.push(((Date.now()-t0)/1000).toFixed(1)+'s '+s.slice(0,100))});
  await w.loadURL(process.env.P_URL).catch(e=>logs.push('load: '+e.message));
  const out=await w.webContents.executeJavaScript(`(async()=>{window.__ask=${process.env.P_SHOW?1:0};
@@ -24,7 +24,7 @@ app.whenReady().then(async()=>{
    /* PC 화면: 댓글 칸을 건드리면 확인 상자를 불러옵니다. 확인값이 저절로 생기는지만 봅니다. */
    const ta=box.querySelector('textarea');try{ts_cmt_touch.call(ta)}catch(e){out.touchErr=e.message}
    const tok=()=>{try{return window.turnstile&&ts_cmt.id!==null&&turnstile.getResponse(ts_cmt.id)||''}catch(e){return ''}};
-   if(window.__ask){const tip=document.createElement('div');tip.textContent='양지톡 시험용 창입니다. 아래 댓글 칸의 [사람인지 확인] 상자를 한 번만 눌러 주세요. 아무것도 등록되지 않고, 누르면 잠시 뒤 창이 저절로 닫힙니다.';tip.style.cssText='position:fixed;left:0;right:0;top:0;z-index:2147483647;background:#fee500;color:#111;font:700 15px/1.5 sans-serif;padding:12px 16px;text-align:center';document.body.appendChild(tip);box.scrollIntoView({block:'center'})}
+   if(window.__ask){const tip=document.createElement('div');tip.textContent='몰톡 시험용 창입니다. 아래 댓글 칸의 [사람인지 확인] 상자를 한 번만 눌러 주세요. 아무것도 등록되지 않고, 누르면 잠시 뒤 창이 저절로 닫힙니다.';tip.style.cssText='position:fixed;left:0;right:0;top:0;z-index:2147483647;background:#fee500;color:#111;font:700 15px/1.5 sans-serif;padding:12px 16px;text-align:center';document.body.appendChild(tip);box.scrollIntoView({block:'center'})}
    const seen=[],s0=Date.now(),lim=window.__ask?200:40;let endAt=0,last=null;for(let i=0;i<lim;i++){const s=String(ts_cmt.st)+(ts_cmt.ix?'+clicked':'');if(last!==s){last=s;seen.push(s+'@'+((Date.now()-s0)/1000).toFixed(0))}if(tok()&&!endAt)endAt=i+2;if(/error|fail/i.test(s)&&!endAt)endAt=i+6;if(endAt&&i>=endAt)break;await wait(500)}
    out.pc={states:seen,final:String(ts_cmt.st),token:tok().length,took:((Date.now()-s0)/1000).toFixed(1),keys:Object.keys(ts_cmt).join(','),iframe:!!box.querySelector('iframe')};
   }

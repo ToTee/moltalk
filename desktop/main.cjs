@@ -1,7 +1,8 @@
-// 양지톡 윈도우용 껍데기. 화면(app/)을 띄우고, 디시로 가는 요청만 대신 보내 줍니다.
+// 몰톡 윈도우용 껍데기. 화면(app/)을 띄우고, 디시로 가는 요청만 대신 보내 줍니다.
 const {app,BrowserWindow,Menu,Tray,desktopCapturer,ipcMain,net,screen,session,shell}=require('electron');
 const path=require('path');
 const fs=require('fs');
+const {execFileSync,spawn}=require('child_process');
 /* 브라우저 버전은 실제 엔진 버전을 그대로 씁니다. 꾸며 낸 옛 버전을 쓰면 '사람인지 확인'이 오래된 브라우저로 보고 실패할 수 있습니다. */
 const CHROME=process.versions.chrome.split('.')[0];
 const UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/'+CHROME+'.0.0.0 Safari/537.36';
@@ -141,9 +142,32 @@ ipcMain.on('backup-save',(e,json)=>{
 function writeBackup(){clearTimeout(backupTimer);backupTimer=null;if(!backupText)return;try{const f=backupFile();fs.writeFileSync(f+'.tmp',backupText);fs.renameSync(f+'.tmp',f)}catch(e){diag('backup-fail',e.message)}}
 app.on('before-quit',writeBackup);
 
+/* 앱 이름이 양지톡에서 몰톡으로 바뀌면서 저장 폴더도 바뀌었습니다. 예전 폴더(yangjitalk)에 설정이 있고 새 폴더가 아직 비어 있으면 한 번만 옮겨 옵니다.
+   로그인 정보와 설정이 들어 있는 파일을 통째로 복사하므로 브라우저가 저장소를 열기 전(앱 준비 전)에 끝내야 합니다.
+   먼저 임시 폴더에 다 복사한 뒤 한꺼번에 옮겨, 도중에 실패해도 반쯤 복사된 저장소가 남지 않게 합니다. 예전 폴더는 지우지 않습니다.
+   설치된 앱에서만: 예전 앱이 켜져 있으면 저장 파일이 잠겨 있어 먼저 끄고, 옮긴 뒤에는 예전 앱을 제거합니다(제거해도 예전 저장 폴더는 남습니다). */
+function migrateOld(){
+ const neu=app.getPath('userData'),old=path.join(path.dirname(neu),'yangjitalk'),stage=neu+'-import';
+ if(fs.existsSync(path.join(neu,'Local Storage'))||!fs.existsSync(path.join(old,'Local Storage')))return;
+ const skip=new Set(['diag','lockfile','LOCK','Cache','Code Cache','GPUCache','GPUPersistentCache','GrShaderCache','ShaderCache','DawnGraphiteCache','DawnWebGPUCache']);
+ if(app.isPackaged)try{execFileSync('taskkill',['/F','/IM','양지톡.exe'],{stdio:'ignore'})}catch{}
+ let err=null;const failed=[];
+ for(let i=0;i<6;i++){
+  try{fs.rmSync(stage,{recursive:true,force:true});fs.cpSync(old,stage,{recursive:true,filter:s=>!skip.has(path.basename(s))});err=null;break}
+  catch(e){err=e;Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,500)}/* 예전 앱이 꺼지며 파일을 놓을 때까지 잠깐 기다렸다 다시 합니다. */
+ }
+ fs.mkdirSync(neu,{recursive:true});
+ if(!err)for(const n of fs.readdirSync(stage)){try{fs.rmSync(path.join(neu,n),{recursive:true,force:true});fs.renameSync(path.join(stage,n),path.join(neu,n))}catch(e){failed.push(n+': '+e.message)}}
+ /* 통째로 옮기지 못했으면 설정 사본 파일만 가져옵니다. 친구·사진·이름은 되살아나고, 로그인만 다시 하면 됩니다. */
+ else try{fs.copyFileSync(path.join(old,'settings-backup.json'),path.join(neu,'settings-backup.json'))}catch(e){failed.push('settings-backup.json: '+e.message)}
+ try{fs.rmSync(stage,{recursive:true,force:true})}catch{}
+ diag('migrate',{from:old,ok:!err,error:err&&err.message,failed});
+ if(app.isPackaged&&!err){const un=path.join(process.env.LOCALAPPDATA||'','Programs','yangjitalk','Uninstall 양지톡.exe');if(fs.existsSync(un))spawn(un,['/S'],{detached:true,stdio:'ignore'}).unref()}
+}
+
 function createWindow(){
  const test=!!process.env.YJ_SHOT;/* 확인용 실행은 창을 화면에 띄우지 않습니다. */
- win=new BrowserWindow({width:Number(process.env.YJ_W)||440,height:800,minWidth:360,minHeight:520,title:'양지톡',autoHideMenuBar:true,backgroundColor:'#ffffff',
+ win=new BrowserWindow({width:Number(process.env.YJ_W)||440,height:800,minWidth:360,minHeight:520,title:'몰톡',autoHideMenuBar:true,backgroundColor:'#ffffff',
   /* 윈도우 기본 제목 줄을 없애고, 최소화·최대화·닫기 단추만 화면 오른쪽 위에 얹습니다. 창을 끄는 자리는 app.css의 .win 규칙이 만듭니다. */
   titleBarStyle:'hidden',titleBarOverlay:{color:'rgba(0,0,0,0)',symbolColor:'#8a8a8a',height:30},show:!test||!!process.env.YJ_VISIBLE,/* YJ_VISIBLE: 확인용 실행에서도 창을 실제로 띄웁니다. */
   webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true,additionalArguments:['--yj-version='+app.getVersion()]}});
@@ -170,6 +194,7 @@ else if(!process.env.YJ_GPU)app.commandLine.appendSwitch('disable-gpu-compositin
 // 앱은 하나만 실행합니다(두 개가 같은 저장 공간을 함께 쓰면 서로 방해합니다). 확인용 실행은 예외입니다.
 if(!process.env.YJ_SHOT&&!app.requestSingleInstanceLock())app.quit();
 else{
+ if(!process.env.YJ_SHOT||process.env.YJ_MIGRATE)migrateOld();/* YJ_MIGRATE: 확인용 실행에서도 옮기기를 시험합니다. */
  app.on('second-instance',showWin);
  app.whenReady().then(()=>{diagSetup();setupSession();createWindow();if(!process.env.YJ_SHOT)setupTray()});
 }
@@ -179,7 +204,7 @@ let tray=null,quitting=false;
 function showWin(){if(!win)return;if(win.isMinimized())win.restore();win.show();win.focus()}
 function setupTray(){
  win.on('close',e=>{if(!quitting){e.preventDefault();win.hide()}});
- tray=new Tray(path.join(__dirname,'tray.png'));tray.setToolTip('양지톡');
+ tray=new Tray(path.join(__dirname,'tray.png'));tray.setToolTip('몰톡');
  tray.setContextMenu(Menu.buildFromTemplate([{label:'열기',click:showWin},{type:'separator'},{label:'종료',click:()=>app.quit()}]));
  tray.on('click',showWin);
 }

@@ -47,9 +47,9 @@ run(path.join(jbin,'jar.exe'),['uf',unsigned,'-C',work,'classes.dex','-C',work,'
 const aligned=path.join(work,'aligned.apk');
 run(path.join(bt,'zipalign.exe'),['-f','-p','4',unsigned,aligned]);
 // 서명 키는 저장소에 올리지 않습니다. 없으면 이 PC 전용 개발 키를 새로 만듭니다(다른 키로 서명한 APK로는 덮어쓰기 설치가 안 됩니다).
-const ks=process.env.YJ_KEYSTORE||path.join(root,'android','yangjitalk.keystore'),pass=process.env.YJ_KEYSTORE_PASS||'yangjitalk';
-if(!fs.existsSync(ks))run(path.join(jbin,'keytool.exe'),['-genkeypair','-keystore',ks,'-storepass',pass,'-keypass',pass,'-alias','yangjitalk','-keyalg','RSA','-keysize','2048','-validity','10000','-dname','CN=YangjiTalk']);
-const apk=path.join(out,'YangjiTalk-'+pkg.version+'.apk');
-bat('apksigner',['sign','--ks',ks,'--ks-pass','pass:'+pass,'--key-pass','pass:'+pass,'--ks-key-alias','yangjitalk','--out',apk,aligned]);
+const ks=process.env.YJ_KEYSTORE||path.join(root,'android','moltalk.keystore'),pass=process.env.YJ_KEYSTORE_PASS||'moltalk';
+if(!fs.existsSync(ks))run(path.join(jbin,'keytool.exe'),['-genkeypair','-keystore',ks,'-storepass',pass,'-keypass',pass,'-alias','moltalk','-keyalg','RSA','-keysize','2048','-validity','10000','-dname','CN=MolTalk']);
+const apk=path.join(out,'MolTalk-'+pkg.version+'.apk');
+bat('apksigner',['sign','--ks',ks,'--ks-pass','pass:'+pass,'--key-pass','pass:'+pass,'--ks-key-alias','moltalk','--out',apk,aligned]);
 console.log(bat('apksigner',['verify','--print-certs',apk]).split('\n').slice(0,2).join('\n'));
 console.log('APK 생성:',apk,(fs.statSync(apk).size/1024/1024).toFixed(2)+'MB');
