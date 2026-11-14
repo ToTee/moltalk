@@ -336,6 +336,20 @@
       });
     });
     const user = () => (document.querySelector("#user_id") || {}).value || "";
+    const guest = (a, root, nickSel, pwSel) => {
+      if (user()) return null;
+      const n = root.querySelector(nickSel), p = root.querySelector(pwSel);
+      if (!n || !p) return { error: "\uC774 \uAC24\uB7EC\uB9AC\uB294 \uB85C\uADF8\uC778\uD574\uC57C \uC4F8 \uC218 \uC788\uC2B5\uB2C8\uB2E4." };
+      const g = a.guest;
+      if (!g || !g.nick || !g.pw) return { need: "guest" };
+      n.value = g.nick;
+      p.value = g.pw;
+      for (const x of [n, p]) {
+        x.dispatchEvent(new Event("input", { bubbles: true }));
+        x.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      return null;
+    };
     const done = (r) => !r ? { error: alerts.join(" ") || "\uB514\uC2DC\uC5D0\uC11C \uC751\uB2F5\uC774 \uC5C6\uC2B5\uB2C8\uB2E4." } : r.result === true || r.result === 1 || r.result === "1" || r.result === "success" ? { ok: true } : r.cause === "captcha" ? { need: "captcha" } : { error: String(r.cause || r.msg || alerts.join(" ") || "\uC694\uCCAD\uC774 \uAC70\uC808\uB418\uC5C8\uC2B5\uB2C8\uB2E4.") };
     const form = (parentNo) => {
       if (!parentNo) return { form: document.querySelector("#comment_write"), memo: "#comment_memo", mode: "commentWrite", tmode: "txtconWrite" };
@@ -394,7 +408,7 @@
       return !!ok;
     };
     const HUMAN_FAIL = { error: "'\uC0AC\uB78C\uC778\uC9C0 \uD655\uC778'\uC744 \uB9C8\uCE58\uC9C0 \uBABB\uD574 \uB4F1\uB85D\uD558\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4. \uB2E4\uC2DC \uC2DC\uB3C4\uD574 \uC8FC\uC138\uC694." };
-    return { alerts, wait, until, ajax, user, done, form, human, HUMAN_FAIL };
+    return { alerts, wait, until, ajax, user, guest, done, form, human, HUMAN_FAIL };
   }
   var SCRIPTS = {
     // 로그인 상태 확인
@@ -455,9 +469,10 @@
     },
     // 댓글·답글 쓰기
     async comment(a, h) {
-      if (!h.user()) return { need: "login" };
       const f2 = h.form(a.parentNo);
       if (!f2 || !f2.form) return { error: a.parentNo ? "\uB2F5\uAE00\uC744 \uB2EC \uB313\uAE00\uC744 \uCC3E\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4." : "\uB313\uAE00\uC744 \uC4F8 \uC218 \uC5C6\uB294 \uAE00\uC785\uB2C8\uB2E4." };
+      const gq = h.guest(a, f2.form, '[id^="comment_nick"]', '[id^="comment_pw"]');
+      if (gq) return gq;
       if (f2.form.querySelector('[id^="captcha_codeC"]')) return { need: "captcha" };
       f2.form.querySelector(f2.memo).value = a.text;
       if (!await h.human(f2.form)) return h.HUMAN_FAIL;
@@ -480,9 +495,10 @@
     },
     // 디시콘 1개 또는 2개(더블콘) 댓글로 등록
     async dccon(a, h) {
-      if (!h.user()) return { need: "login" };
       const f2 = h.form(a.parentNo);
       if (!f2 || !f2.form) return { error: "\uB514\uC2DC\uCF58\uC744 \uB2EC \uACF3\uC744 \uCC3E\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4." };
+      const gq = h.guest(a, f2.form, '[id^="comment_nick"]', '[id^="comment_pw"]');
+      if (gq) return gq;
       window.show_dccon(f2.mode);
       const box = await h.until(() => {
         const b = document.querySelector(f2.mode === "commentWrite" ? "#dcconBoxComment" : "#dcconBoxReple");
@@ -504,9 +520,10 @@
     },
     // 글자콘 등록
     async txtcon(a, h) {
-      if (!h.user()) return { need: "login" };
       const f2 = h.form(a.parentNo);
       if (!f2 || !f2.form) return { error: "\uAE00\uC790\uCF58\uC744 \uB2EC \uACF3\uC744 \uCC3E\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4." };
+      const gq = h.guest(a, f2.form, '[id^="comment_nick"]', '[id^="comment_pw"]');
+      if (gq) return gq;
       const btn = f2.form.querySelector(".add-txtdccon");
       if (!btn || getComputedStyle(btn).display === "none") return { error: "\uC774 \uAC24\uB7EC\uB9AC\uB294 \uAE00\uC790\uCF58\uC744 \uC4F8 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4." };
       window.show_txtcon(f2.tmode);
@@ -548,9 +565,13 @@
     },
     // 글쓰기: 글과 사진을 보낸 순서대로 본문에 넣고 등록합니다. 등록되면 화면이 글 목록으로 넘어갑니다.
     async write(a, h) {
-      if (!h.user()) return { need: "login" };
+      {
+        const gq = h.guest(a, document, "#name", "#password");
+        if (gq) return gq;
+      }
       const subject = document.querySelector("#subject"), box = await h.until(() => document.querySelector(".note-editable"), 8e3);
       if (!subject || !box) return { error: "\uAE00\uC4F0\uAE30 \uD654\uBA74\uC744 \uC5F4\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4." };
+      for (const n of box.querySelectorAll(".wrt-guide-preview")) n.remove();
       if (!box.textContent.trim() && !box.querySelector("img,video,iframe")) box.innerHTML = "";
       const toEnd = () => {
         box.focus();
@@ -919,7 +940,7 @@
       const sum = { "\uD504\uB85C\uD544": D.me.name + (D.me.status ? " \xB7 " + D.me.status : ""), "\uACF5\uC9C0 \uCC44\uD305\uBC29 \uC774\uB984": "\uC9C1\uC811 \uC785\uB825 " + custom + "\uAC1C \xB7 \uB79C\uB364 " + (D.rooms.length - custom) + "\uAC1C", "\uACC4\uC815": !R.userKnown ? "\uD655\uC778 \uC911\u2026" : R.user ? "\uB85C\uADF8\uC778\uB428" : "\uB85C\uADF8\uC778\uD558\uC9C0 \uC54A\uC74C", "\uC815\uBCF4": "\uC591\uC9C0\uD1A1 " + (native.version || "") };
       return '<div class="ov"><div class="head"><h2>\uC124\uC815</h2>' + x + '</div><div class="scroll setlist">' + TABS.map((t) => '<button class="row" data-stab="' + t + '"><span class="tx"><b>' + t + '</b><span class="st">' + esc(sum[t]) + "</span></span>" + I.next + "</button>").join("") + "</div></div>";
     }
-    const body = R.stab === "\uD504\uB85C\uD544" ? '<div class="photoset">' + meAv() + '<button type="button" class="pill" data-mephoto>' + (D.me.photo ? "\uC0AC\uC9C4 \uBC14\uAFB8\uAE30" : "\uC0AC\uC9C4 \uACE0\uB974\uAE30") + "</button>" + (D.me.photo ? '<button type="button" class="pill" data-mephotodel>\uC0AC\uC9C4 \uC9C0\uC6B0\uAE30</button>' : "") + '</div><label>\uC774\uB984<input name="name" maxlength="20" value="' + esc(D.me.name) + '"></label><label>\uC0C1\uD0DC\uBA54\uC2DC\uC9C0<input name="status" maxlength="40" value="' + esc(D.me.status) + '"></label><p>\uCE5C\uAD6C \uD654\uBA74 \uB9E8 \uC704 \uB0B4 \uD504\uB85C\uD544\uC5D0 \uD45C\uC2DC\uB418\uB294 \uBB38\uAD6C\uC785\uB2C8\uB2E4.</p>' : R.stab === "\uACF5\uC9C0 \uCC44\uD305\uBC29 \uC774\uB984" ? D.rooms.map((r, i) => '<div class="slot"><span>' + (i + 1) + '</span><select name="m' + i + '" aria-label="\uACF5\uC9C0 ' + (i + 1) + ' \uC774\uB984 \uBC29\uC2DD"><option value="random"' + (r.mode === "random" ? " selected" : "") + '>\uB79C\uB364 \uC774\uB984</option><option value="custom"' + (r.mode === "custom" ? " selected" : "") + '>\uC9C1\uC811 \uC785\uB825</option></select><input name="t' + i + '" maxlength="30" placeholder="\uC608: \uB300\uD559 \uB3D9\uAE30 \uBAA8\uC784" aria-label="\uACF5\uC9C0 ' + (i + 1) + ' \uC774\uB984" value="' + esc(r.text) + '"' + (r.mode === "custom" ? "" : " disabled") + "></div>").join("") + "<p>\uAC24\uB7EC\uB9AC\uB9C8\uB2E4 \uC704\uC5D0\uC11C\uBD80\uD130 1\uBC88\uC9F8, 2\uBC88\uC9F8 \uACF5\uC9C0\uC5D0 \uCC28\uB840\uB85C \uC801\uC6A9\uB429\uB2C8\uB2E4. \uC9C1\uC811 \uC785\uB825 \uCE78\uC774 \uBE44\uC5B4 \uC788\uC73C\uBA74 \uB79C\uB364 \uC774\uB984\uC774 \uC4F0\uC785\uB2C8\uB2E4.</p>" : R.stab === "\uACC4\uC815" ? "<p>" + (!R.userKnown ? "\uB85C\uADF8\uC778 \uC0C1\uD0DC\uB97C \uD655\uC778\uD558\uB294 \uC911\uC785\uB2C8\uB2E4\u2026" : R.user ? "\uB85C\uADF8\uC778\uB428: " + esc(R.user) : "\uB85C\uADF8\uC778\uD558\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4.") + '</p><p>\uB85C\uADF8\uC778\uC740 \uB514\uC2DC\uC778\uC0AC\uC774\uB4DC \uACF5\uC2DD \uB85C\uADF8\uC778 \uD654\uBA74\uC5D0\uC11C \uC9C1\uC811 \uD569\uB2C8\uB2E4. \uC591\uC9C0\uD1A1\uC740 \uBE44\uBC00\uBC88\uD638\uB97C \uC800\uC7A5\uD558\uC9C0\uB3C4, \uBCFC \uC218\uB3C4 \uC5C6\uC2B5\uB2C8\uB2E4.</p><div class="savebar">' + (R.user ? '<button type="button" class="pill" data-logout>\uB85C\uADF8\uC544\uC6C3</button>' : '<button type="button" class="save" data-login>\uB85C\uADF8\uC778</button>') + "</div>" : "<p>\uC591\uC9C0\uD1A1 " + esc(native.version || "") + "</p><p>\uB514\uC2DC\uC778\uC0AC\uC774\uB4DC\uB97C \uBA54\uC2E0\uC800 \uD654\uBA74\uC73C\uB85C \uBCF4\uB294 \uBE44\uACF5\uC2DD \uC5F4\uB78C \uC571\uC785\uB2C8\uB2E4. \uB514\uC2DC\uC778\uC0AC\uC774\uB4DC\uC640 \uAD00\uB828\uC774 \uC5C6\uC73C\uBA70, \uAC8C\uC2DC\uBB3C\uACFC \uCCA8\uBD80\uBB3C\uC758 \uAD8C\uB9AC\uB294 \uAC01 \uC791\uC131\uC790\uC5D0\uAC8C \uC788\uC2B5\uB2C8\uB2E4.</p>";
+    const body = R.stab === "\uD504\uB85C\uD544" ? '<div class="photoset">' + meAv() + '<button type="button" class="pill" data-mephoto>' + (D.me.photo ? "\uC0AC\uC9C4 \uBC14\uAFB8\uAE30" : "\uC0AC\uC9C4 \uACE0\uB974\uAE30") + "</button>" + (D.me.photo ? '<button type="button" class="pill" data-mephotodel>\uC0AC\uC9C4 \uC9C0\uC6B0\uAE30</button>' : "") + '</div><label>\uC774\uB984<input name="name" maxlength="20" value="' + esc(D.me.name) + '"></label><label>\uC0C1\uD0DC\uBA54\uC2DC\uC9C0<input name="status" maxlength="40" value="' + esc(D.me.status) + '"></label><p>\uCE5C\uAD6C \uD654\uBA74 \uB9E8 \uC704 \uB0B4 \uD504\uB85C\uD544\uC5D0 \uD45C\uC2DC\uB418\uB294 \uBB38\uAD6C\uC785\uB2C8\uB2E4.</p>' : R.stab === "\uACF5\uC9C0 \uCC44\uD305\uBC29 \uC774\uB984" ? D.rooms.map((r, i) => '<div class="slot"><span>' + (i + 1) + '</span><select name="m' + i + '" aria-label="\uACF5\uC9C0 ' + (i + 1) + ' \uC774\uB984 \uBC29\uC2DD"><option value="random"' + (r.mode === "random" ? " selected" : "") + '>\uB79C\uB364 \uC774\uB984</option><option value="custom"' + (r.mode === "custom" ? " selected" : "") + '>\uC9C1\uC811 \uC785\uB825</option></select><input name="t' + i + '" maxlength="30" placeholder="\uC608: \uB300\uD559 \uB3D9\uAE30 \uBAA8\uC784" aria-label="\uACF5\uC9C0 ' + (i + 1) + ' \uC774\uB984" value="' + esc(r.text) + '"' + (r.mode === "custom" ? "" : " disabled") + "></div>").join("") + "<p>\uAC24\uB7EC\uB9AC\uB9C8\uB2E4 \uC704\uC5D0\uC11C\uBD80\uD130 1\uBC88\uC9F8, 2\uBC88\uC9F8 \uACF5\uC9C0\uC5D0 \uCC28\uB840\uB85C \uC801\uC6A9\uB429\uB2C8\uB2E4. \uC9C1\uC811 \uC785\uB825 \uCE78\uC774 \uBE44\uC5B4 \uC788\uC73C\uBA74 \uB79C\uB364 \uC774\uB984\uC774 \uC4F0\uC785\uB2C8\uB2E4.</p>" : R.stab === "\uACC4\uC815" ? "<p>" + (!R.userKnown ? "\uB85C\uADF8\uC778 \uC0C1\uD0DC\uB97C \uD655\uC778\uD558\uB294 \uC911\uC785\uB2C8\uB2E4\u2026" : R.user ? "\uB85C\uADF8\uC778\uB428: " + esc(R.user) : "\uB85C\uADF8\uC778\uD558\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4.") + '</p><p>\uB85C\uADF8\uC778\uC740 \uB514\uC2DC\uC778\uC0AC\uC774\uB4DC \uACF5\uC2DD \uB85C\uADF8\uC778 \uD654\uBA74\uC5D0\uC11C \uC9C1\uC811 \uD569\uB2C8\uB2E4. \uC591\uC9C0\uD1A1\uC740 \uBE44\uBC00\uBC88\uD638\uB97C \uC800\uC7A5\uD558\uC9C0\uB3C4, \uBCFC \uC218\uB3C4 \uC5C6\uC2B5\uB2C8\uB2E4.</p><div class="savebar">' + (R.user ? '<button type="button" class="pill" data-logout>\uB85C\uADF8\uC544\uC6C3</button>' : '<button type="button" class="save" data-login>\uB85C\uADF8\uC778</button>') + '</div><label>\uBE44\uB85C\uADF8\uC778 \uB2C9\uB124\uC784<input name="gnick" maxlength="20" placeholder="\uB2C9\uB124\uC784" value="' + esc(D.guest?.nick || "") + '"></label><label>\uBE44\uB85C\uADF8\uC778 \uBE44\uBC00\uBC88\uD638<input name="gpw" type="password" maxlength="20" placeholder="2\uC790 \uC774\uC0C1" value="' + esc(D.guest?.pw || "") + '"></label><p>\uB85C\uADF8\uC778\uD558\uC9C0 \uC54A\uC558\uC744 \uB54C \uAE00\xB7\uB313\uAE00\xB7\uB514\uC2DC\uCF58\uC744 \uC774 \uB2C9\uB124\uC784\uC73C\uB85C \uC62C\uB9BD\uB2C8\uB2E4. \uBE44\uBC00\uBC88\uD638\uB294 \uB514\uC2DC\uC5D0\uC11C \uAE00\uC744 \uC9C0\uC6B8 \uB54C \uC4F0\uB294 \uAC83\uC73C\uB85C, \uC774 \uAE30\uAE30\uC5D0\uB9CC \uC800\uC7A5\uB429\uB2C8\uB2E4. \uB458 \uB2E4 \uBE44\uC6B0\uBA74 \uC4F8 \uB54C\uB9C8\uB2E4 \uBB3C\uC5B4\uBD05\uB2C8\uB2E4.</p><div class="savebar"><span role="status">' + (R.saved ? "\uC800\uC7A5\uD588\uC2B5\uB2C8\uB2E4." : "") + '</span><button class="save">\uD655\uC778</button></div>' : "<p>\uC591\uC9C0\uD1A1 " + esc(native.version || "") + "</p><p>\uB514\uC2DC\uC778\uC0AC\uC774\uB4DC\uB97C \uBA54\uC2E0\uC800 \uD654\uBA74\uC73C\uB85C \uBCF4\uB294 \uBE44\uACF5\uC2DD \uC5F4\uB78C \uC571\uC785\uB2C8\uB2E4. \uB514\uC2DC\uC778\uC0AC\uC774\uB4DC\uC640 \uAD00\uB828\uC774 \uC5C6\uC73C\uBA70, \uAC8C\uC2DC\uBB3C\uACFC \uCCA8\uBD80\uBB3C\uC758 \uAD8C\uB9AC\uB294 \uAC01 \uC791\uC131\uC790\uC5D0\uAC8C \uC788\uC2B5\uB2C8\uB2E4.</p>";
     return '<div class="ov"><div class="head"><button type="button" class="ib bk" data-stab="" aria-label="\uC124\uC815 \uBAA9\uB85D\uC73C\uB85C">' + I.back + "</button><h2>" + R.stab + "</h2>" + x + '</div><form id="setf" class="setf">' + body + (R.stab === "\uC815\uBCF4" || R.stab === "\uACC4\uC815" ? "" : '<div class="savebar"><span role="status">' + (R.saved ? "\uC800\uC7A5\uD588\uC2B5\uB2C8\uB2E4." : "") + '</span><button class="save">\uD655\uC778</button></div>') + "</form></div>";
   }
   function renderPane() {
@@ -1087,7 +1108,7 @@
     if (C.busy) return '<div class="spin">\uB514\uC2DC\uCF58 \uBD88\uB7EC\uC624\uB294 \uC911\u2026</div>';
     if (C.err) return '<p class="hint">' + esc(C.err) + "</p>";
     if (!C.items) return "";
-    if (!C.items.length) return '<p class="hint">' + esc(C.note || (R.user ? "\uC0AC\uC6A9\uD560 \uC218 \uC788\uB294 \uB514\uC2DC\uCF58\uC774 \uC5C6\uC2B5\uB2C8\uB2E4." : "\uB514\uC2DC\uCF58\uC740 \uB85C\uADF8\uC778 \uD6C4 \uC0AC\uC6A9\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.")) + "</p>";
+    if (!C.items.length) return '<p class="hint">' + esc(C.note || "\uC0AC\uC6A9\uD560 \uC218 \uC788\uB294 \uB514\uC2DC\uCF58\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.") + "</p>";
     return '<div class="cons">' + C.items.map((c, i) => '<button class="con' + (i === R.con1 ? " sel" : "") + '" data-con="' + i + '" data-lp="con" aria-label="' + esc(c.alt || "\uB514\uC2DC\uCF58") + '"><img loading="lazy" src="' + esc(c.src) + '" alt=""></button>').join("") + '</div><p class="hint">' + (R.con1 != null ? "\uD558\uB098\uB97C \uACE8\uB790\uC2B5\uB2C8\uB2E4. \uB2E4\uB978 \uB514\uC2DC\uCF58\uC744 \uB204\uB974\uBA74 2\uAC1C\uAC00 \uC88C\uC6B0\uB85C \uD568\uAED8 \uC62C\uB77C\uAC11\uB2C8\uB2E4." : "\uB204\uB974\uBA74 1\uAC1C \uB4F1\uB85D \xB7 \uAFB9 \uB204\uB978 \uB4A4 \uB2E4\uB978 \uB514\uC2DC\uCF58\uC744 \uB204\uB974\uBA74 \uB354\uBE14\uCF58") + "</p>";
   }
   function txtconHtml() {
@@ -1145,11 +1166,42 @@
     if (R.user) toast("\uB85C\uADF8\uC778\uD588\uC2B5\uB2C8\uB2E4.");
     return !!R.user;
   }
+  var gask = document.createElement("div");
+  gask.id = "gask";
+  gask.hidden = true;
+  document.body.append(gask);
+  var gaskDone = null;
+  function askGuest() {
+    return new Promise((res) => {
+      gaskDone = res;
+      const g = D.guest || {};
+      gask.innerHTML = '<form id="gform" class="gbox"><b>\uBE44\uB85C\uADF8\uC778\uC73C\uB85C \uC4F0\uAE30</b><p>\uB2C9\uB124\uC784\uACFC \uBE44\uBC00\uBC88\uD638\uB97C \uC815\uD558\uBA74 \uB85C\uADF8\uC778 \uC5C6\uC774 \uAE00\xB7\uB313\uAE00\uC744 \uC4F8 \uC218 \uC788\uC2B5\uB2C8\uB2E4. \uBE44\uBC00\uBC88\uD638\uB294 \uB098\uC911\uC5D0 \uC9C0\uC6B8 \uB54C \uD544\uC694\uD558\uBA70 \uC774 \uAE30\uAE30\uC5D0\uB9CC \uC800\uC7A5\uB429\uB2C8\uB2E4.</p><input name="gnick" maxlength="20" placeholder="\uB2C9\uB124\uC784" aria-label="\uB2C9\uB124\uC784" value="' + esc(g.nick || "") + '"><input name="gpw" type="password" maxlength="20" placeholder="\uBE44\uBC00\uBC88\uD638 (2\uC790 \uC774\uC0C1)" aria-label="\uBE44\uBC00\uBC88\uD638" value="' + esc(g.pw || "") + '"><span class="gerr" role="alert"></span><div class="gbtn"><button type="button" data-gcancel>\uCDE8\uC18C</button><button type="button" data-glogin>\uB85C\uADF8\uC778</button><button class="gok">\uC774\uB300\uB85C \uC4F0\uAE30</button></div></form>';
+      gask.hidden = false;
+      gask.querySelector("input").focus();
+    });
+  }
+  function gaskClose(v) {
+    gask.hidden = true;
+    gask.innerHTML = "";
+    const d = gaskDone;
+    gaskDone = null;
+    if (d) d(v);
+  }
   async function withAuth(name, args, url, opt) {
-    let r = await drive(name, args, url, opt);
+    const run = () => drive(name, { ...args, guest: D.guest || null }, url, opt);
+    let r = await run();
+    if (r.need === "guest") {
+      const c = await askGuest();
+      if (c === "guest") r = await run();
+      else if (c === "login") {
+        if (await login()) r = await run();
+        else return { error: "\uB85C\uADF8\uC778\uD558\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4." };
+      } else return { error: "\uB4F1\uB85D\uD558\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4." };
+    }
+    if (r.need === "guest") return { error: "\uB2C9\uB124\uC784\uACFC \uBE44\uBC00\uBC88\uD638\uB97C \uD655\uC778\uD574 \uC8FC\uC138\uC694." };
     if (r.need === "login") {
       toast("\uB85C\uADF8\uC778\uC774 \uD544\uC694\uD574 \uB514\uC2DC \uB85C\uADF8\uC778 \uD654\uBA74\uC744 \uC5FD\uB2C8\uB2E4.");
-      if (await login()) r = await drive(name, args, url, opt);
+      if (await login()) r = await run();
       else return { error: "\uB85C\uADF8\uC778\uD558\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4." };
     }
     if (r.need === "captcha") {
@@ -1699,6 +1751,10 @@
       loadList({ fresh: true });
     } else if (d.refresh != null) {
       refresh();
+    } else if (d.gcancel != null) {
+      gaskClose(null);
+    } else if (d.glogin != null) {
+      gaskClose("login");
     } else if (d.orig != null) {
       R.orig = !R.orig;
       R.rmenu = false;
@@ -1964,9 +2020,25 @@
       }
       S.busy = false;
       renderPane();
+    } else if (f2.id === "gform") {
+      const nick = f2.elements.gnick.value.trim(), pw = f2.elements.gpw.value;
+      if (!nick || pw.length < 2) {
+        f2.querySelector(".gerr").textContent = "\uB2C9\uB124\uC784\uACFC \uBE44\uBC00\uBC88\uD638(2\uC790 \uC774\uC0C1)\uB97C \uC785\uB825\uD574 \uC8FC\uC138\uC694.";
+        return;
+      }
+      D.guest = { nick, pw };
+      save();
+      gaskClose("guest");
     } else if (f2.id === "setf") {
       const el = f2.elements;
-      if (R.stab === "\uD504\uB85C\uD544") {
+      if (R.stab === "\uACC4\uC815") {
+        const nick = el.gnick.value.trim(), pw = el.gpw.value;
+        D.guest = nick && pw.length >= 2 ? { nick, pw } : null;
+        if ((nick || pw) && !D.guest) {
+          toast("\uB2C9\uB124\uC784\uACFC \uBE44\uBC00\uBC88\uD638(2\uC790 \uC774\uC0C1)\uB97C \uBAA8\uB450 \uC785\uB825\uD574 \uC8FC\uC138\uC694.");
+          return;
+        }
+      } else if (R.stab === "\uD504\uB85C\uD544") {
         D.me.name = el.name.value.trim() || "\u3147\u3147";
         D.me.status = el.status.value.trim();
       } else D.rooms = D.rooms.map((r, i) => ({ mode: el["m" + i].value, text: el["t" + i].value.trim() }));
@@ -1988,6 +2060,10 @@
   window.yjBack = () => {
     if (!$("#viewer").hidden) {
       $("#viewer").hidden = true;
+      return true;
+    }
+    if (!gask.hidden) {
+      gaskClose(null);
       return true;
     }
     if (R.write) {

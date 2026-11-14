@@ -175,6 +175,16 @@ body{display:flex;flex-direction:column}
 .q{border-bottom:1px solid rgba(0,0,0,.1);padding-bottom:5px;margin-bottom:5px;font-size:12px;color:#666}
 .q b{display:block;color:#333;font-weight:700}
 .q span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
+/* 비로그인(유동) 닉네임·비밀번호를 묻는 창 */
+#gask{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.32);display:grid;place-items:center;padding:20px}
+.gbox{background:#fff;border-radius:12px;padding:18px 18px 14px;width:min(320px,100%);display:flex;flex-direction:column;gap:8px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.gbox b{font-size:16px}
+.gbox p{margin:0 0 4px;font-size:12.5px;color:var(--sub);line-height:1.5}
+.gbox input{height:42px;border:1px solid #dcdcdc;border-radius:8px;padding:0 12px;font:inherit}
+.gerr{font-size:12px;color:#b3261e;min-height:16px}
+.gbtn{display:flex;gap:6px;justify-content:flex-end}
+.gbtn button{min-height:40px;padding:0 14px;border-radius:8px;font-size:14px;background:#f2f2f3}
+.gbtn .gok{background:var(--mine);font-weight:700}
 /* 채팅방 오른쪽 위 메뉴 */
 .rdim{position:absolute;inset:0;z-index:6;background:rgba(0,0,0,.12);cursor:default}
 .rpop{position:absolute;right:10px;top:58px;z-index:7;background:#fff;border-radius:8px;box-shadow:0 6px 22px rgba(0,0,0,.24);width:204px;padding:6px 0}

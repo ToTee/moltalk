@@ -176,7 +176,9 @@ function settingsHtml(x){
   return '<div class="ov"><div class="head"><h2>설정</h2>'+x+'</div><div class="scroll setlist">'+TABS.map(t=>'<button class="row" data-stab="'+t+'"><span class="tx"><b>'+t+'</b><span class="st">'+esc(sum[t])+'</span></span>'+I.next+'</button>').join('')+'</div></div>'}
  const body=R.stab==='프로필'?'<div class="photoset">'+meAv()+'<button type="button" class="pill" data-mephoto>'+(D.me.photo?'사진 바꾸기':'사진 고르기')+'</button>'+(D.me.photo?'<button type="button" class="pill" data-mephotodel>사진 지우기</button>':'')+'</div><label>이름<input name="name" maxlength="20" value="'+esc(D.me.name)+'"></label><label>상태메시지<input name="status" maxlength="40" value="'+esc(D.me.status)+'"></label><p>친구 화면 맨 위 내 프로필에 표시되는 문구입니다.</p>':
   R.stab==='공지 채팅방 이름'?D.rooms.map((r,i)=>'<div class="slot"><span>'+(i+1)+'</span><select name="m'+i+'" aria-label="공지 '+(i+1)+' 이름 방식"><option value="random"'+(r.mode==='random'?' selected':'')+'>랜덤 이름</option><option value="custom"'+(r.mode==='custom'?' selected':'')+'>직접 입력</option></select><input name="t'+i+'" maxlength="30" placeholder="예: 대학 동기 모임" aria-label="공지 '+(i+1)+' 이름" value="'+esc(r.text)+'"'+(r.mode==='custom'?'':' disabled')+'></div>').join('')+'<p>갤러리마다 위에서부터 1번째, 2번째 공지에 차례로 적용됩니다. 직접 입력 칸이 비어 있으면 랜덤 이름이 쓰입니다.</p>':
-  R.stab==='계정'?'<p>'+(!R.userKnown?'로그인 상태를 확인하는 중입니다…':R.user?'로그인됨: '+esc(R.user):'로그인하지 않았습니다.')+'</p><p>로그인은 디시인사이드 공식 로그인 화면에서 직접 합니다. 양지톡은 비밀번호를 저장하지도, 볼 수도 없습니다.</p><div class="savebar">'+(R.user?'<button type="button" class="pill" data-logout>로그아웃</button>':'<button type="button" class="save" data-login>로그인</button>')+'</div>':
+  R.stab==='계정'?'<p>'+(!R.userKnown?'로그인 상태를 확인하는 중입니다…':R.user?'로그인됨: '+esc(R.user):'로그인하지 않았습니다.')+'</p><p>로그인은 디시인사이드 공식 로그인 화면에서 직접 합니다. 양지톡은 비밀번호를 저장하지도, 볼 수도 없습니다.</p><div class="savebar">'+(R.user?'<button type="button" class="pill" data-logout>로그아웃</button>':'<button type="button" class="save" data-login>로그인</button>')+'</div>'+
+   '<label>비로그인 닉네임<input name="gnick" maxlength="20" placeholder="닉네임" value="'+esc(D.guest?.nick||'')+'"></label><label>비로그인 비밀번호<input name="gpw" type="password" maxlength="20" placeholder="2자 이상" value="'+esc(D.guest?.pw||'')+'"></label>'+
+   '<p>로그인하지 않았을 때 글·댓글·디시콘을 이 닉네임으로 올립니다. 비밀번호는 디시에서 글을 지울 때 쓰는 것으로, 이 기기에만 저장됩니다. 둘 다 비우면 쓸 때마다 물어봅니다.</p><div class="savebar"><span role="status">'+(R.saved?'저장했습니다.':'')+'</span><button class="save">확인</button></div>':
   '<p>양지톡 '+esc(native.version||'')+'</p><p>디시인사이드를 메신저 화면으로 보는 비공식 열람 앱입니다. 디시인사이드와 관련이 없으며, 게시물과 첨부물의 권리는 각 작성자에게 있습니다.</p>';
  return '<div class="ov"><div class="head"><button type="button" class="ib bk" data-stab="" aria-label="설정 목록으로">'+I.back+'</button><h2>'+R.stab+'</h2>'+x+'</div><form id="setf" class="setf">'+body+
   (R.stab==='정보'||R.stab==='계정'?'':'<div class="savebar"><span role="status">'+(R.saved?'저장했습니다.':'')+'</span><button class="save">확인</button></div>')+'</form></div>';
@@ -295,7 +297,7 @@ function consHtml(){
  if(C.busy)return '<div class="spin">디시콘 불러오는 중…</div>';
  if(C.err)return '<p class="hint">'+esc(C.err)+'</p>';
  if(!C.items)return '';
- if(!C.items.length)return '<p class="hint">'+esc(C.note||(R.user?'사용할 수 있는 디시콘이 없습니다.':'디시콘은 로그인 후 사용할 수 있습니다.'))+'</p>';
+ if(!C.items.length)return '<p class="hint">'+esc(C.note||('사용할 수 있는 디시콘이 없습니다.'))+'</p>';
  return '<div class="cons">'+C.items.map((c,i)=>'<button class="con'+(i===R.con1?' sel':'')+'" data-con="'+i+'" data-lp="con" aria-label="'+esc(c.alt||'디시콘')+'"><img loading="lazy" src="'+esc(c.src)+'" alt=""></button>').join('')+'</div>'+
   '<p class="hint">'+(R.con1!=null?'하나를 골랐습니다. 다른 디시콘을 누르면 2개가 좌우로 함께 올라갑니다.':'누르면 1개 등록 · 꾹 누른 뒤 다른 디시콘을 누르면 더블콘')+'</p>';
 }
@@ -317,10 +319,23 @@ async function loadCons(){
 async function drive(name,args,url,opt){try{return await native.drive(url,script(name,args),opt)||{error:'응답이 없습니다.'}}catch(e){return {error:e.message}}}
 async function checkUser(){const r=await drive('state',{},mList({id:'dcbest',type:'normal'}));if(!r.error){R.user=r.user||'';R.userKnown=true;D.user=R.user;save()}if(R.ov==='set'||R.ov==='log')renderPane();if(R.ov==='log'&&R.user&&!R.gallog[R.log])loadGallog();return R.user}
 async function login(){await native.official(LOGIN_URL,{closeOn:LOGIN_DONE});R.cons.items=null;R.gallog={};await checkUser();if(R.user)toast('로그인했습니다.');return !!R.user}
+/* 유동(비로그인) 닉네임·비밀번호를 묻는 작은 창. 화면을 다시 그려도 입력이 지워지지 않게 따로 둡니다. */
+const gask=document.createElement('div');gask.id='gask';gask.hidden=true;document.body.append(gask);
+let gaskDone=null;
+function askGuest(){return new Promise(res=>{gaskDone=res;const g=D.guest||{};
+ gask.innerHTML='<form id="gform" class="gbox"><b>비로그인으로 쓰기</b><p>닉네임과 비밀번호를 정하면 로그인 없이 글·댓글을 쓸 수 있습니다. 비밀번호는 나중에 지울 때 필요하며 이 기기에만 저장됩니다.</p>'+
+  '<input name="gnick" maxlength="20" placeholder="닉네임" aria-label="닉네임" value="'+esc(g.nick||'')+'"><input name="gpw" type="password" maxlength="20" placeholder="비밀번호 (2자 이상)" aria-label="비밀번호" value="'+esc(g.pw||'')+'">'+
+  '<span class="gerr" role="alert"></span><div class="gbtn"><button type="button" data-gcancel>취소</button><button type="button" data-glogin>로그인</button><button class="gok">이대로 쓰기</button></div></form>';
+ gask.hidden=false;gask.querySelector('input').focus()})}
+function gaskClose(v){gask.hidden=true;gask.innerHTML='';const d=gaskDone;gaskDone=null;if(d)d(v)}
 /* 로그인이 필요하면 로그인 창을 띄운 뒤 한 번 더 시도하고, 보안 문자가 필요하면 디시 화면을 그대로 보여 줍니다. */
 async function withAuth(name,args,url,opt){
- let r=await drive(name,args,url,opt);
- if(r.need==='login'){toast('로그인이 필요해 디시 로그인 화면을 엽니다.');if(await login())r=await drive(name,args,url,opt);else return {error:'로그인하지 않았습니다.'}}
+ /* 로그인하지 않았으면 유동(비로그인)으로 씁니다. 닉네임·비밀번호를 아직 정하지 않았으면 물어봅니다. */
+ const run=()=>drive(name,{...args,guest:D.guest||null},url,opt);
+ let r=await run();
+ if(r.need==='guest'){const c=await askGuest();if(c==='guest')r=await run();else if(c==='login'){if(await login())r=await run();else return {error:'로그인하지 않았습니다.'}}else return {error:'등록하지 않았습니다.'}}
+ if(r.need==='guest')return {error:'닉네임과 비밀번호를 확인해 주세요.'};
+ if(r.need==='login'){toast('로그인이 필요해 디시 로그인 화면을 엽니다.');if(await login())r=await run();else return {error:'로그인하지 않았습니다.'}}
  if(r.need==='captcha'){toast('보안 문자 입력이 필요해 디시 화면을 엽니다.');await native.official(url);return {manual:true,error:'디시 화면에서 직접 마무리해 주세요. 처리됐는지는 새로고침하면 보입니다.'}}
  if(r.need)return {error:'로그인이 필요합니다.'};
  return r;
@@ -524,6 +539,8 @@ document.addEventListener('click',e=>{
  else if(d.more!=null){showMore()}
  else if(d.reload!=null){loadList({fresh:true})}
  else if(d.refresh!=null){refresh()}
+ else if(d.gcancel!=null){gaskClose(null)}
+ else if(d.glogin!=null){gaskClose('login')}
  else if(d.orig!=null){R.orig=!R.orig;R.rmenu=false;renderRoom(true)}
  else if(d.rmenu!=null){R.rmenu=!R.rmenu;renderRoom(true);if(d.url)native.open(d.url)}
  else if(d.rreload!=null){if(R.room)openPost(R.room.no,true)}
@@ -586,11 +603,13 @@ document.addEventListener('change',e=>{
  else if(e.target.matches('.slot select')){const t=e.target.nextElementSibling;t.disabled=e.target.value!=='custom';if(!t.disabled)t.focus()}});
 document.addEventListener('submit',async e=>{e.preventDefault();const f=e.target;
  if(f.id==='findf'){const S=R.search;S.q=$('#findq').value.trim();if(!S.q)return;S.busy=true;S.err='';renderPane();try{S.res=await dc.searchGalleries(S.q)}catch(x){S.err=x.message;S.res=null}S.busy=false;renderPane()}
- else if(f.id==='setf'){const el=f.elements;if(R.stab==='프로필'){D.me.name=el.name.value.trim()||'ㅇㅇ';D.me.status=el.status.value.trim()}else D.rooms=D.rooms.map((r,i)=>({mode:el['m'+i].value,text:el['t'+i].value.trim()}));save();R.saved=true;renderPane();renderRoom(true)}
+ else if(f.id==='gform'){const nick=f.elements.gnick.value.trim(),pw=f.elements.gpw.value;if(!nick||pw.length<2){f.querySelector('.gerr').textContent='닉네임과 비밀번호(2자 이상)를 입력해 주세요.';return}D.guest={nick,pw};save();gaskClose('guest')}
+ else if(f.id==='setf'){const el=f.elements;if(R.stab==='계정'){const nick=el.gnick.value.trim(),pw=el.gpw.value;D.guest=nick&&pw.length>=2?{nick,pw}:null;if((nick||pw)&&!D.guest){toast('닉네임과 비밀번호(2자 이상)를 모두 입력해 주세요.');return}}else if(R.stab==='프로필'){D.me.name=el.name.value.trim()||'ㅇㅇ';D.me.status=el.status.value.trim()}else D.rooms=D.rooms.map((r,i)=>({mode:el['m'+i].value,text:el['t'+i].value.trim()}));save();R.saved=true;renderPane();renderRoom(true)}
  else if(f.id==='cform'){const text=f.querySelector('textarea').value.trim();if(text&&await sendToRoom('comment',{text})){const t=$('#cform textarea');if(t){t.value='';t.form.querySelector('.send').classList.remove('ok')}}}
  else if(f.id==='wform')sendDraft()});
 /* 뒤로 가기(안드로이드 뒤로 버튼, Esc): 열린 창을 하나씩 닫고, 닫을 것이 없으면 false를 돌려 앱이 종료 처리하게 합니다. */
 window.yjBack=()=>{if(!$('#viewer').hidden){$('#viewer').hidden=true;return true}
+ if(!gask.hidden){gaskClose(null);return true}
  if(R.write){if(!R.write.busy){R.write=null;renderRoom()}return true}
  if(R.rmenu||R.orig){R.rmenu=R.orig=false;renderRoom(true);return true}
  if(R.cpanel||R.tpanel||R.menu!=null){R.cpanel=R.tpanel=false;R.menu=null;renderRoom(true);return true}

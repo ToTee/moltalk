@@ -19,6 +19,15 @@ function helpers(){
  // 공식 화면이 보내는 요청 중 주소가 pat에 맞는 것의 응답을 기다립니다.
  const ajax=(pat,ms=20000)=>new Promise(res=>{const t=setTimeout(()=>res(null),ms);window.jQuery(document).ajaxComplete((e,xhr,s)=>{if(!pat.test(s.url||''))return;clearTimeout(t);let j=null;try{j=xhr.responseJSON||JSON.parse(xhr.responseText)}catch{}res(j||{})})});
  const user=()=>(document.querySelector('#user_id')||{}).value||'';
+ // 로그인하지 않았으면(유동) 닉네임과 비밀번호 칸을 채웁니다. 문제가 없으면 null, 있으면 돌려줄 결과를 냅니다.
+ const guest=(a,root,nickSel,pwSel)=>{
+  if(user())return null;
+  const n=root.querySelector(nickSel),p=root.querySelector(pwSel);
+  if(!n||!p)return {error:'이 갤러리는 로그인해야 쓸 수 있습니다.'};
+  const g=a.guest;if(!g||!g.nick||!g.pw)return {need:'guest'};
+  n.value=g.nick;p.value=g.pw;for(const x of [n,p]){x.dispatchEvent(new Event('input',{bubbles:true}));x.dispatchEvent(new Event('change',{bubbles:true}))}
+  return null;
+ };
  const done=r=>!r?{error:alerts.join(' ')||'디시에서 응답이 없습니다.'}:r.result===true||r.result===1||r.result==='1'||r.result==='success'?{ok:true}:r.cause==='captcha'?{need:'captcha'}:{error:String(r.cause||r.msg||alerts.join(' ')||'요청이 거절되었습니다.')};
  // 답글이면 그 댓글 아래에 공식 답글 폼을 열고, 아니면 기본 댓글 폼을 씁니다.
  const form=parentNo=>{
@@ -57,7 +66,7 @@ function helpers(){
   return !!ok;
  };
  const HUMAN_FAIL={error:"'사람인지 확인'을 마치지 못해 등록하지 않았습니다. 다시 시도해 주세요."};
- return {alerts,wait,until,ajax,user,done,form,human,HUMAN_FAIL};
+ return {alerts,wait,until,ajax,user,guest,done,form,human,HUMAN_FAIL};
 }
 
 const SCRIPTS={
@@ -101,8 +110,8 @@ const SCRIPTS={
 
  // 댓글·답글 쓰기
  async comment(a,h){
-  if(!h.user())return {need:'login'};
   const f=h.form(a.parentNo);if(!f||!f.form)return {error:a.parentNo?'답글을 달 댓글을 찾지 못했습니다.':'댓글을 쓸 수 없는 글입니다.'};
+  const gq=h.guest(a,f.form,'[id^="comment_nick"]','[id^="comment_pw"]');if(gq)return gq;
   if(f.form.querySelector('[id^="captcha_codeC"]'))return {need:'captcha'};
   f.form.querySelector(f.memo).value=a.text;
   if(!await h.human(f.form))return h.HUMAN_FAIL;
@@ -122,8 +131,8 @@ const SCRIPTS={
 
  // 디시콘 1개 또는 2개(더블콘) 댓글로 등록
  async dccon(a,h){
-  if(!h.user())return {need:'login'};
   const f=h.form(a.parentNo);if(!f||!f.form)return {error:'디시콘을 달 곳을 찾지 못했습니다.'};
+  const gq=h.guest(a,f.form,'[id^="comment_nick"]','[id^="comment_pw"]');if(gq)return gq;
   window.show_dccon(f.mode);
   const box=await h.until(()=>{const b=document.querySelector(f.mode==='commentWrite'?'#dcconBoxComment':'#dcconBoxReple');return b&&!b.querySelector('.dccon-loading')?b:null},12000);
   if(!box)return {error:'디시콘 창을 열지 못했습니다.'};
@@ -136,8 +145,8 @@ const SCRIPTS={
 
  // 글자콘 등록
  async txtcon(a,h){
-  if(!h.user())return {need:'login'};
   const f=h.form(a.parentNo);if(!f||!f.form)return {error:'글자콘을 달 곳을 찾지 못했습니다.'};
+  const gq=h.guest(a,f.form,'[id^="comment_nick"]','[id^="comment_pw"]');if(gq)return gq;
   const btn=f.form.querySelector('.add-txtdccon');if(!btn||getComputedStyle(btn).display==='none')return {error:'이 갤러리는 글자콘을 쓸 수 없습니다.'};
   window.show_txtcon(f.tmode);
   const memo=await h.until(()=>document.querySelector('#txtcon_memo'),5000);if(!memo)return {error:'글자콘 창을 열지 못했습니다.'};
@@ -171,10 +180,12 @@ const SCRIPTS={
 
  // 글쓰기: 글과 사진을 보낸 순서대로 본문에 넣고 등록합니다. 등록되면 화면이 글 목록으로 넘어갑니다.
  async write(a,h){
-  if(!h.user())return {need:'login'};
+  {const gq=h.guest(a,document,'#name','#password');if(gq)return gq}
   /* 디시 글쓰기 칸은 편집기(summernote)가 만든 .note-editable 이 실제 본문입니다. #textbox 에 넣으면 등록할 때 빈 글로 읽힙니다. */
   const subject=document.querySelector('#subject'),box=await h.until(()=>document.querySelector('.note-editable'),8000);
   if(!subject||!box)return {error:'글쓰기 화면을 열지 못했습니다.'};
+  /* 빈 글쓰기 칸에는 디시가 넣어 둔 안내 문구("내용")가 들어 있습니다. 그대로 두면 글 맨 앞에 "내용"이 함께 올라가므로 지웁니다. */
+  for(const n of box.querySelectorAll('.wrt-guide-preview'))n.remove();
   if(!box.textContent.trim()&&!box.querySelector('img,video,iframe'))box.innerHTML='';
   /* 사진·영상은 편집기가 커서 자리에 넣으므로, 올리기 전에 커서를 본문 맨 끝으로 옮깁니다. */
   const toEnd=()=>{box.focus();const r=document.createRange();r.selectNodeContents(box);r.collapse(false);const s=window.getSelection();s.removeAllRanges();s.addRange(r);try{window.jQuery('#textbox').summernote('saveRange')}catch(e){}};
