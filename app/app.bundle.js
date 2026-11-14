@@ -45,11 +45,22 @@
               flush();
               out.push(ok(pic) ? { t: "dccon", src: pic, mp4: ok(file) && file !== pic ? file : "", alt: c.getAttribute("title") || "" } : { t: "dccon", src: file, video: true, alt: c.getAttribute("title") || "" });
             }
+          } else if (ok(pic)) {
+            flush();
+            out.push({ t: "img", src: pic, alt: "\uC6C0\uC9E4" });
           } else if (ok(file)) {
             flush();
             out.push({ t: "video", src: file, poster: abs(c.getAttribute("poster") || "") });
           }
           continue;
+        }
+        {
+          const xu = c.getAttribute("data-x-url") || "";
+          if (/^https:\/\//.test(xu)) {
+            if (buf && !buf.endsWith("\n")) buf += "\n";
+            buf += xu + "\n";
+            continue;
+          }
         }
         if (tag === "iframe" || tag === "embed") {
           const src = abs(c.getAttribute("src") || "");
@@ -126,7 +137,7 @@
         }
         if (tag === "video") {
           const file = abs(c.getAttribute("src") || c.querySelector("source")?.getAttribute("src") || ""), pic = abs(c.getAttribute("data-src") || ""), poster = abs(c.getAttribute("poster") || "");
-          if (/dccon/.test(c.getAttribute("class") || "") && ok(pic)) out += '<img loading="lazy" src="' + hesc(pic) + '" alt="' + hesc(c.getAttribute("title") || "\uB514\uC2DC\uCF58") + '">';
+          if (ok(pic)) out += '<img loading="lazy" src="' + hesc(pic) + '" alt="' + hesc(c.getAttribute("title") || (/dccon/.test(c.getAttribute("class") || "") ? "\uB514\uC2DC\uCF58" : "\uC6C0\uC9E4")) + '"' + (/dccon/.test(c.getAttribute("class") || "") ? "" : " data-zoom") + ">";
           else if (ok(file)) out += '<video class="gifv" loop muted playsinline preload="metadata" src="' + hesc(file) + '"' + (ok(poster) ? ' poster="' + hesc(poster) + '"' : "") + "></video>";
           continue;
         }
@@ -134,6 +145,13 @@
           const src = abs(c.getAttribute("src") || "");
           if (/^https?:\/\//.test(src)) out += '<button class="embed" data-url="' + hesc(src) + '">\uB3D9\uC601\uC0C1\xB7\uC678\uBD80 \uCF58\uD150\uCE20 \uC5F4\uAE30</button>';
           continue;
+        }
+        {
+          const xu = c.getAttribute("data-x-url") || "";
+          if (ok(xu)) {
+            out += '<p><a href="' + hesc(xu) + '" data-url="' + hesc(xu) + '">' + hesc(xu) + "</a></p>";
+            continue;
+          }
         }
         if (tag === "a") {
           const href = abs(c.getAttribute("href") || ""), link = /^https?:\/\//.test(href);

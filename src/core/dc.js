@@ -28,8 +28,12 @@ export function toBlocks(root){
      기기에 따라 영상이 재생되지 않을 수 있어 그림 주소를 먼저 쓰고, 영상 주소는 그림을 못 읽을 때만 씁니다. */
   if(tag==='video'){const con=/dccon/.test(c.getAttribute('class')||''),file=abs(c.getAttribute('src')||c.querySelector('source')?.getAttribute('src')||''),pic=abs(c.getAttribute('data-src')||''),ok=u=>/^https:\/\//.test(u);
    if(con){if(ok(pic)||ok(file)){flush();out.push(ok(pic)?{t:'dccon',src:pic,mp4:ok(file)&&file!==pic?file:'',alt:c.getAttribute('title')||''}:{t:'dccon',src:file,video:true,alt:c.getAttribute('title')||''})}}
+   /* 본문 움짤도 같습니다: 움직이는 그림 주소(data-src)가 있으면 그림으로 보여 줍니다. 그림은 재생 단추 없이 바로 움직이고, 휴대폰에서도 빠짐없이 나옵니다. */
+   else if(ok(pic)){flush();out.push({t:'img',src:pic,alt:'움짤'})}
    else if(ok(file)){flush();out.push({t:'video',src:file,poster:abs(c.getAttribute('poster')||'')})}
    continue}
+  /* 트위터(X) 글: 본문에는 주소만 든 빈 칸으로 들어옵니다. 주소를 글자로 꺼내 누를 수 있게 합니다. */
+  {const xu=c.getAttribute('data-x-url')||'';if(/^https:\/\//.test(xu)){if(buf&&!buf.endsWith('\n'))buf+='\n';buf+=xu+'\n';continue}}
   if(tag==='iframe'||tag==='embed'){const src=abs(c.getAttribute('src')||'');if(src){flush();out.push({t:'embed',src})}continue}
   const cls=c.getAttribute('class')||'';
   if(/txtdccon/.test(cls)){const v=c.textContent.trim(),inner=c.querySelector('[class*="ctxt_"]');if(v){flush();out.push({t:'txtcon',v,bg:(cls.match(/cbg_([0-9a-f]{6})/i)||[])[1]||'3b4890',fg:((inner?.getAttribute('class')||'').match(/ctxt_([0-9a-f]{6})/i)||[])[1]||'ffffff'})}continue}
@@ -65,10 +69,11 @@ export function toHtml(root){
   if(tag==='br'){out+='<br>';continue}
   if(tag==='img'){const src=abs(c.getAttribute('data-original')||c.getAttribute('data-src')||c.getAttribute('src')||'');if(ok(src))out+='<img loading="lazy" src="'+hesc(src)+'" alt="'+hesc(c.getAttribute('alt')||'본문 사진')+'"'+attrs(c)+' data-zoom>';continue}
   if(tag==='video'){const file=abs(c.getAttribute('src')||c.querySelector('source')?.getAttribute('src')||''),pic=abs(c.getAttribute('data-src')||''),poster=abs(c.getAttribute('poster')||'');
-   if(/dccon/.test(c.getAttribute('class')||'')&&ok(pic))out+='<img loading="lazy" src="'+hesc(pic)+'" alt="'+hesc(c.getAttribute('title')||'디시콘')+'">';
+   if(ok(pic))out+='<img loading="lazy" src="'+hesc(pic)+'" alt="'+hesc(c.getAttribute('title')||(/dccon/.test(c.getAttribute('class')||'')?'디시콘':'움짤'))+'"'+(/dccon/.test(c.getAttribute('class')||'')?'':' data-zoom')+'>';
    else if(ok(file))out+='<video class="gifv" loop muted playsinline preload="metadata" src="'+hesc(file)+'"'+(ok(poster)?' poster="'+hesc(poster)+'"':'')+'></video>';
    continue}
   if(tag==='iframe'||tag==='embed'){const src=abs(c.getAttribute('src')||'');if(/^https?:\/\//.test(src))out+='<button class="embed" data-url="'+hesc(src)+'">동영상·외부 콘텐츠 열기</button>';continue}
+  {const xu=c.getAttribute('data-x-url')||'';if(ok(xu)){out+='<p><a href="'+hesc(xu)+'" data-url="'+hesc(xu)+'">'+hesc(xu)+'</a></p>';continue}}
   if(tag==='a'){const href=abs(c.getAttribute('href')||''),link=/^https?:\/\//.test(href);out+=link?'<a href="'+hesc(href)+'" data-url="'+hesc(href)+'"'+attrs(c)+'>':'<span'+attrs(c)+'>';walk(c);out+=link?'</a>':'</span>';continue}
   if(HTML_TAGS.test(tag)){if(tag==='hr'){out+='<hr'+attrs(c)+'>';continue}out+='<'+tag+attrs(c)+'>';walk(c);out+='</'+tag+'>';continue}
   walk(c);
