@@ -384,6 +384,7 @@ public class MainActivity extends Activity {
     }
 
     private class MainClient extends WebViewClient {
+        @Override public void onPageFinished(WebView view, String url) { mainReady = url != null && url.startsWith("https://" + APP_HOST + "/"); }
         @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
             return true; // 화면은 다른 주소로 이동하지 않습니다.
         }
@@ -486,10 +487,27 @@ public class MainActivity extends Activity {
         super.onNewIntent(intent);
         handleImport(intent);
     }
+    private static final String OLD_PKG = "io.github.yangjitalk", OLD_AUTHORITY = "io.github.yangjitalk.export";
+    private boolean mainReady;  // 화면(app/index.html)이 다 떴는지
+    private boolean importing;  // 가져오기는 한 번에 하나만 처리합니다.
+    private boolean dead;       // 이 화면이 없어진 뒤에는 창을 띄우지 않습니다.
+    private void toast(String text) { android.widget.Toast.makeText(this, text, android.widget.Toast.LENGTH_LONG).show(); }
+    /** 화면이 그대로 쓰는 값들의 모양이 맞는지 봅니다. 모양이 틀린 설정을 넣으면 앱이 켜지지 않게 됩니다. */
+    private static boolean settingsOk(JSONObject d) {
+        if (d.optJSONArray("gals") == null) return false;
+        for (String k : new String[]{"favs", "rooms", "trecent", "watch", "notis"}) if (d.has(k) && d.optJSONArray(k) == null) return false;
+        for (String k : new String[]{"me", "photos", "alias", "seen", "top"}) if (d.has(k) && d.optJSONObject(k) == null) return false;
+        return true;
+    }
     private void handleImport(Intent intent) {
         if (intent == null || !"io.github.moltalk.IMPORT".equals(intent.getAction()) || intent.getData() == null) return;
         Uri src = intent.getData();
         intent.setAction(null); // 화면을 돌리는 등으로 다시 만들어질 때 또 묻지 않게 합니다.
+        // 양지톡이 내주는 주소만 받습니다. 그 주소의 주인이 정말 양지톡인지도 확인합니다.
+        android.content.pm.ProviderInfo owner = "content".equals(src.getScheme()) && OLD_AUTHORITY.equals(src.getAuthority()) ? getPackageManager().resolveContentProvider(OLD_AUTHORITY, 0) : null;
+        if (owner == null || !OLD_PKG.equals(owner.packageName)) { toast("양지톡에서 보낸 설정이 아니어서 가져오지 않았습니다."); return; }
+        if (importing) return;
+        importing = true;
         pool.execute(() -> {
             String json;
             try (InputStream in = getContentResolver().openInputStream(src)) {
@@ -497,29 +515,39 @@ public class MainActivity extends Activity {
                 byte[] b = new byte[65536];
                 for (int n; (n = in.read(b)) > 0; ) { buf.write(b, 0, n); if (buf.size() > 30000000) throw new Exception("too large"); }
                 json = new String(buf.toByteArray(), StandardCharsets.UTF_8);
-                JSONObject d = new JSONObject(json);
-                if (d.optJSONArray("gals") == null) throw new Exception("not settings");
+                if (!settingsOk(new JSONObject(json))) throw new Exception("not settings");
             } catch (Exception e) {
-                ui.post(() -> android.widget.Toast.makeText(this, "설정을 읽지 못했습니다.", android.widget.Toast.LENGTH_LONG).show());
+                ui.post(() -> { importing = false; if (!dead) toast("설정을 읽지 못했습니다."); });
                 return;
             }
             final String data = json;
-            // 앱이 막 켜진 경우 화면이 다 뜬 뒤에 묻습니다(화면이 뜨기 전에는 설정을 저장할 자리가 없습니다).
-            ui.postDelayed(() -> {
-                if (isFinishing()) return;
-                new android.app.AlertDialog.Builder(this).setTitle("설정 가져오기")
-                    .setMessage("양지톡의 친구·사진·이름을 가져올까요?\n지금 몰톡에 있는 설정은 가져온 것으로 바뀝니다. 로그인은 몰톡에서 다시 해야 합니다.")
-                    .setNegativeButton("취소", null)
-                    .setPositiveButton("가져오기", (dlg, w) -> main.evaluateJavascript(
-                        "(function(j){try{localStorage.setItem('moltalk-v1',j);localStorage.removeItem('yangjitalk-v1');setTimeout(function(){location.reload()},0);return 'ok'}catch(e){return 'err'}})(" + JSONObject.quote(data) + ")",
-                        r -> android.widget.Toast.makeText(this, "\"ok\"".equals(r) ? "설정을 가져왔습니다." : "설정을 저장하지 못했습니다.", android.widget.Toast.LENGTH_LONG).show()))
-                    .show();
-            }, 1500);
+            ui.post(() -> askImport(data, 0));
         });
+    }
+    /** 화면이 다 뜬 뒤에 묻습니다(화면이 뜨기 전에는 설정을 저장할 자리가 없습니다). 30초가 지나도 안 뜨면 그만둡니다. */
+    private void askImport(String data, int tries) {
+        if (dead || isFinishing()) { importing = false; return; }
+        if (!mainReady) {
+            if (tries >= 60) { importing = false; toast("화면이 뜨지 않아 가져오지 못했습니다. 양지톡에서 다시 옮겨 주세요."); }
+            else ui.postDelayed(() -> askImport(data, tries + 1), 500);
+            return;
+        }
+        // 지금 몰톡에 있던 설정은 지우지 않고 다른 이름(moltalk-v1-before-import)으로 남겨 둡니다.
+        String js = "(function(j){try{if(location.host!=='" + APP_HOST + "')return 'err';var old=localStorage.getItem('moltalk-v1');"
+            + "if(old!==null){try{localStorage.setItem('moltalk-v1-before-import',old)}catch(e){}}"
+            + "localStorage.setItem('moltalk-v1',j);localStorage.removeItem('yangjitalk-v1');setTimeout(function(){location.reload()},0);return 'ok'}catch(e){return 'err'}})(" + JSONObject.quote(data) + ")";
+        new android.app.AlertDialog.Builder(this).setTitle("설정 가져오기")
+            .setMessage("양지톡의 친구·사진·이름을 가져올까요?\n지금 몰톡에 있는 설정은 가져온 것으로 바뀝니다. 로그인은 몰톡에서 다시 해야 합니다.")
+            .setNegativeButton("취소", null)
+            .setPositiveButton("가져오기", (dlg, w) -> main.evaluateJavascript(js, r -> { if (!dead) toast("\"ok\"".equals(r) ? "설정을 가져왔습니다." : "설정을 저장하지 못했습니다. 양지톡에서 다시 옮겨 주세요."); }))
+            .setOnDismissListener(dlg -> importing = false)
+            .show();
     }
 
     @Override
     protected void onDestroy() {
+        dead = true;
+        ui.removeCallbacksAndMessages(null);
         pool.shutdownNow();
         main.destroy();
         helper.destroy();
