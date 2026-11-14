@@ -2546,16 +2546,29 @@
   document.addEventListener("change", (e) => {
     if (e.target.id === "whead") R.write.head = e.target.value;
     else if (e.target.id === "pick") {
-      for (const f2 of e.target.files) {
-        const video = f2.type.startsWith("video");
-        if (f2.size > (video ? LIMIT.video : LIMIT.image)) {
-          toast((video ? "\uB3D9\uC601\uC0C1\uC740 100MB" : "\uC0AC\uC9C4\uC740 20MB") + "\uAE4C\uC9C0 \uC62C\uB9B4 \uC218 \uC788\uC2B5\uB2C8\uB2E4: " + f2.name);
-          continue;
+      const w = R.write, files = [...e.target.files];
+      e.target.value = "";
+      w.menu = false;
+      w.err = "";
+      (async () => {
+        for (const f2 of files) {
+          const video = f2.type.startsWith("video");
+          if (f2.size > (video ? LIMIT.video : LIMIT.image)) {
+            toast((video ? "\uB3D9\uC601\uC0C1\uC740 100MB" : "\uC0AC\uC9C4\uC740 20MB") + "\uAE4C\uC9C0 \uC62C\uB9B4 \uC218 \uC788\uC2B5\uB2C8\uB2E4: " + f2.name);
+            continue;
+          }
+          let copy;
+          try {
+            copy = new File([await f2.arrayBuffer()], f2.name, { type: f2.type });
+          } catch (x) {
+            toast("\uD30C\uC77C\uC744 \uC77D\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4: " + f2.name + " (" + (x.name || "\uC624\uB958") + ")");
+            continue;
+          }
+          if (R.write !== w) return;
+          w.pending.push({ file: copy, name: f2.name, video, url: URL.createObjectURL(copy) });
+          renderWrite();
         }
-        R.write.pending.push({ file: f2, name: f2.name, video, url: URL.createObjectURL(f2) });
-      }
-      R.write.menu = false;
-      R.write.err = "";
+      })();
       renderWrite();
     } else if (e.target.matches(".slot select")) {
       const t = e.target.nextElementSibling;

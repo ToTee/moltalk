@@ -782,9 +782,13 @@ document.addEventListener('input',e=>{const t=e.target;
 const LIMIT={image:20*1024*1024,video:100*1024*1024};
 document.addEventListener('change',e=>{
  if(e.target.id==='whead')R.write.head=e.target.value;
- else if(e.target.id==='pick'){for(const f of e.target.files){const video=f.type.startsWith('video');
+ else if(e.target.id==='pick'){const w=R.write,files=[...e.target.files];e.target.value='';w.menu=false;w.err='';
+  /* 고른 그 자리에서 파일 내용을 앱 안으로 복사해 둡니다. 휴대폰은 고른 파일을 읽을 권한이 잠깐만 주어져서, 등록할 때 읽으면 "파일을 읽지 못했습니다"가 났습니다. */
+  (async()=>{for(const f of files){const video=f.type.startsWith('video');
    if(f.size>(video?LIMIT.video:LIMIT.image)){toast((video?'동영상은 100MB':'사진은 20MB')+'까지 올릴 수 있습니다: '+f.name);continue}
-   R.write.pending.push({file:f,name:f.name,video,url:URL.createObjectURL(f)})}R.write.menu=false;R.write.err='';renderWrite()}
+   let copy;try{copy=new File([await f.arrayBuffer()],f.name,{type:f.type})}catch(x){toast('파일을 읽지 못했습니다: '+f.name+' ('+(x.name||'오류')+')');continue}
+   if(R.write!==w)return;
+   w.pending.push({file:copy,name:f.name,video,url:URL.createObjectURL(copy)});renderWrite()}})();renderWrite()}
  else if(e.target.matches('.slot select')){const t=e.target.nextElementSibling;t.disabled=e.target.value!=='custom';if(!t.disabled)t.focus()}});
 document.addEventListener('submit',async e=>{e.preventDefault();const f=e.target;
  if(f.id==='findf'){const S=R.search;S.q=$('#findq').value.trim();if(!S.q)return;S.busy=true;S.err='';renderPane();try{S.res=await dc.searchGalleries(S.q)}catch(x){S.err=x.message;S.res=null}S.busy=false;renderPane()}

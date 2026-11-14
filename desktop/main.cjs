@@ -12,7 +12,8 @@ const UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, l
 const MOBILE_UA='Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/'+CHROME+'.0.0.0 Mobile Safari/537.36';
 app.userAgentFallback=MOBILE_UA;
 /* 윈도우 알림이 뜨려면 앱 식별 이름이 설치할 때 만든 바로가기의 것(package.json의 appId)과 같아야 합니다. */
-app.setAppUserModelId('io.github.moltalk');
+/* 개발·확인용 실행(electron.exe)은 다른 이름을 씁니다. 같은 이름을 쓰면 윈도우가 알림을 눌렀을 때 설치된 몰톡 대신 electron.exe를 켜서 빈 Electron 창이 뜹니다(실제로 그랬습니다). */
+app.setAppUserModelId(app.isPackaged?'io.github.moltalk':'io.github.moltalk.dev');
 const dcHost=h=>/(^|\.)dcinside\.(com|co\.kr)$/.test(h);
 const dcUrl=u=>{try{const x=new URL(u);return x.protocol==='https:'&&!x.username&&!x.password&&dcHost(x.hostname)?x:null}catch{return null}};
 let win=null;
@@ -210,7 +211,10 @@ function createWindow(){
   if(process.env.YJ_JS){const out=await win.webContents.executeJavaScript(fs.readFileSync(process.env.YJ_JS,'utf8')).catch(e=>'JS 오류: '+e.message);if(out!==undefined)console.log('[js]',out);await wait(Number(process.env.YJ_WAIT2)||4000)}
   fs.writeFileSync(process.env.YJ_SHOT,(await win.webContents.capturePage(undefined,{stayHidden:true})).toPNG());app.quit();
  });
- win.webContents.on('console-message',(e,level,message)=>{if(process.env.YJ_SHOT&&level>=2)console.log('[page]',message)});
+ win.webContents.on('console-message',(e,level,message)=>{const m=typeof message==='string'?message:e&&e.message;
+  /* 개발용 확인: 화면 스크립트가 __YJ_SNAP__이름 을 남기면 그 순간의 화면을 tmp/snap-이름.png 로 찍습니다(여러 장 찍을 때). */
+  if(process.env.YJ_SHOT&&/^__YJ_SNAP__[a-z0-9-]+$/.test(String(m||'')))win.webContents.capturePage(undefined,{stayHidden:true}).then(i=>fs.writeFileSync(path.join(path.dirname(process.env.YJ_SHOT),'snap-'+m.slice(11)+'.png'),i.toPNG())).catch(x=>console.log('[snap 실패]',x.message));
+  else if(process.env.YJ_SHOT&&level>=2)console.log('[page]',m)});
 }
 /* 그래픽 가속을 끕니다. 창 크기를 끌 때 회색 영역이 모니터를 덮는 문제가 있었는데, 화면 캡처에는 찍히지 않아
    그래픽 카드가 창을 따로 겹쳐 그리는 방식(하드웨어 오버레이)에서 생기는 것으로 보고, 그 경로를 쓰지 않게 합니다.
