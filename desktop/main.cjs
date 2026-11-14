@@ -1,5 +1,5 @@
 // 양지톡 윈도우용 껍데기. 화면(app/)을 띄우고, 디시로 가는 요청만 대신 보내 줍니다.
-const {app,BrowserWindow,desktopCapturer,ipcMain,net,screen,session,shell}=require('electron');
+const {app,BrowserWindow,Menu,Tray,desktopCapturer,ipcMain,net,screen,session,shell}=require('electron');
 const path=require('path');
 const fs=require('fs');
 const UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
@@ -144,7 +144,18 @@ if(!process.env.YJ_GPU)app.disableHardwareAcceleration();
 // 앱은 하나만 실행합니다(두 개가 같은 저장 공간을 함께 쓰면 서로 방해합니다). 확인용 실행은 예외입니다.
 if(!process.env.YJ_SHOT&&!app.requestSingleInstanceLock())app.quit();
 else{
- app.on('second-instance',()=>{if(win){if(win.isMinimized())win.restore();win.focus()}});
- app.whenReady().then(()=>{diagSetup();setupSession();createWindow()});
+ app.on('second-instance',showWin);
+ app.whenReady().then(()=>{diagSetup();setupSession();createWindow();if(!process.env.YJ_SHOT)setupTray()});
 }
+/* 창의 닫기 단추는 앱을 끄지 않고 창만 숨깁니다. 앱은 작업 표시줄 오른쪽 알림 영역(트레이)에 남아 알림 확인을 계속하고,
+   트레이 아이콘을 누르면 창이 다시 열립니다. 완전히 끄려면 트레이 아이콘을 우클릭해 '종료'를 누릅니다. */
+let tray=null,quitting=false;
+function showWin(){if(!win)return;if(win.isMinimized())win.restore();win.show();win.focus()}
+function setupTray(){
+ win.on('close',e=>{if(!quitting){e.preventDefault();win.hide()}});
+ tray=new Tray(path.join(__dirname,'tray.png'));tray.setToolTip('양지톡');
+ tray.setContextMenu(Menu.buildFromTemplate([{label:'열기',click:showWin},{type:'separator'},{label:'종료',click:()=>app.quit()}]));
+ tray.on('click',showWin);
+}
+app.on('before-quit',()=>{quitting=true});
 app.on('window-all-closed',()=>app.quit());
