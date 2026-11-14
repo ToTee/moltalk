@@ -121,6 +121,26 @@ function renderRail(){
   '<button class="ic'+(R.ov==='set'?' on':'')+'" data-ov="set" aria-label="설정">'+I.cog+'</button>';
 }
 
+/* ---------- 광고 칸 ----------
+   진짜 광고는 블카이브 하나이고, 블랙핑크 갤러리를 볼 때만 나옵니다(누르면 기기의 브라우저로 엽니다).
+   그 밖에는 사이버펑크 세계관을 찬양하는 장식용 광고가 나옵니다. 꾸밈일 뿐이라 눌러도 아무 일도 일어나지 않습니다.
+   문구는 앱을 켤 때 하나를 골라 그 실행 동안 유지합니다. */
+const BLINK='normal:blackpink',BLINK_URL='https://blinkarea.synology.me/';
+const CYS=[['네온은 꺼지지 않는다','비 내리는 밤이 가장 밝은 도시로','NEON NEVER SLEEPS'],['하이테크, 로우라이프. 그게 낭만','크롬 팔 하나쯤은 있어야 어른이지','HIGH TECH · LOW LIFE'],['미래는 골목 끝 네온사인 아래에 있다','사이버펑크는 장르가 아니라 태도','STAY WIRED'],['기업은 하늘에, 우리는 거리에','그래도 밤거리는 우리 것','THE STREET FINDS ITS OWN USE'],['전뇌에 접속할 시간','현실보다 선명한 도시가 기다린다','JACK IN']];
+const CY=CYS[Math.floor(Math.random()*CYS.length)];
+const cyLogo='<span class="logo"><b>CYBER</b><i>PUNK</i></span><em>AD</em>';
+const adM=blink=>blink?'<button class="adb m-only" data-url="'+BLINK_URL+'" aria-label="광고: 블카이브 열기"><span class="tx"><b>블랙핑크의 모든 기록, 블카이브</b><span>사진·영상·음원 기록을 한곳에서</span><i>지금 구경하기 ›</i></span><span class="logo"><b>블카이브</b><i>BLINK AREA</i></span><em>AD</em></button>':
+ '<div class="adb cy m-only" aria-hidden="true"><span class="tx"><b>'+CY[0]+'</b><span>'+CY[1]+'</span><i>'+CY[2]+'</i></span>'+cyLogo+'</div>';
+/* PC 화면 맨 아래 광고 줄(index.html의 #adpc): 지금 보고 있는 갤러리에 맞춰 내용을 바꿉니다. */
+function renderAd(){
+ const el=$('#adpc');if(!el)return;const blink=(R.view==='chats'&&R.g===BLINK)||R.room?.g===BLINK;
+ if(el.dataset.kind===(blink?'b':'c'))return;el.dataset.kind=blink?'b':'c';el.classList.toggle('cy',!blink);
+ if(blink){el.dataset.url=BLINK_URL;el.setAttribute('aria-label','광고: 블카이브 열기');el.removeAttribute('aria-hidden');el.tabIndex=0;
+  el.innerHTML='<span class="tx"><small>블카이브</small><b>블랙핑크의 모든 기록을 한곳에서</b><i>지금 구경하기 ›</i></span><span class="logo"><b>블카이브</b><i>BLINK AREA</i></span><em>AD</em>'}
+ else{delete el.dataset.url;el.removeAttribute('aria-label');el.setAttribute('aria-hidden','true');el.tabIndex=-1;
+  el.innerHTML='<span class="tx"><small>'+CY[1]+'</small><b>'+CY[0]+'</b><i>'+CY[2]+'</i></span>'+cyLogo}
+}
+
 /* ---------- 친구(갤러리 목록) ---------- */
 function friendsHtml(){
  const row=g=>{const k=key(g),st=D.aliasOn?alias(g).stat:R.latest[k]?.title||'';
@@ -128,8 +148,8 @@ function friendsHtml(){
  const favs=D.favs.map(gal).filter(Boolean),upd=D.gals.filter(g=>R.updated[key(g)]),all=[...D.gals].sort((a,b)=>gname(a).localeCompare(gname(b),'ko'));
  return '<div class="head fr"><h2>친구</h2><button class="who m-only" data-ov="log" aria-label="내 프로필 열기">'+meAv()+'<span>'+esc(D.me.name)+'</span></button><button class="ib" data-ov="find" aria-label="갤러리 검색">'+I.search+'</button><button class="ib" data-ov="find" aria-label="갤러리 추가">'+I.plusGal+'</button><button class="ib d-only" data-refresh aria-label="새로고침 (F5)" title="새로고침 (F5)">'+I.refresh+'</button>'+cogM+'</div>'+
   '<div class="scroll" id="fscroll">'+
-  /* 휴대폰 친구 화면 맨 위의 광고 칸: 누르면 블카이브를 기기의 브라우저로 엽니다. */
-  '<button class="adb m-only" data-url="https://blinkarea.synology.me/" aria-label="광고: 블카이브 열기"><span class="tx"><b>블랙핑크의 모든 기록, 블카이브</b><span>사진·영상·음원 기록을 한곳에서</span><i>지금 구경하기 ›</i></span><span class="logo"><b>블카이브</b><i>BLINK AREA</i></span><em>AD</em></button>'+
+  /* 휴대폰 친구 화면 맨 위의 광고 칸: 장식용 사이버펑크 광고(눌러도 아무 일 없음). 블카이브 광고는 블랙핑크 갤러리 글 목록 맨 위에만 나옵니다. */
+  adM(false)+
   '<div class="me">'+meAv()+'<span><b>'+esc(D.me.name)+'</b><span>'+esc(D.me.status)+'</span></span><button class="pill" data-ov="log">프로필</button></div>'+
   (favs.length?'<div class="sec"><span>즐겨찾기 &nbsp;'+favs.length+'</span>'+I.down+'</div><div class="favs">'+favs.map(g=>'<button class="fav" data-g="'+esc(key(g))+'" data-lp="gal" title="'+esc(gname(g))+'">'+(R.updated[key(g)]?'<i class="dot"></i>':'')+galAv(g)+'<span>'+esc(gname(g))+'</span></button>').join('')+'</div>':'')+
   (upd.length?'<div class="upd"><div class="sec"><span>업데이트한 친구 &nbsp;'+upd.length+'</span>'+I.down+'</div>'+upd.map(row).join('')+'</div>':'')+
@@ -168,7 +188,7 @@ function chatsHtml(){
   (R.filterOn?'<div class="searchbar"><input id="filter" placeholder="불러온 글 제목에서 찾기" value="'+esc(R.filter)+'"></div>':'')+
   '<div class="chips" id="chips">'+tabs.map(t=>'<button class="chip'+(String(t.id)===String(R.head)?' on':'')+'" data-h="'+esc(t.id)+'">'+esc(t.name)+'</button>').join('')+
   '<button class="chip ico'+(R.pinOpen?' on':'')+'" data-pintog aria-pressed="'+R.pinOpen+'" aria-label="'+(R.pinOpen?'공지 접기':'공지 모두 보기')+'">'+I.listp+(!R.pinOpen&&pins.length>1?'<i class="cdot"></i>':'')+'</button></div>'+
-  '<div class="scroll" id="cscroll">'+body+'</div>';
+  '<div class="scroll" id="cscroll">'+(R.g===BLINK?adM(true):'')+body+'</div>';
 }
 
 /* ---------- 겹쳐 뜨는 창(갤러리 찾기, 설정, 갤로그, 알림, 디시콘) ---------- */
@@ -212,6 +232,7 @@ function settingsHtml(x){
 }
 
 function renderPane(){
+ renderAd();
  const keep={f:$('#fscroll')?.scrollTop||0,c:$('#cscroll')?.scrollTop||0,ch:$('#chips')?.scrollLeft||0,fv:$('#pane .favs')?.scrollLeft||0};
  $('#pane').innerHTML=(R.view==='friends'?friendsHtml():chatsHtml())+overlayHtml();
  if($('#fscroll'))$('#fscroll').scrollTop=keep.f;if($('#cscroll'))$('#cscroll').scrollTop=keep.c;if($('#chips'))$('#chips').scrollLeft=keep.ch;if($('#pane .favs'))$('#pane .favs').scrollLeft=keep.fv;
@@ -265,6 +286,7 @@ function blockHtml(b,q=''){
  return '<button class="embed" data-url="'+esc(b.src)+'">동영상·외부 콘텐츠 열기</button>';
 }
 function renderRoom(keep){
+ renderAd();
  if(R.write)return renderWrite();
  const el=$('#room'),r=R.room;
  if(!r){el.innerHTML='';$('#app').classList.remove('in-room');return}
