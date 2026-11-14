@@ -27,9 +27,11 @@ const LS='yangjitalk-v1';
 const D=Object.assign({
  gals:[{id:'dcbest',type:'normal',name:'실시간 베스트'},{id:'singlebungle1472',type:'minor',name:'싱글벙글 지구촌'},{id:'programming',type:'normal',name:'프로그래밍'}],
  favs:['normal:dcbest','minor:singlebungle1472'],me:{name:'ㅇㅇ',status:''},photos:{},rooms:[],alias:{},aliasN:0,aliasOn:false,seen:{},top:{},tbg:'3b4890',tfg:'ffffff',trecent:[],watch:[],notis:[]
-},JSON.parse(localStorage.getItem(LS)||'{}'));
+},JSON.parse(localStorage.getItem(LS)||native.backup||'{}'));/* 저장소가 비었으면 PC판은 파일로 남겨 둔 사본에서 되살립니다. */
 while(D.rooms.length<10)D.rooms.push({mode:'random',text:''});
-const save=()=>{const keys=Object.keys(D.seen);if(keys.length>3000)for(const k of keys.slice(0,keys.length-2000))delete D.seen[k];localStorage.setItem(LS,JSON.stringify(D))};
+const save=()=>{const keys=Object.keys(D.seen);if(keys.length>3000)for(const k of keys.slice(0,keys.length-2000))delete D.seen[k];const json=JSON.stringify(D);localStorage.setItem(LS,json);native.backupSave?.(json)};
+/* 시작할 때 사본을 한 번 맞춰 둡니다(저장소가 비어 사본에서 되살렸으면 저장소에도 다시 씁니다). */
+if(localStorage.getItem(LS))native.backupSave?.(localStorage.getItem(LS));else if(native.backup)save();
 const key=g=>g.type+':'+g.id;
 const gal=k=>D.gals.find(g=>key(g)===k);
 
@@ -221,7 +223,10 @@ const bub=(t,q='')=>'<div class="bub">'+q+linkify(t)+'</div>';
 const conVideo=(src,alt)=>'<video class="dcon1" autoplay loop muted playsinline src="'+esc(src)+'" aria-label="'+esc(alt||'디시콘')+'"></video>';
 /* 디시콘 주소는 그림일 수도 영상일 수도 있습니다. 그림으로 못 읽으면 영상으로 한 번 바꿔 봅니다. */
 document.addEventListener('error',e=>{const n=e.target;if(n.tagName==='IMG'&&n.classList.contains('dcon1')&&n.isConnected)n.outerHTML=conVideo(n.dataset.mp4||n.src,n.alt)},true);
+/* 디시콘을 연달아 올린 것(더블콘)은 한 줄에 빈틈없이 나란히 놓습니다. */
+const joinCons=list=>{const out=[];for(const b of list){const l=out[out.length-1];if(b.t==='dccon'&&l&&l.t==='dccons')l.items.push(b);else if(b.t==='dccon'&&l&&l.t==='dccon')out[out.length-1]={t:'dccons',items:[l,b]};else out.push(b)}return out};
 function blockHtml(b,q=''){
+ if(b.t==='dccons')return '<div class="dcons">'+b.items.map(x=>blockHtml(x)).join('')+'</div>';
  if(b.t==='text')return bub(b.v,q);
  if(b.t==='img')return '<img class="media" loading="lazy" src="'+esc(b.src)+'" alt="'+esc(b.alt||'본문 사진')+'" data-zoom>';
  if(b.t==='txtcon')return '<div class="tcon" style="'+tstyle(b.v,b.bg,b.fg)+'">'+esc(b.v)+'</div>';
@@ -239,12 +244,14 @@ function renderRoom(keep){
  let h='';
  if(p){
   const merged=[];for(const b of p.blocks){const l=merged[merged.length-1];if(b.t==='text'&&l&&l.t==='text')l.v+='\n'+b.v;else merged.push({...b})}
+  merged.splice(0,merged.length,...joinCons(merged));
   const msgs=merged.map(b=>({w:author,b,d:parseTime(p.time)}));
   msgs.push({sys:'댓글 '+(r.total??p.commentCount)+'개'});
   const byId=new Map((r.comments||[]).map(c=>[c.id,c]));
   for(const c of r.comments||[]){const par=c.parentId&&byId.get(c.parentId);
    const q=par?'<div class="q"><b>'+esc(who(par))+'에게 답장</b><span>'+esc(par.blocks.map(b=>b.t==='text'?b.v:b.t==='dccon'?'(디시콘)':'(사진)').join(' '))+'</span></div>':'';
-   c.blocks.forEach((b,i)=>msgs.push({w:who(c),b,d:parseTime(c.time),q:i===0?q:'',mine:c.mine,c,lastBlock:i===c.blocks.length-1,isAuthor:!!p.uid&&c.uid===p.uid||(!p.uid&&!c.uid&&c.ip&&c.ip===p.ip&&c.name===p.name)}))}
+   const cb=joinCons(c.blocks);
+   cb.forEach((b,i)=>msgs.push({w:who(c),b,d:parseTime(c.time),q:i===0?q:'',mine:c.mine,c,lastBlock:i===cb.length-1,isAuthor:!!p.uid&&c.uid===p.uid||(!p.uid&&!c.uid&&c.ip&&c.ip===p.ip&&c.name===p.name)}))}
   /* 꾹 누르면 나오는 버튼: 댓글은 답장(+내 댓글이거나 내 글이면 삭제), 내가 쓴 글의 본문은 수정·삭제 */
   const myPost=!!R.user&&p.uid===R.user;
   let day='';

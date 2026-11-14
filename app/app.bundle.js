@@ -719,13 +719,17 @@
     trecent: [],
     watch: [],
     notis: []
-  }, JSON.parse(localStorage.getItem(LS) || "{}"));
+  }, JSON.parse(localStorage.getItem(LS) || native.backup || "{}"));
   while (D.rooms.length < 10) D.rooms.push({ mode: "random", text: "" });
   var save = () => {
     const keys = Object.keys(D.seen);
     if (keys.length > 3e3) for (const k of keys.slice(0, keys.length - 2e3)) delete D.seen[k];
-    localStorage.setItem(LS, JSON.stringify(D));
+    const json = JSON.stringify(D);
+    localStorage.setItem(LS, json);
+    native.backupSave?.(json);
   };
+  if (localStorage.getItem(LS)) native.backupSave?.(localStorage.getItem(LS));
+  else if (native.backup) save();
   var key = (g) => g.type + ":" + g.id;
   var gal = (k) => D.gals.find((g) => key(g) === k);
   var SUR = [..."\uC870\uC548\uAE40\uACE0\uBC31\uAD8C\uBB38\uC11C\uC720\uD669\uCC28\uC724"];
@@ -990,7 +994,18 @@
     const n = e.target;
     if (n.tagName === "IMG" && n.classList.contains("dcon1") && n.isConnected) n.outerHTML = conVideo(n.dataset.mp4 || n.src, n.alt);
   }, true);
+  var joinCons = (list) => {
+    const out = [];
+    for (const b of list) {
+      const l = out[out.length - 1];
+      if (b.t === "dccon" && l && l.t === "dccons") l.items.push(b);
+      else if (b.t === "dccon" && l && l.t === "dccon") out[out.length - 1] = { t: "dccons", items: [l, b] };
+      else out.push(b);
+    }
+    return out;
+  };
   function blockHtml(b, q = "") {
+    if (b.t === "dccons") return '<div class="dcons">' + b.items.map((x) => blockHtml(x)).join("") + "</div>";
     if (b.t === "text") return bub(b.v, q);
     if (b.t === "img") return '<img class="media" loading="lazy" src="' + esc(b.src) + '" alt="' + esc(b.alt || "\uBCF8\uBB38 \uC0AC\uC9C4") + '" data-zoom>';
     if (b.t === "txtcon") return '<div class="tcon" style="' + tstyle(b.v, b.bg, b.fg) + '">' + esc(b.v) + "</div>";
@@ -1018,13 +1033,15 @@
         if (b.t === "text" && l && l.t === "text") l.v += "\n" + b.v;
         else merged.push({ ...b });
       }
+      merged.splice(0, merged.length, ...joinCons(merged));
       const msgs = merged.map((b) => ({ w: author, b, d: parseTime(p.time) }));
       msgs.push({ sys: "\uB313\uAE00 " + (r.total ?? p.commentCount) + "\uAC1C" });
       const byId = new Map((r.comments || []).map((c) => [c.id, c]));
       for (const c of r.comments || []) {
         const par = c.parentId && byId.get(c.parentId);
         const q = par ? '<div class="q"><b>' + esc(who(par)) + "\uC5D0\uAC8C \uB2F5\uC7A5</b><span>" + esc(par.blocks.map((b) => b.t === "text" ? b.v : b.t === "dccon" ? "(\uB514\uC2DC\uCF58)" : "(\uC0AC\uC9C4)").join(" ")) + "</span></div>" : "";
-        c.blocks.forEach((b, i) => msgs.push({ w: who(c), b, d: parseTime(c.time), q: i === 0 ? q : "", mine: c.mine, c, lastBlock: i === c.blocks.length - 1, isAuthor: !!p.uid && c.uid === p.uid || !p.uid && !c.uid && c.ip && c.ip === p.ip && c.name === p.name }));
+        const cb = joinCons(c.blocks);
+        cb.forEach((b, i) => msgs.push({ w: who(c), b, d: parseTime(c.time), q: i === 0 ? q : "", mine: c.mine, c, lastBlock: i === cb.length - 1, isAuthor: !!p.uid && c.uid === p.uid || !p.uid && !c.uid && c.ip && c.ip === p.ip && c.name === p.name }));
       }
       const myPost = !!R.user && p.uid === R.user;
       let day = "";

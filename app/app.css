@@ -192,6 +192,7 @@ body{display:flex;flex-direction:column}
 .media{max-width:min(240px,100%);max-height:320px;border-radius:4px;display:block;background:#dfe6ec;cursor:zoom-in}
 video.media{cursor:auto}
 .dcon1{width:84px;height:84px;object-fit:contain;display:block}
+.dcons{display:flex;gap:0}
 .dcon{display:flex;gap:2px;flex:none}
 .embed{background:#fff;border-radius:4px;padding:8px 12px;font-size:13px}
 .ln[data-ci],.con,.fav,.row[data-lp]{touch-action:manipulation;-webkit-touch-callout:none;user-select:none}

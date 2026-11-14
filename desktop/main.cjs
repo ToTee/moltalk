@@ -127,6 +127,18 @@ ipcMain.handle('official',(event,url,opt={})=>new Promise(resolve=>{
 }));
 ipcMain.handle('logout',async()=>{await session.defaultSession.clearStorageData({storages:['cookies']});return true});
 
+/* 설정 사본: 화면이 설정을 저장할 때마다 파일로도 한 벌 남깁니다. 브라우저 저장소가 지워지거나 깨져도 다음 실행 때 이 파일에서 되살립니다.
+   확인용 실행(YJ_SHOT)은 사본을 읽지도 쓰지도 않습니다. */
+const backupFile=()=>path.join(app.getPath('userData'),'settings-backup.json');
+ipcMain.on('backup-load',e=>{try{e.returnValue=process.env.YJ_SHOT?'':fs.readFileSync(backupFile(),'utf8')}catch{e.returnValue=''}});
+let backupTimer=null,backupText='';
+ipcMain.on('backup-save',(e,json)=>{
+ if(process.env.YJ_SHOT||typeof json!=='string'||json.length>30e6)return;backupText=json;
+ if(!backupTimer)backupTimer=setTimeout(writeBackup,1500);
+});
+function writeBackup(){clearTimeout(backupTimer);backupTimer=null;if(!backupText)return;try{const f=backupFile();fs.writeFileSync(f+'.tmp',backupText);fs.renameSync(f+'.tmp',f)}catch(e){diag('backup-fail',e.message)}}
+app.on('before-quit',writeBackup);
+
 function createWindow(){
  const test=!!process.env.YJ_SHOT;/* 확인용 실행은 창을 화면에 띄우지 않습니다. */
  win=new BrowserWindow({width:Number(process.env.YJ_W)||440,height:800,minWidth:360,minHeight:520,title:'양지톡',autoHideMenuBar:true,backgroundColor:'#ffffff',
