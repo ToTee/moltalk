@@ -2,7 +2,7 @@
 // 디시 모바일 글 화면 하나를 열고 확인 상자를 불러오기만 합니다. 아무것도 누르거나 등록하지 않습니다.
 // 사용: electron tools/ts-probe.cjs   환경변수 P_GPU=1(그래픽 가속 켬) P_UA=mobile|real(기본 mobile) P_SHOW=1(창 보임) P_URL=글 주소
 const {app,BrowserWindow}=require('electron');
-if(!process.env.P_GPU)app.disableHardwareAcceleration();
+if(process.env.P_GPU==='nocomp')app.commandLine.appendSwitch('disable-gpu-compositing');else if(!process.env.P_GPU)app.disableHardwareAcceleration();
 const MOBILE_UA='Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/'+(process.env.P_OLDUA?'130':process.versions.chrome.split('.')[0])+'.0.0.0 Mobile Safari/537.36';
 const REAL_UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/'+process.versions.chrome.split('.')[0]+'.0.0.0 Safari/537.36';
 setTimeout(()=>{console.log('TIMEOUT stage='+stage);app.exit(0)},70000);let stage='start';
@@ -16,16 +16,27 @@ app.whenReady().then(async()=>{
   await d.sendCommand('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:5});
   await d.sendCommand('Emulation.setDeviceMetricsOverride',{width:412,height:780,deviceScaleFactor:2.625,mobile:true,screenWidth:412,screenHeight:915});}
  stage='load';await w.loadURL(process.env.P_URL).catch(e=>logs.push('load: '+e.message));
- stage='script';const out=await w.webContents.executeJavaScript(`(async()=>{
+ stage='script';if(process.env.P_REVEAL){w.webContents.on('console-message',(e,l,m)=>{const s=String(typeof m==='string'?m:e.message);if(s==='__YJ_SHOW__'){if(process.env.P_REVEAL!=='noresize')w.setContentSize(380,230);w.center();w.show();logs.push(((Date.now()-t0)/1000).toFixed(1)+'s SHOWN')}})}
+ const out=await w.webContents.executeJavaScript(`(async()=>{window.__reveal=${JSON.stringify(process.env.P_REVEAL||'')};
   const wait=ms=>new Promise(r=>setTimeout(r,ms));
   const slot=document.querySelector('#dc-turnstile, .dc-ts-slot'),ts=window.dcTs;
   const env={url:location.href,ua:navigator.userAgent.slice(0,60),uaData:navigator.userAgentData?navigator.userAgentData.platform+'/mobile='+navigator.userAgentData.mobile+'/'+navigator.userAgentData.brands.map(b=>b.brand+b.version).join(','):null,platform:navigator.platform,touch:navigator.maxTouchPoints,vis:document.visibilityState,
    webgl:(()=>{try{const g=document.createElement('canvas').getContext('webgl');if(!g)return 'none';const x=g.getExtension('WEBGL_debug_renderer_info');return x?g.getParameter(x.UNMASKED_RENDERER_WEBGL):'yes'}catch(e){return 'err'}})()};
-  if(!slot||!ts||typeof window.dcTsLoad!=='function')return {env,note:'확인 상자 없음',slot:!!slot,ts:!!ts};
+  if(!slot||!ts||typeof window.dcTsLoad!=='function'){/* 디시가 아닌 화면(클라우드플레어 공개 시연 화면 등): 확인값이 저절로 생기는지만 봅니다. */let v='';for(let i=0;i<50&&!v;i++){v=(document.querySelector('[name=cf-turnstile-response]')||{}).value||'';await wait(500)}return {env:{uaData:env.uaData,webgl:env.webgl},generic:true,token:v.length}}
   const root=slot.closest('form')||document.body;
   window.dcTsLoad();window.dcTsUse(root);
   const token=()=>{try{return window.turnstile&&ts.id!==null&&window.turnstile.getResponse(ts.id)||''}catch(e){return ''}};
-  const seen=[];for(let i=0;i<50&&!token();i++){if(seen[seen.length-1]!==ts.state)seen.push(ts.state);await wait(500)}
+  const seen=[];
+  if(window.__reveal){
+   /* 앱이 하는 것과 같은 순서: 확인 상자가 '눌러야 함' 상태가 되면 나머지 화면을 가리고 창을 보여 줍니다. 아무것도 누르지 않습니다. */
+   for(let i=0;i<40&&ts.state!=='interactive'&&ts.state!=='error'&&!token();i++)await wait(500);
+   seen.push('before-reveal:'+ts.state);
+   const host=ts.host||slot,st=document.createElement('style');
+   st.textContent='html,body{background:#fff!important;overflow:hidden!important}body *{visibility:hidden!important}.yj-host,.yj-host *{visibility:visible!important}.yj-host{position:fixed!important;left:0!important;right:0!important;top:56%!important;transform:translateY(-50%)!important;display:flex!important;justify-content:center!important;margin:0!important;z-index:2147483646!important}';
+   if(window.__reveal!=='nocss'){document.head.appendChild(st);host.classList.add('yj-host')}
+   console.log('__YJ_SHOW__');
+  }
+  for(let i=0;i<40&&!token();i++){if(seen[seen.length-1]!==ts.state)seen.push(ts.state);await wait(500)}
   return {env,states:seen,final:ts.state,token:token().length};
  })()`,true).catch(e=>({error:e.message}));
  console.log(JSON.stringify({gpu:!!process.env.P_GPU,uaMode:process.env.P_UA||'mobile',shown:!!process.env.P_SHOW,out,logs:logs.slice(0,12).map(x=>x.slice(0,90))},null,1));

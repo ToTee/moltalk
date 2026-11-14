@@ -173,8 +173,11 @@ function createWindow(){
 }
 /* 그래픽 가속을 끕니다. 창 크기를 끌 때 회색 영역이 모니터를 덮는 문제가 있었는데, 화면 캡처에는 찍히지 않아
    그래픽 카드가 창을 따로 겹쳐 그리는 방식(하드웨어 오버레이)에서 생기는 것으로 보고, 그 경로를 쓰지 않게 합니다.
-   이 앱은 글과 그림 위주라 가속 없이도 충분합니다. YJ_GPU=1 로 실행하면 가속을 다시 켭니다. */
-if(!process.env.YJ_GPU)app.disableHardwareAcceleration();
+   이 앱은 글과 그림 위주라 가속 없이도 충분합니다. YJ_GPU=1 로 실행하면 가속을 다시 켭니다.
+   다만 그래픽 카드를 아예 끄면 브라우저가 '소프트웨어 그래픽'으로 보여 '사람인지 확인'이 비정상으로 판단할 수 있어,
+   화면을 겹쳐 그리는 일(합성)만 그래픽 카드에 맡기지 않고 그래픽 카드 자체는 켜 둡니다. YJ_GPU=off 는 예전처럼 완전히 끕니다. */
+if(process.env.YJ_GPU==='off')app.disableHardwareAcceleration();
+else if(!process.env.YJ_GPU)app.commandLine.appendSwitch('disable-gpu-compositing');
 // 앱은 하나만 실행합니다(두 개가 같은 저장 공간을 함께 쓰면 서로 방해합니다). 확인용 실행은 예외입니다.
 if(!process.env.YJ_SHOT&&!app.requestSingleInstanceLock())app.quit();
 else{
