@@ -200,6 +200,12 @@ video.media{cursor:auto}
 .spin{padding:40px;text-align:center;color:var(--sub)}
 span.d-only,span.m-only{display:contents}
 
+/* ---------- 윈도우판: 제목 줄 없는 창 ----------
+   맨 위 26픽셀은 창을 잡고 끄는 자리입니다. 오른쪽 140픽셀은 최소화·최대화·닫기 단추 자리라 비워 둡니다. */
+.win .app::before{content:"";position:fixed;left:0;right:140px;top:0;height:26px;z-index:50;-webkit-app-region:drag}
+.win .pane,.win .room,.win .ov{padding-top:26px}
+.win .rail{padding-top:52px}
+
 /* ---------- PC(마우스를 쓰거나 넓은 화면): 휴대폰 전용 요소를 숨깁니다 ---------- */
 @media (pointer:fine),(pointer:none),(min-width:601px){.m-only{display:none!important}}
 

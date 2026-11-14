@@ -607,6 +607,7 @@
 
   // src/ui/app.js
   var native = window.native || androidNative(window.YJ);
+  if (window.native) document.documentElement.classList.add("win");
   var gate = Promise.resolve();
   var pvPause = 0;
   var blocked = (r) => r.status === 429 || r.status === 403 || r.status === 200 && !r.text.trim();

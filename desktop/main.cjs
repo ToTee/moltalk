@@ -120,7 +120,9 @@ ipcMain.handle('logout',async()=>{await session.defaultSession.clearStorageData(
 
 function createWindow(){
  const test=!!process.env.YJ_SHOT;/* 확인용 실행은 창을 화면에 띄우지 않습니다. */
- win=new BrowserWindow({width:Number(process.env.YJ_W)||440,height:800,minWidth:360,minHeight:520,title:'양지톡',autoHideMenuBar:true,backgroundColor:'#ffffff',show:!test||!!process.env.YJ_VISIBLE,/* YJ_VISIBLE: 확인용 실행에서도 창을 실제로 띄웁니다. */
+ win=new BrowserWindow({width:Number(process.env.YJ_W)||440,height:800,minWidth:360,minHeight:520,title:'양지톡',autoHideMenuBar:true,backgroundColor:'#ffffff',
+  /* 윈도우 기본 제목 줄을 없애고, 최소화·최대화·닫기 단추만 화면 오른쪽 위에 얹습니다. 창을 끄는 자리는 app.css의 .win 규칙이 만듭니다. */
+  titleBarStyle:'hidden',titleBarOverlay:{color:'rgba(0,0,0,0)',symbolColor:'#8a8a8a',height:30},show:!test||!!process.env.YJ_VISIBLE,/* YJ_VISIBLE: 확인용 실행에서도 창을 실제로 띄웁니다. */
   webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true,additionalArguments:['--yj-version='+app.getVersion()]}});
  if(process.env.YJ_VISIBLE)win.setAlwaysOnTop(true);
  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));

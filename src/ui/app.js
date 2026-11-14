@@ -5,6 +5,7 @@ import {I} from './icons.js';
 import {androidNative} from './native-android.js';
 
 const native=window.native||androidNative(window.YJ);
+if(window.native)document.documentElement.classList.add('win');/* 윈도우판: 제목 줄 없는 창 모양(app.css의 .win 규칙) */
 /* 디시로 가는 읽기 요청은 모두 한 줄로 세워 0.6초 간격으로 보냅니다. 막힌 응답(429, 403, 빈 응답)을 받으면 1분 동안 자동 요청(미리보기, 최근 글, 알림, 자동 더 보기)을 멈춥니다. */
 let gate=Promise.resolve(),pvPause=0;
 const blocked=r=>r.status===429||r.status===403||(r.status===200&&!r.text.trim());
