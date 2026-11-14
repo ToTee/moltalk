@@ -23,7 +23,10 @@ const hue=s=>COLORS[hash(s)%COLORS.length];
 /* 사람 자리에는 앱에 들어 있는 프로필 그림(avatars.jpg, 가로 8칸 × 세로 6칸) 가운데 하나를 보여 줍니다.
    이름으로 칸을 정하므로 같은 사람은 언제나 같은 그림이 나옵니다. 그림 48장(동물, 풍경·일상, 애니메이션풍 그림)은 이 앱을 위해 이미지 생성 모델(gpt-image-2)로 만든 것이며 실제 사람이나 기존 캐릭터가 아닙니다. */
 const AV_COLS=8,AV_ROWS=6;
-const userAv=(n,seed)=>{const i=hash('av'+n+(seed?'#'+seed:''))%(AV_COLS*AV_ROWS);return '<span class="av avp" style="background-color:'+hue(n)+';background-position:'+(i%AV_COLS)/(AV_COLS-1)*100+'% '+Math.floor(i/AV_COLS)/(AV_ROWS-1)*100+'%"></span>'};
+const AV_N=AV_COLS*AV_ROWS;
+const avBase=(n,seed)=>hash('av'+n+(seed?'#'+seed:''))%AV_N;/* 이름(과 덧붙인 값)으로 정해지는 그림 번호 */
+const avSpan=(i,n)=>'<span class="av avp" style="background-color:'+hue(n)+';background-position:'+(i%AV_COLS)/(AV_COLS-1)*100+'% '+Math.floor(i/AV_COLS)/(AV_ROWS-1)*100+'%"></span>';
+const userAv=(n,seed)=>avSpan(avBase(n,seed),n);
 
 /* ---------- 저장되는 설정 ---------- */
 /* 앱 이름을 바꾸기 전(yangjitalk)에 저장한 설정이 있으면 새 이름으로 옮기고, 실제로 쓸 이름을 돌려줍니다.
@@ -97,11 +100,11 @@ const dayLabel=d=>d.getFullYear()+'년 '+(d.getMonth()+1)+'월 '+d.getDate()+'�
 /* ---------- 실행 중 상태 ---------- */
 const R={view:'friends',g:null,head:'',list:null,listErr:'',listBusy:false,seq:0,room:null,roomSeq:0,ov:'',pinOpen:false,nfold:false,stab:'',saved:false,
  latest:{},updated:{},cache:{},hk:{},pv:{},pc:{},shown:20,hidden:0,search:{q:'',res:null,busy:false,err:''},filter:'',filterOn:false,gmenu:null,log:'게시글',
- gallog:{},user:'',userKnown:false,reply:null,menu:null,ask:false,cpanel:false,tpanel:false,cons:{items:null,busy:false,err:''},con1:null,tcon:'',write:null,sending:false,toBottom:false};
+ av:{},gallog:{},user:'',userKnown:false,reply:null,menu:null,ask:false,cpanel:false,tpanel:false,cons:{items:null,busy:false,err:''},con1:null,tcon:'',write:null,sending:false,toBottom:false};
 const who=x=>x.name+(x.ip?'('+x.ip+')':'');
-/* 글쓴이의 프로필 그림. 닉네임이 같아도 아이디가 다르면 다른 사람이므로 아이디를 섞어 정합니다.
-   아이디도 IP도 안 보이는 글쓴이는 글마다 다른 그림이 나오게 글 번호를 섞습니다. */
-const postAv=p=>userAv(who(p),p.uid||(p.ip?'':p.id));
+/* 글(채팅방)의 프로필 그림 번호. 글마다 따로 정합니다. 글 목록을 그릴 때 가까운 줄과 겹치지 않게 고른 번호를 R.av에 적어 두고,
+   채팅방에서도 그 번호를 그대로 씁니다(목록을 거치지 않고 연 글은 글 번호로 정한 기본 번호를 씁니다). */
+const postAvIdx=(gk,p)=>R.av[gk+'/'+p.id]??avBase(who(p),p.id);
 function toast(msg){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>t.hidden=true,2600)}
 
 /* ---------- 왼쪽 메뉴 ---------- */
@@ -171,10 +174,13 @@ function chatsHtml(){
  if(plain&&R.head==='안읽음')posts=posts.filter(p=>p.notice||unreadOf(p));
  if(plain&&R.head==='ChatGPT')posts=posts.filter(p=>p.notice);
  if(R.filter)posts=posts.filter(p=>p.notice||p.title.includes(R.filter));
+ /* 같은 그림이 잇달아 나오지 않게, 바로 앞 8줄에 쓰인 그림은 건너뛰고 다음 그림을 씁니다. */
+ const recent=[];
+ const rowAv=p=>{let k=avBase(who(p),p.id);while(recent.includes(k))k=(k+1)%AV_N;recent.push(k);if(recent.length>8)recent.shift();R.av[R.g+'/'+p.id]=k;return avSpan(k,who(p))};
  const rowHtml=p=>{const pi=pins.indexOf(p),n=unreadOf(p),author=who(p);
   const pv=p.notice?p.title:R.pv[R.g+'/'+p.id]||(p.hasVideo?'동영상을 보냈습니다.':p.hasImage?'사진을 보냈습니다.':author+' · 조회 '+p.views.toLocaleString());
   return '<button class="row post'+(R.room&&R.room.g===R.g&&R.room.no===p.id?' sel':'')+'" data-p="'+p.id+'">'+
-   (p.notice?'<span class="av grid">'+[0,1,2,3].map(i=>'<i style="background:'+COLORS[(hash(p.id)+i)%COLORS.length]+'"></i>').join('')+'</span>':postAv(p))+
+   (p.notice?'<span class="av grid">'+[0,1,2,3].map(i=>'<i style="background:'+COLORS[(hash(p.id)+i)%COLORS.length]+'"></i>').join('')+'</span>':rowAv(p))+
    '<span class="tx"><b><span class="t">'+esc(p.notice?noticeName(g,pi,p):p.title)+'</span><small>'+(p.notice?pins.length:p.comments)+'</small>'+(p.notice?I.pin:'')+'</b><span class="pv">'+esc(pv)+'</span></span>'+
    '<span class="rt">'+listTime(p.time)+(n?'<br><em>'+n+'</em>':'')+'</span></button>'};
  /* 처음에는 20개만 보여 주고, 아래로 스크롤하면 10개씩 더 보여 줍니다. 보이는 글만 본문 미리보기를 읽어 옵니다. */
@@ -292,7 +298,7 @@ function renderRoom(keep){
  if(!r){el.innerHTML='';$('#app').classList.remove('in-room');return}
  const g=gal(r.g),p=r.post,meta=r.meta,top=keep?$('#rscroll')?.scrollTop||0:0,otop=keep?$('#room .orig .scroll')?.scrollTop||0:0,draft=keep?$('#room textarea')?.value||'':'';
  el.className='room';$('#app').classList.add('in-room');
- const title=meta.notice?noticeName(g,r.pinIdx,meta):meta.title,author=who(p||meta);
+ const title=meta.notice?noticeName(g,r.pinIdx,meta):meta.title,author=who(p||meta),roomAvIdx=postAvIdx(r.g,meta);
  let h='';
  if(p){
   const merged=[];for(const b of p.blocks){const l=merged[merged.length-1];if(b.t==='text'&&l&&l.t==='text')l.v+='\n'+b.v;else merged.push({...b})}
@@ -307,6 +313,11 @@ function renderRoom(keep){
   /* 꾹 누르면 나오는 버튼: 댓글은 답장(+내 댓글이거나 내 글이면 삭제), 내가 쓴 글의 본문은 수정·삭제 */
   const myPost=!!R.user&&p.uid===R.user;
   let day='';
+  /* 댓글 단 사람의 그림: 이 방에서 이미 쓰인 그림은 건너뛰어, 사람마다 다른 그림이 나오게 합니다(글쓴이는 방의 그림을 씁니다). */
+  const cmtIdx=new Map(),taken=new Set([roomAvIdx]);
+  const cAv=m=>{if(m.isAuthor)return avSpan(roomAvIdx,m.w);const ck=m.c.uid||m.w;let k=cmtIdx.get(ck);
+   if(k==null){if(taken.size>=AV_N){taken.clear();for(const v of [...cmtIdx.values()].slice(-8))taken.add(v)}/* 그림을 다 썼으면 방금 쓴 8장만 피해서 다시 씁니다. */
+    k=avBase(m.w,m.c.uid);for(let n=0;taken.has(k)&&n<AV_N;n++)k=(k+1)%AV_N;cmtIdx.set(ck,k);taken.add(k)}return avSpan(k,m.w)};
   msgs.forEach((m,i)=>{
    if(m.sys){h+='<div class="sys"><span>'+esc(m.sys)+'</span></div>';return}
    if(m.d&&dayKey(m.d)!==day){day=dayKey(m.d);h+='<div class="sys"><span>'+dayLabel(m.d)+'</span></div>'}
@@ -317,14 +328,14 @@ function renderRoom(keep){
     (R.menu==='body'&&i===merged.length-1?'<button class="delbtn edit" data-pedit>수정</button><button class="delbtn" data-postdel>'+(R.ask?'정말 삭제':'삭제')+'</button>':'');
    const ln='<div class="ln"'+lp+'>'+body+menu+(last&&m.d?'<span class="tm">'+clock(m.d)+'</span>':'')+'</div>';
    h+=m.mine?'<div class="m mine'+(first?' first':'')+'"><div class="col">'+ln+'</div></div>':
-    '<div class="m'+(first?' first':'')+'"><div class="avc">'+(first?(m.c?userAv(m.w,m.c.uid):postAv(meta)):'')+'</div><div class="col">'+(first?'<div class="nm">'+esc(m.w)+(i<merged.length||m.isAuthor?'<i>글쓴이</i>':'')+'</div>':'')+ln+'</div></div>';
+    '<div class="m'+(first?' first':'')+'"><div class="avc">'+(first?(m.c?cAv(m):avSpan(roomAvIdx,m.w)):'')+'</div><div class="col">'+(first?'<div class="nm">'+esc(m.w)+(i<merged.length||m.isAuthor?'<i>글쓴이</i>':'')+'</div>':'')+ln+'</div></div>';
   });
   if(r.cerr)h+='<div class="sys err"><span>'+esc(r.cerr)+'</span></div>';
   else if(!r.comments)h+='<div class="sys"><span>댓글 불러오는 중…</span></div>';
   else if(r.total>r.comments.length&&!r.noMore)h+='<div class="sys"><button data-cmore>'+(r.cbusy?'불러오는 중…':'댓글 더 보기')+'</button></div>';
  }else h=r.err?'<div class="sys err"><span>'+esc(r.err)+'</span></div><div class="sys"><button data-rreload>다시 시도</button></div>':'<div class="sys"><span>불러오는 중…</span></div>';
  const people=p?new Set([author,...(r.comments||[]).map(who)]).size:1;
- el.innerHTML='<div class="rhead"><button class="ib back" data-back aria-label="목록으로">'+I.back+'</button>'+postAv(meta)+'<span class="tt"><b>'+esc(title)+'</b><span>'+esc(gname(g))+' · 참여 '+people+'명</span></span>'+
+ el.innerHTML='<div class="rhead"><button class="ib back" data-back aria-label="목록으로">'+I.back+'</button>'+avSpan(roomAvIdx,author)+'<span class="tt"><b>'+esc(title)+'</b><span>'+esc(gname(g))+' · 참여 '+people+'명</span></span>'+
   '<button class="ib" data-rreload aria-label="새로고침">'+I.refresh+'</button><button class="ib" data-rmenu aria-label="글 메뉴" aria-expanded="'+!!R.rmenu+'">'+I.menu+'</button></div>'+
   /* 오른쪽 위 메뉴: 원본 모양으로 보기(글쓴이가 꾸민 그대로), 디시에서 열기 */
   (R.rmenu?'<button class="rdim" data-rmenu aria-label="메뉴 닫기"></button><div class="rpop"><button data-orig'+(p?'':' disabled')+'>원본 모양으로 보기</button><button data-vote="up"'+(p?'':' disabled')+'>추천'+(p?' '+(p.up||0):'')+'</button><button data-vote="down"'+(p?'':' disabled')+'>비추천'+(p&&p.down?' '+p.down:'')+'</button><button data-rmenu data-url="'+esc(postUrl(g,r.no))+'">디시에서 열기</button></div>':'')+
