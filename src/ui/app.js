@@ -87,11 +87,11 @@ function friendsHtml(){
  const row=g=>{const k=key(g),st=D.aliasOn?alias(g).stat:R.latest[k]?.title||'';
   return '<button class="row'+(k===R.g?' sel':'')+'" data-g="'+esc(k)+'" data-lp="gal">'+(R.updated[k]?'<i class="dot"></i>':'')+galAv(g)+'<span class="tx"><b>'+esc(gname(g))+'</b>'+(st?'<span class="st">'+esc(st)+'</span>':'')+'</span></button>'};
  const favs=D.favs.map(gal).filter(Boolean),upd=D.gals.filter(g=>R.updated[key(g)]),all=[...D.gals].sort((a,b)=>gname(a).localeCompare(gname(b),'ko'));
- return '<div class="head fr"><h2>친구</h2><button class="who m-only" data-ov="log" aria-label="내 프로필 열기"><span class="av" style="background:#8aa3b8">'+I.sil+'</span><span>'+esc(D.me.name)+'</span></button><button class="ib" data-ov="find" aria-label="갤러리 검색">'+I.search+'</button><button class="ib" data-ov="find" aria-label="갤러리 추가">'+I.plusGal+'</button>'+cogM+'</div>'+
+ return '<div class="head fr"><h2>친구</h2><button class="who m-only" data-ov="log" aria-label="내 프로필 열기"><span class="av" style="background:#a3c0ea">'+I.sil+'</span><span>'+esc(D.me.name)+'</span></button><button class="ib" data-ov="find" aria-label="갤러리 검색">'+I.search+'</button><button class="ib" data-ov="find" aria-label="갤러리 추가">'+I.plusGal+'</button>'+cogM+'</div>'+
   '<div class="scroll" id="fscroll">'+
   /* 휴대폰 친구 화면 맨 위의 광고 칸: 누르면 블카이브를 기기의 브라우저로 엽니다. */
   '<button class="adb m-only" data-url="https://blinkarea.synology.me/" aria-label="광고: 블카이브 열기"><span class="tx"><b>블랙핑크의 모든 기록, 블카이브</b><span>사진·영상·음원 기록을 한곳에서</span><i>지금 구경하기 ›</i></span><span class="logo"><b>블카이브</b><i>BLINK AREA</i></span><em>AD</em></button>'+
-  '<div class="me"><span class="av" style="background:#8aa3b8">'+I.sil+'</span><span><b>'+esc(D.me.name)+'</b><span>'+esc(D.me.status)+'</span></span><button class="pill" data-ov="log">프로필</button></div>'+
+  '<div class="me"><span class="av" style="background:#a3c0ea">'+I.sil+'</span><span><b>'+esc(D.me.name)+'</b><span>'+esc(D.me.status)+'</span></span><button class="pill" data-ov="log">프로필</button></div>'+
   (favs.length?'<div class="sec"><span>즐겨찾기 &nbsp;'+favs.length+'</span>'+I.down+'</div><div class="favs">'+favs.map(g=>'<button class="fav" data-g="'+esc(key(g))+'" data-lp="gal" title="'+esc(gname(g))+'">'+(R.updated[key(g)]?'<i class="dot"></i>':'')+galAv(g)+'<span>'+esc(gname(g))+'</span></button>').join('')+'</div>':'')+
   (upd.length?'<div class="upd"><div class="sec"><span>업데이트한 친구 &nbsp;'+upd.length+'</span>'+I.down+'</div>'+upd.map(row).join('')+'</div>':'')+
   '<div class="sec" style="margin-top:6px"><span>친구 &nbsp;'+D.gals.length+'</span>'+I.down+'</div>'+
@@ -148,7 +148,7 @@ function overlayHtml(){
    !cur.items.length?'<div class="empty">'+(R.log==='방명록'?'방명록이 비어 있습니다.':'표시할 '+R.log+'이 없습니다.')+'</div>':
    R.log==='방명록'?cur.items.map(v=>'<div class="row">'+userAv(v.name)+'<span class="tx"><b>'+esc(v.name)+'</b><span class="st">'+esc(v.text)+' · '+esc(v.date)+'</span></span></div>').join(''):
    cur.items.map((v,i)=>'<button class="row" data-glog="'+i+'"><span class="tx"><b>'+esc(v.title)+'</b><span class="st">'+esc(v.sub)+'</span></span></button>').join('');
-  return '<div class="ov"><div class="cover">'+x+'<span class="av" style="background:#8aa3b8">'+I.sil+'</span><b>'+esc(D.me.name)+'</b><span>'+esc(D.me.status)+'</span></div>'+
+  return '<div class="ov"><div class="cover">'+x+'<span class="av" style="background:#a3c0ea">'+I.sil+'</span><b>'+esc(D.me.name)+'</b><span>'+esc(D.me.status)+'</span></div>'+
    '<div class="chips logtabs">'+Object.keys(GALLOG).map(k=>'<button class="chip'+(k===R.log?' on':'')+'" data-log="'+k+'">'+k+'</button>').join('')+'</div><div class="scroll wrap">'+list+'</div>'+
    '<div class="acts"><button class="pill" data-ov="set" data-stab="프로필">프로필 편집</button></div></div>'}
  if(R.ov==='noti')return '<div class="ov"><div class="head"><h2>알림</h2>'+(D.notis.length?'<button class="pill" data-noticlear>모두 지우기</button>':'')+x+'</div><div class="scroll wrap">'+

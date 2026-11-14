@@ -31,5 +31,6 @@ export const I={
  file:s('<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/>',22),
  listp:s('<path d="M4 6h14M4 12h8M4 18h8M17 12v6M14 15h6"/>',18),
  pin:'<svg viewBox="0 0 24 24" width="14" height="14" fill="#8a8a8a" style="margin-left:5px" role="img" aria-label="상단 고정"><path d="M8 3h8v2l-1.5 1v5l3 3v2h-4.5v5l-1 1-1-1v-5H6.5v-2l3-3V6L8 5z"/></svg>',
- sil:'<svg viewBox="0 0 24 24" fill="rgba(255,255,255,.55)" aria-hidden="true"><circle cx="12" cy="8" r="4.6"/><path d="M2 24c0-5.5 4.5-9 10-9s10 3.5 10 9z"/></svg>'
+ /* 기본 프로필: 머리와 어깨가 칸 한가운데에 다 들어오는 사람 모양 */
+ sil:'<svg viewBox="0 0 24 24" fill="rgba(255,255,255,.7)" aria-hidden="true"><circle cx="12" cy="8.6" r="3.7"/><path d="M12 13.4c-4.2 0-7 1.9-7 4.6 0 1 .8 1.6 1.8 1.6h10.4c1 0 1.8-.6 1.8-1.6 0-2.7-2.8-4.6-7-4.6z"/></svg>'
 };
