@@ -41,6 +41,9 @@ body{display:flex;flex-direction:column}
 .scroll::-webkit-scrollbar{width:8px}.scroll::-webkit-scrollbar-thumb{background:#d0d0d0;border-radius:4px}
 .av{flex:none;width:44px;height:44px;border-radius:40%;display:grid;place-items:center;color:#23303b;font-weight:700;font-size:17px;overflow:hidden}
 .av svg{width:64%;height:64%}
+.av img{width:100%;height:100%;object-fit:cover;display:block}
+.photoset{display:flex;align-items:center;gap:10px;margin:14px 22px 0}
+.photoset .av{width:64px;height:64px}
 .av.grid{display:grid;grid-template:1fr 1fr/1fr 1fr;place-items:stretch;gap:2px;background:none;border-radius:0}
 .av.grid i{border-radius:40%;display:block}
 .me{display:flex;align-items:center;gap:14px;padding:6px 22px 14px}
@@ -58,7 +61,7 @@ body{display:flex;flex-direction:column}
 .fav:hover,.row:hover{background:var(--hover)}
 .fav .av{margin:0 auto 6px}
 .fav>span:last-child{display:block;font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.dot{position:absolute;left:8px;top:5px;width:8px;height:8px;border-radius:50%;background:var(--badge);border:1.5px solid #fff}
+.dot{position:absolute;left:5px;top:2px;width:8px;height:8px;border-radius:50%;background:var(--badge);border:1.5px solid #fff}
 .row{display:flex;align-items:center;gap:14px;width:100%;padding:8px 22px;position:relative}
 .row.sel{background:#f0f0f0}
 .row .tx{flex:1;min-width:0}

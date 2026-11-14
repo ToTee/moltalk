@@ -26,7 +26,7 @@ const userAv=n=>'<span class="av" style="background:'+hue(n)+'">'+I.sil+'</span>
 const LS='yangjitalk-v1';
 const D=Object.assign({
  gals:[{id:'dcbest',type:'normal',name:'실시간 베스트'},{id:'singlebungle1472',type:'minor',name:'싱글벙글 지구촌'},{id:'programming',type:'normal',name:'프로그래밍'}],
- favs:['normal:dcbest','minor:singlebungle1472'],me:{name:'ㅇㅇ',status:''},rooms:[],alias:{},aliasN:0,aliasOn:false,seen:{},top:{},tbg:'3b4890',tfg:'ffffff',trecent:[],watch:[],notis:[]
+ favs:['normal:dcbest','minor:singlebungle1472'],me:{name:'ㅇㅇ',status:''},photos:{},rooms:[],alias:{},aliasN:0,aliasOn:false,seen:{},top:{},tbg:'3b4890',tfg:'ffffff',trecent:[],watch:[],notis:[]
 },JSON.parse(localStorage.getItem(LS)||'{}'));
 while(D.rooms.length<10)D.rooms.push({mode:'random',text:''});
 const save=()=>{const keys=Object.keys(D.seen);if(keys.length>3000)for(const k of keys.slice(0,keys.length-2000))delete D.seen[k];localStorage.setItem(LS,JSON.stringify(D))};
@@ -40,7 +40,17 @@ const personName=n=>SUR[n%12]+GIV[(n*5+Math.floor(n/12))%12];
 /* 갤러리마다 사람 이름과 문구를 처음 한 번만 정해 저장하고, 이후에는 계속 같은 것을 씁니다. */
 function alias(g){const k=key(g);if(!D.alias[k]){D.alias[k]={name:personName(D.aliasN++),stat:STATS[Math.floor(Math.random()*STATS.length)]};save()}return D.alias[k]}
 const gname=g=>D.aliasOn?alias(g).name:g.name;
-const galAv=g=>D.aliasOn?userAv(alias(g).name):'<span class="av" style="background:'+hue(g.name)+'">'+esc([...g.name][0]||'?')+'</span>';
+/* 직접 고른 프로필 사진(내 사진, 갤러리 사진)은 160픽셀로 줄여 기기에만 저장합니다. */
+const photoAv=src=>'<span class="av"><img src="'+esc(src)+'" alt=""></span>';
+const meAv=()=>D.me.photo?photoAv(D.me.photo):'<span class="av" style="background:'+'#a3c0ea'+'">'+I.sil+'</span>';
+function pickPhoto(done){
+ const i=document.createElement('input');i.type='file';i.accept='image/*';
+ i.onchange=()=>{const f=i.files[0];if(!f)return;const img=new Image(),u=URL.createObjectURL(f);
+  img.onload=()=>{const s=Math.min(img.width,img.height),c=document.createElement('canvas');c.width=c.height=160;c.getContext('2d').drawImage(img,(img.width-s)/2,(img.height-s)/2,s,s,0,0,160,160);URL.revokeObjectURL(u);done(c.toDataURL('image/jpeg',.85))};
+  img.onerror=()=>{URL.revokeObjectURL(u);toast('사진을 읽지 못했습니다.')};img.src=u};
+ i.click();
+}
+const galAv=g=>D.photos[key(g)]?photoAv(D.photos[key(g)]):D.aliasOn?userAv(alias(g).name):'<span class="av" style="background:'+hue(g.name)+'">'+esc([...g.name][0]||'?')+'</span>';
 /* 공지 채팅방 이름: 설정의 n번째 칸이 직접 입력이면 그 이름, 아니면 공지마다 겹치지 않는 사람 이름 묶음 */
 function noticeName(g,idx,p){const r=D.rooms[idx];if(r&&r.mode==='custom'&&r.text)return r.text;const h=hash(key(g)+'/'+p.id);return [0,1,2,3].map(i=>personName((h+idx*4+i)%144)).join(', ')}
 
@@ -87,11 +97,11 @@ function friendsHtml(){
  const row=g=>{const k=key(g),st=D.aliasOn?alias(g).stat:R.latest[k]?.title||'';
   return '<button class="row'+(k===R.g?' sel':'')+'" data-g="'+esc(k)+'" data-lp="gal">'+(R.updated[k]?'<i class="dot"></i>':'')+galAv(g)+'<span class="tx"><b>'+esc(gname(g))+'</b>'+(st?'<span class="st">'+esc(st)+'</span>':'')+'</span></button>'};
  const favs=D.favs.map(gal).filter(Boolean),upd=D.gals.filter(g=>R.updated[key(g)]),all=[...D.gals].sort((a,b)=>gname(a).localeCompare(gname(b),'ko'));
- return '<div class="head fr"><h2>친구</h2><button class="who m-only" data-ov="log" aria-label="내 프로필 열기"><span class="av" style="background:#a3c0ea">'+I.sil+'</span><span>'+esc(D.me.name)+'</span></button><button class="ib" data-ov="find" aria-label="갤러리 검색">'+I.search+'</button><button class="ib" data-ov="find" aria-label="갤러리 추가">'+I.plusGal+'</button>'+cogM+'</div>'+
+ return '<div class="head fr"><h2>친구</h2><button class="who m-only" data-ov="log" aria-label="내 프로필 열기">'+meAv()+'<span>'+esc(D.me.name)+'</span></button><button class="ib" data-ov="find" aria-label="갤러리 검색">'+I.search+'</button><button class="ib" data-ov="find" aria-label="갤러리 추가">'+I.plusGal+'</button>'+cogM+'</div>'+
   '<div class="scroll" id="fscroll">'+
   /* 휴대폰 친구 화면 맨 위의 광고 칸: 누르면 블카이브를 기기의 브라우저로 엽니다. */
   '<button class="adb m-only" data-url="https://blinkarea.synology.me/" aria-label="광고: 블카이브 열기"><span class="tx"><b>블랙핑크의 모든 기록, 블카이브</b><span>사진·영상·음원 기록을 한곳에서</span><i>지금 구경하기 ›</i></span><span class="logo"><b>블카이브</b><i>BLINK AREA</i></span><em>AD</em></button>'+
-  '<div class="me"><span class="av" style="background:#a3c0ea">'+I.sil+'</span><span><b>'+esc(D.me.name)+'</b><span>'+esc(D.me.status)+'</span></span><button class="pill" data-ov="log">프로필</button></div>'+
+  '<div class="me">'+meAv()+'<span><b>'+esc(D.me.name)+'</b><span>'+esc(D.me.status)+'</span></span><button class="pill" data-ov="log">프로필</button></div>'+
   (favs.length?'<div class="sec"><span>즐겨찾기 &nbsp;'+favs.length+'</span>'+I.down+'</div><div class="favs">'+favs.map(g=>'<button class="fav" data-g="'+esc(key(g))+'" data-lp="gal" title="'+esc(gname(g))+'">'+(R.updated[key(g)]?'<i class="dot"></i>':'')+galAv(g)+'<span>'+esc(gname(g))+'</span></button>').join('')+'</div>':'')+
   (upd.length?'<div class="upd"><div class="sec"><span>업데이트한 친구 &nbsp;'+upd.length+'</span>'+I.down+'</div>'+upd.map(row).join('')+'</div>':'')+
   '<div class="sec" style="margin-top:6px"><span>친구 &nbsp;'+D.gals.length+'</span>'+I.down+'</div>'+
@@ -140,7 +150,7 @@ function overlayHtml(){
    (S.busy?'<div class="spin">찾는 중…</div>':S.err?'<div class="empty">'+esc(S.err)+'</div>':!S.res?'<div class="empty">보고 싶은 갤러리 이름을 검색해 친구로 추가하세요.</div>':!S.res.length?'<div class="empty">검색 결과가 없습니다.</div>':
     S.res.map((g,i)=>'<div class="row">'+'<span class="av" style="background:'+hue(g.name)+'">'+esc([...g.name][0]||'?')+'</span><span class="tx"><b>'+esc(g.name)+'</b><span class="st">'+({normal:'갤러리',minor:'마이너 갤러리',mini:'미니 갤러리'}[g.type])+' · '+esc(g.id)+'</span></span>'+(gal(key(g))?'<span class="st">추가됨</span>':'<button class="pill" data-add="'+i+'">추가</button>')+'</div>').join(''))+'</div></div>'}
  if(R.ov==='gmenu'){const g=gal(R.gmenu);if(!g)return '';const fav=D.favs.includes(R.gmenu);
-  return '<div class="ov"><div class="head"><h2>'+esc(gname(g))+'</h2>'+x+'</div><div class="scroll setlist"><button class="row" data-fav="'+esc(R.gmenu)+'"><span class="tx"><b>'+(fav?'즐겨찾기 해제':'즐겨찾기 추가')+'</b></span></button><button class="row" data-open="'+esc(R.gmenu)+'"><span class="tx"><b>디시에서 열기</b></span></button><button class="row" data-remove="'+esc(R.gmenu)+'"><span class="tx"><b>친구 목록에서 삭제</b></span></button></div></div>'}
+  return '<div class="ov"><div class="head"><h2>'+esc(gname(g))+'</h2>'+x+'</div><div class="scroll setlist"><button class="row" data-fav="'+esc(R.gmenu)+'"><span class="tx"><b>'+(fav?'즐겨찾기 해제':'즐겨찾기 추가')+'</b></span></button><button class="row" data-gphoto="'+esc(R.gmenu)+'"><span class="tx"><b>'+(D.photos[R.gmenu]?'프로필 사진 바꾸기':'프로필 사진 넣기')+'</b></span></button>'+(D.photos[R.gmenu]?'<button class="row" data-gphotodel="'+esc(R.gmenu)+'"><span class="tx"><b>프로필 사진 지우기</b></span></button>':'')+'<button class="row" data-open="'+esc(R.gmenu)+'"><span class="tx"><b>디시에서 열기</b></span></button><button class="row" data-remove="'+esc(R.gmenu)+'"><span class="tx"><b>친구 목록에서 삭제</b></span></button></div></div>'}
  if(R.ov==='set')return settingsHtml(x);
  if(R.ov==='log'){const cur=R.gallog[R.log];
   const list=!R.userKnown?'<div class="spin">로그인 상태 확인 중…</div>':!R.user?'<div class="empty">로그인하면 갤로그가 여기에 나옵니다.<br><button class="pill" data-login>로그인</button></div>':
@@ -148,7 +158,7 @@ function overlayHtml(){
    !cur.items.length?'<div class="empty">'+(R.log==='방명록'?'방명록이 비어 있습니다.':'표시할 '+R.log+'이 없습니다.')+'</div>':
    R.log==='방명록'?cur.items.map(v=>'<div class="row">'+userAv(v.name)+'<span class="tx"><b>'+esc(v.name)+'</b><span class="st">'+esc(v.text)+' · '+esc(v.date)+'</span></span></div>').join(''):
    cur.items.map((v,i)=>'<button class="row" data-glog="'+i+'"><span class="tx"><b>'+esc(v.title)+'</b><span class="st">'+esc(v.sub)+'</span></span></button>').join('');
-  return '<div class="ov"><div class="cover">'+x+'<span class="av" style="background:#a3c0ea">'+I.sil+'</span><b>'+esc(D.me.name)+'</b><span>'+esc(D.me.status)+'</span></div>'+
+  return '<div class="ov"><div class="cover">'+x+''+meAv()+'<b>'+esc(D.me.name)+'</b><span>'+esc(D.me.status)+'</span></div>'+
    '<div class="chips logtabs">'+Object.keys(GALLOG).map(k=>'<button class="chip'+(k===R.log?' on':'')+'" data-log="'+k+'">'+k+'</button>').join('')+'</div><div class="scroll wrap">'+list+'</div>'+
    '<div class="acts"><button class="pill" data-ov="set" data-stab="프로필">프로필 편집</button></div></div>'}
  if(R.ov==='noti')return '<div class="ov"><div class="head"><h2>알림</h2>'+(D.notis.length?'<button class="pill" data-noticlear>모두 지우기</button>':'')+x+'</div><div class="scroll wrap">'+
@@ -162,7 +172,7 @@ function settingsHtml(x){
  if(!R.stab){const custom=D.rooms.filter(r=>r.mode==='custom'&&r.text).length;
   const sum={'프로필':D.me.name+(D.me.status?' · '+D.me.status:''),'공지 채팅방 이름':'직접 입력 '+custom+'개 · 랜덤 '+(D.rooms.length-custom)+'개','계정':!R.userKnown?'확인 중…':R.user?'로그인됨':'로그인하지 않음','정보':'양지톡 '+(native.version||'')};
   return '<div class="ov"><div class="head"><h2>설정</h2>'+x+'</div><div class="scroll setlist">'+TABS.map(t=>'<button class="row" data-stab="'+t+'"><span class="tx"><b>'+t+'</b><span class="st">'+esc(sum[t])+'</span></span>'+I.next+'</button>').join('')+'</div></div>'}
- const body=R.stab==='프로필'?'<label>이름<input name="name" maxlength="20" value="'+esc(D.me.name)+'"></label><label>상태메시지<input name="status" maxlength="40" value="'+esc(D.me.status)+'"></label><p>친구 화면 맨 위 내 프로필에 표시되는 문구입니다.</p>':
+ const body=R.stab==='프로필'?'<div class="photoset">'+meAv()+'<button type="button" class="pill" data-mephoto>'+(D.me.photo?'사진 바꾸기':'사진 고르기')+'</button>'+(D.me.photo?'<button type="button" class="pill" data-mephotodel>사진 지우기</button>':'')+'</div><label>이름<input name="name" maxlength="20" value="'+esc(D.me.name)+'"></label><label>상태메시지<input name="status" maxlength="40" value="'+esc(D.me.status)+'"></label><p>친구 화면 맨 위 내 프로필에 표시되는 문구입니다.</p>':
   R.stab==='공지 채팅방 이름'?D.rooms.map((r,i)=>'<div class="slot"><span>'+(i+1)+'</span><select name="m'+i+'" aria-label="공지 '+(i+1)+' 이름 방식"><option value="random"'+(r.mode==='random'?' selected':'')+'>랜덤 이름</option><option value="custom"'+(r.mode==='custom'?' selected':'')+'>직접 입력</option></select><input name="t'+i+'" maxlength="30" placeholder="예: 대학 동기 모임" aria-label="공지 '+(i+1)+' 이름" value="'+esc(r.text)+'"'+(r.mode==='custom'?'':' disabled')+'></div>').join('')+'<p>갤러리마다 위에서부터 1번째, 2번째 공지에 차례로 적용됩니다. 직접 입력 칸이 비어 있으면 랜덤 이름이 쓰입니다.</p>':
   R.stab==='계정'?'<p>'+(!R.userKnown?'로그인 상태를 확인하는 중입니다…':R.user?'로그인됨: '+esc(R.user):'로그인하지 않았습니다.')+'</p><p>로그인은 디시인사이드 공식 로그인 화면에서 직접 합니다. 양지톡은 비밀번호를 저장하지도, 볼 수도 없습니다.</p><div class="savebar">'+(R.user?'<button type="button" class="pill" data-logout>로그아웃</button>':'<button type="button" class="save" data-login>로그인</button>')+'</div>':
   '<p>양지톡 '+esc(native.version||'')+'</p><p>디시인사이드를 메신저 화면으로 보는 비공식 열람 앱입니다. 디시인사이드와 관련이 없으며, 게시물과 첨부물의 권리는 각 작성자에게 있습니다.</p>';
@@ -359,9 +369,9 @@ function renderWrite(){
  const el=$('#room'),w=R.write,g=gal(w.g),heads=R.list?.heads||[];
  el.className='room';$('#app').classList.add('in-room');
  const blk=x=>typeof x==='string'?bub(x):x.video?'<video class="media" src="'+x.url+'" controls aria-label="'+esc(x.name)+'"></video>':'<img class="media" src="'+x.url+'" alt="'+esc(x.name)+'">';
- el.innerHTML='<div class="rhead"><button class="ib back" data-wcancel aria-label="글쓰기 닫기">'+I.back+'</button>'+userAv(D.me.name)+'<span class="tt"><b>새 글</b><span>'+esc(gname(g))+'에 올리기</span></span><button class="pub" data-pub'+(w.busy?' disabled':'')+'>'+(w.busy?'등록 중…':'등록')+'</button></div>'+
+ el.innerHTML='<div class="rhead"><button class="ib back" data-wcancel aria-label="글쓰기 닫기">'+I.back+'</button>'+meAv()+'<span class="tt"><b>새 글</b><span>'+esc(gname(g))+'에 올리기</span></span><button class="pub" data-pub'+(w.busy?' disabled':'')+'>'+(w.busy?'등록 중…':'등록')+'</button></div>'+
   '<div class="wtitle"><label for="wtitle">제목</label>'+(heads.length?'<select id="whead" aria-label="말머리">'+heads.map(h=>'<option value="'+esc(h.id)+'"'+(String(h.id)===String(w.head)?' selected':'')+'>'+esc(h.name)+'</option>').join('')+'</select>':'')+'<input id="wtitle" maxlength="40" placeholder="제목 입력" aria-label="제목" value="'+esc(w.title)+'"></div>'+
-  '<div class="scroll" id="wscroll"><div class="msgs">'+(w.blocks.length?'<div class="m first"><div class="avc">'+userAv(D.me.name)+'</div><div class="col"><div class="nm">'+esc(D.me.name)+'<i>글쓴이</i></div>'+
+  '<div class="scroll" id="wscroll"><div class="msgs">'+(w.blocks.length?'<div class="m first"><div class="avc">'+meAv()+'</div><div class="col"><div class="nm">'+esc(D.me.name)+'<i>글쓴이</i></div>'+
    w.blocks.map((x,i)=>'<div class="ln blk">'+blk(x)+'<button class="del" data-del="'+i+'" aria-label="이 말풍선 삭제">✕</button></div>').join('')+'</div></div>':'<div class="sys"><span>아래에 쓰고 전송하면 본문에 들어갑니다</span></div>')+
   (w.err?'<div class="sys err" role="alert"><span>'+esc(w.err)+'</span></div>':'')+'</div></div>'+
   '<form class="inp" id="wform"><label class="wlab" for="wbody">본문</label><textarea id="wbody" placeholder="본문 입력">'+esc(w.text)+'</textarea>'+
@@ -497,6 +507,10 @@ document.addEventListener('click',e=>{
  else if(d.back!=null){R.room=null;R.roomSeq++;renderRoom();renderPane()}
  else if(d.filter!=null){R.filterOn=!R.filterOn;if(!R.filterOn)R.filter='';renderPane();$('#filter')?.focus()}
  else if(d.add!=null){const g=R.search.res[+d.add];if(g&&!gal(key(g))){D.gals.push(g);save();renderPane();loadLatest([g])}}
+ else if(d.mephoto!=null){pickPhoto(u=>{D.me.photo=u;save();renderPane();renderRoom(true)})}
+ else if(d.mephotodel!=null){delete D.me.photo;save();renderPane();renderRoom(true)}
+ else if(d.gphoto){const k=d.gphoto;pickPhoto(u=>{D.photos[k]=u;save();R.ov='';renderPane();renderRoom(true)})}
+ else if(d.gphotodel){delete D.photos[d.gphotodel];save();R.ov='';renderPane();renderRoom(true)}
  else if(d.fav){const i=D.favs.indexOf(d.fav);if(i<0){D.favs.push(d.fav);loadLatest([gal(d.fav)].filter(Boolean))}else D.favs.splice(i,1);save();R.ov='';renderPane()}
  else if(d.remove){D.gals=D.gals.filter(g=>key(g)!==d.remove);D.favs=D.favs.filter(k=>k!==d.remove);if(R.g===d.remove){R.g=null;R.list=null;R.room=null;renderRoom()}save();R.ov='';renderPane()}
  else if(d.open){const g=gal(d.open);native.open('https://gall.dcinside.com/'+(g.type==='minor'?'mgallery/':g.type==='mini'?'mini/':'')+'board/lists/?id='+g.id)}
