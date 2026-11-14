@@ -71,6 +71,18 @@ const SCRIPTS={
    for(const li of document.querySelectorAll('.all-comment-lst li.comment'))items.push({name:clean((li.querySelector('.nick')||{}).textContent),text:clean((li.querySelector('.txt')||{}).textContent),date:clean((li.querySelector('.date')||{}).textContent)});
   }else{
    const seen=new Set();
+   /* 게시글·댓글 목록: 줄마다 갤러리 번호(gall_code)와 글 번호만 있고, 갤러리 주소는 누를 때 디시가 따로 알려 줍니다. */
+   for(const li of document.querySelectorAll('.gall-detail-lst li[gall_code][gall_no]')){
+    const type=li.getAttribute('gall_type')||'',body=li.querySelector('.fxo-txt'),num=clean((li.querySelector('.num')||{}).textContent),orig=clean((li.querySelector('.original-tit')||{}).textContent);
+    const title=clean(body&&body.textContent)||(body&&body.querySelector('img,video')?'(디시콘)':'')||orig;
+    items.push({code:li.getAttribute('gall_code'),no:Number(li.getAttribute('gall_no')),type,mini:/^[NISX]$/.test(type),person:/^[PLQ]$/.test(type),orig,title:title+(num?' '+num:''),
+     sub:[...li.querySelectorAll('.ginfo li')].map(n=>clean(n.textContent)).filter(Boolean).concat(orig&&orig!==title?['원글: '+orig]:[]).join(' · ').slice(0,90)});
+   }
+   /* 스크랩 가운데 주소 대신 moveScrapView(갤러리 번호, 글 번호, 종류)로 되어 있는 줄 */
+   for(const link of document.querySelectorAll('.container a[href^="javascript:moveScrapView"]')){
+    const m=link.getAttribute('href').match(/moveScrapView\((\d+),\s*(\d+),\s*'(\w+)'/);if(!m)continue;
+    items.push({code:m[1],no:Number(m[2]),type:m[3],mini:/^[NISX]$/.test(m[3]),person:/^[PLQ]$/.test(m[3]),title:clean((link.querySelector('.fxo-txt')||link).textContent),sub:[...link.querySelectorAll('.ginfo li')].map(n=>clean(n.textContent)).filter(Boolean).join(' · ').slice(0,90)});
+   }
    for(const link of document.querySelectorAll('.container a[href]')){
     const m=link.href.match(/m\.dcinside\.com\/(board|mini)\/([A-Za-z0-9_]+)\/(\d+)/);if(!m)continue;
     const key=m[2]+'/'+m[3]+'/'+clean(link.textContent).slice(0,40);if(seen.has(key))continue;seen.add(key);
@@ -79,6 +91,12 @@ const SCRIPTS={
    }
   }
   return {items,note:items.length?'':clean((document.querySelector('.container')||document.body).textContent).slice(0,100)};
+ },
+
+ // 갤로그 목록의 갤러리 번호를 갤러리 주소(id)로 바꿉니다. 디시 화면이 줄을 눌렀을 때 쓰는 것과 같은 요청입니다.
+ async gallId(a,h){
+  const $=window.jQuery,r=await new Promise(res=>{const t=setTimeout(()=>res(null),15000);$.ajax({type:'post',url:'/gallog/list-direct',headers:{'X-CSRF-TOKEN':$('meta[name="csrf-token"]').attr('content')},data:{gall_code:a.code,gall_type:a.type},success:v=>{clearTimeout(t);res(v)},error:()=>{clearTimeout(t);res(null)}})});
+  return r&&r.gall_id?{id:String(r.gall_id)}:{error:'글이 있는 갤러리를 찾지 못했습니다.'};
  },
 
  // 댓글·답글 쓰기

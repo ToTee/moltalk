@@ -86,7 +86,10 @@ function friendsHtml(){
   return '<button class="row'+(k===R.g?' sel':'')+'" data-g="'+esc(k)+'" data-lp="gal">'+(R.updated[k]?'<i class="dot"></i>':'')+galAv(g)+'<span class="tx"><b>'+esc(gname(g))+'</b>'+(st?'<span class="st">'+esc(st)+'</span>':'')+'</span></button>'};
  const favs=D.favs.map(gal).filter(Boolean),upd=D.gals.filter(g=>R.updated[key(g)]),all=[...D.gals].sort((a,b)=>gname(a).localeCompare(gname(b),'ko'));
  return '<div class="head fr"><h2>친구</h2><button class="who m-only" data-ov="log" aria-label="내 프로필 열기"><span class="av" style="background:#8aa3b8">'+I.sil+'</span><span>'+esc(D.me.name)+'</span></button><button class="ib" data-ov="find" aria-label="갤러리 검색">'+I.search+'</button><button class="ib" data-ov="find" aria-label="갤러리 추가">'+I.plusGal+'</button>'+cogM+'</div>'+
-  '<div class="scroll" id="fscroll"><div class="me"><span class="av" style="background:#8aa3b8">'+I.sil+'</span><span><b>'+esc(D.me.name)+'</b><span>'+esc(D.me.status)+'</span></span><button class="pill" data-ov="log">프로필</button></div>'+
+  '<div class="scroll" id="fscroll">'+
+  /* 휴대폰 친구 화면 맨 위의 광고 칸: 누르면 블카이브를 기기의 브라우저로 엽니다. */
+  '<button class="adb m-only" data-url="https://blinkarea.synology.me/" aria-label="광고: 블카이브 열기"><span class="tx"><b>블랙핑크의 모든 기록, 블카이브</b><span>사진·영상·음원 기록을 한곳에서</span><i>지금 구경하기 ›</i></span><span class="logo"><b>블카이브</b><i>BLINK AREA</i></span><em>AD</em></button>'+
+  '<div class="me"><span class="av" style="background:#8aa3b8">'+I.sil+'</span><span><b>'+esc(D.me.name)+'</b><span>'+esc(D.me.status)+'</span></span><button class="pill" data-ov="log">프로필</button></div>'+
   (favs.length?'<div class="sec"><span>즐겨찾기 &nbsp;'+favs.length+'</span>'+I.down+'</div><div class="favs">'+favs.map(g=>'<button class="fav" data-g="'+esc(key(g))+'" data-lp="gal" title="'+esc(gname(g))+'">'+(R.updated[key(g)]?'<i class="dot"></i>':'')+galAv(g)+'<span>'+esc(gname(g))+'</span></button>').join('')+'</div>':'')+
   (upd.length?'<div class="upd"><div class="sec"><span>업데이트한 친구 &nbsp;'+upd.length+'</span>'+I.down+'</div>'+upd.map(row).join('')+'</div>':'')+
   '<div class="sec" style="margin-top:6px"><span>친구 &nbsp;'+D.gals.length+'</span>'+I.down+'</div>'+
@@ -320,9 +323,12 @@ async function loadGallog(){
 }
 /* 갤로그·알림에서 글로 이동: 친구 목록에 있는 갤러리면 앱 안에서 열고, 아니면 디시 화면으로 엽니다. */
 async function jump(v){
+ /* 갤로그 줄에는 갤러리 번호만 있어서, 처음 열 때 디시에 갤러리 주소를 물어봅니다. */
+ if(!v.id&&v.code){toast('글을 여는 중…');const r=await drive('gallId',{code:v.code,type:v.type},mGallog(R.user,''));if(!r.id){toast(r.error||'글을 열지 못했습니다.');return}v.id=r.id}
+ if(v.person){native.open('https://m.dcinside.com/person/'+v.id+'/'+v.no);return}
  const g=D.gals.find(x=>x.id===v.id&&(x.type==='mini')===!!v.mini);
  if(!g){native.open('https://m.dcinside.com/'+(v.mini?'mini':'board')+'/'+v.id+'/'+v.no);return}
- await openGallery(key(g));openPost(v.no,false,{id:v.no,title:v.title||'',notice:false,head:'',name:'',uid:'',ip:'',comments:0,views:0,up:0});
+ await openGallery(key(g));openPost(v.no,false,{id:v.no,title:v.orig||v.title||'',notice:false,head:'',name:'',uid:'',ip:'',comments:0,views:0,up:0});
 }
 /* 알림: 내가 쓴 글과 내가 댓글을 단 글 가운데 최근 5개만 10분마다 다시 읽어 새 댓글을 찾습니다. 요청은 간격을 두고 하나씩 보냅니다. */
 function watch(gk,no,title,count,mine){

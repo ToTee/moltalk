@@ -328,6 +328,25 @@
         for (const li of document.querySelectorAll(".all-comment-lst li.comment")) items.push({ name: clean((li.querySelector(".nick") || {}).textContent), text: clean((li.querySelector(".txt") || {}).textContent), date: clean((li.querySelector(".date") || {}).textContent) });
       } else {
         const seen = /* @__PURE__ */ new Set();
+        for (const li of document.querySelectorAll(".gall-detail-lst li[gall_code][gall_no]")) {
+          const type = li.getAttribute("gall_type") || "", body = li.querySelector(".fxo-txt"), num2 = clean((li.querySelector(".num") || {}).textContent), orig = clean((li.querySelector(".original-tit") || {}).textContent);
+          const title = clean(body && body.textContent) || (body && body.querySelector("img,video") ? "(\uB514\uC2DC\uCF58)" : "") || orig;
+          items.push({
+            code: li.getAttribute("gall_code"),
+            no: Number(li.getAttribute("gall_no")),
+            type,
+            mini: /^[NISX]$/.test(type),
+            person: /^[PLQ]$/.test(type),
+            orig,
+            title: title + (num2 ? " " + num2 : ""),
+            sub: [...li.querySelectorAll(".ginfo li")].map((n) => clean(n.textContent)).filter(Boolean).concat(orig && orig !== title ? ["\uC6D0\uAE00: " + orig] : []).join(" \xB7 ").slice(0, 90)
+          });
+        }
+        for (const link of document.querySelectorAll('.container a[href^="javascript:moveScrapView"]')) {
+          const m = link.getAttribute("href").match(/moveScrapView\((\d+),\s*(\d+),\s*'(\w+)'/);
+          if (!m) continue;
+          items.push({ code: m[1], no: Number(m[2]), type: m[3], mini: /^[NISX]$/.test(m[3]), person: /^[PLQ]$/.test(m[3]), title: clean((link.querySelector(".fxo-txt") || link).textContent), sub: [...link.querySelectorAll(".ginfo li")].map((n) => clean(n.textContent)).filter(Boolean).join(" \xB7 ").slice(0, 90) });
+        }
         for (const link of document.querySelectorAll(".container a[href]")) {
           const m = link.href.match(/m\.dcinside\.com\/(board|mini)\/([A-Za-z0-9_]+)\/(\d+)/);
           if (!m) continue;
@@ -339,6 +358,20 @@
         }
       }
       return { items, note: items.length ? "" : clean((document.querySelector(".container") || document.body).textContent).slice(0, 100) };
+    },
+    // 갤로그 목록의 갤러리 번호를 갤러리 주소(id)로 바꿉니다. 디시 화면이 줄을 눌렀을 때 쓰는 것과 같은 요청입니다.
+    async gallId(a, h) {
+      const $2 = window.jQuery, r = await new Promise((res) => {
+        const t = setTimeout(() => res(null), 15e3);
+        $2.ajax({ type: "post", url: "/gallog/list-direct", headers: { "X-CSRF-TOKEN": $2('meta[name="csrf-token"]').attr("content") }, data: { gall_code: a.code, gall_type: a.type }, success: (v) => {
+          clearTimeout(t);
+          res(v);
+        }, error: () => {
+          clearTimeout(t);
+          res(null);
+        } });
+      });
+      return r && r.gall_id ? { id: String(r.gall_id) } : { error: "\uAE00\uC774 \uC788\uB294 \uAC24\uB7EC\uB9AC\uB97C \uCC3E\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4." };
     },
     // 댓글·답글 쓰기
     async comment(a, h) {
@@ -701,7 +734,7 @@
       return '<button class="row' + (k === R.g ? " sel" : "") + '" data-g="' + esc(k) + '" data-lp="gal">' + (R.updated[k] ? '<i class="dot"></i>' : "") + galAv(g) + '<span class="tx"><b>' + esc(gname(g)) + "</b>" + (st ? '<span class="st">' + esc(st) + "</span>" : "") + "</span></button>";
     };
     const favs = D.favs.map(gal).filter(Boolean), upd = D.gals.filter((g) => R.updated[key(g)]), all = [...D.gals].sort((a, b) => gname(a).localeCompare(gname(b), "ko"));
-    return '<div class="head fr"><h2>\uCE5C\uAD6C</h2><button class="who m-only" data-ov="log" aria-label="\uB0B4 \uD504\uB85C\uD544 \uC5F4\uAE30"><span class="av" style="background:#8aa3b8">' + I.sil + "</span><span>" + esc(D.me.name) + '</span></button><button class="ib" data-ov="find" aria-label="\uAC24\uB7EC\uB9AC \uAC80\uC0C9">' + I.search + '</button><button class="ib" data-ov="find" aria-label="\uAC24\uB7EC\uB9AC \uCD94\uAC00">' + I.plusGal + "</button>" + cogM + '</div><div class="scroll" id="fscroll"><div class="me"><span class="av" style="background:#8aa3b8">' + I.sil + "</span><span><b>" + esc(D.me.name) + "</b><span>" + esc(D.me.status) + '</span></span><button class="pill" data-ov="log">\uD504\uB85C\uD544</button></div>' + (favs.length ? '<div class="sec"><span>\uC990\uACA8\uCC3E\uAE30 &nbsp;' + favs.length + "</span>" + I.down + '</div><div class="favs">' + favs.map((g) => '<button class="fav" data-g="' + esc(key(g)) + '" data-lp="gal" title="' + esc(gname(g)) + '">' + (R.updated[key(g)] ? '<i class="dot"></i>' : "") + galAv(g) + "<span>" + esc(gname(g)) + "</span></button>").join("") + "</div>" : "") + (upd.length ? '<div class="upd"><div class="sec"><span>\uC5C5\uB370\uC774\uD2B8\uD55C \uCE5C\uAD6C &nbsp;' + upd.length + "</span>" + I.down + "</div>" + upd.map(row).join("") + "</div>" : "") + '<div class="sec" style="margin-top:6px"><span>\uCE5C\uAD6C &nbsp;' + D.gals.length + "</span>" + I.down + "</div>" + (all.length ? all.map(row).join("") : '<div class="empty">\uC544\uC9C1 \uCD94\uAC00\uD55C \uAC24\uB7EC\uB9AC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.<br><button class="pill" data-ov="find">\uAC24\uB7EC\uB9AC \uCD94\uAC00</button></div>') + "</div>";
+    return '<div class="head fr"><h2>\uCE5C\uAD6C</h2><button class="who m-only" data-ov="log" aria-label="\uB0B4 \uD504\uB85C\uD544 \uC5F4\uAE30"><span class="av" style="background:#8aa3b8">' + I.sil + "</span><span>" + esc(D.me.name) + '</span></button><button class="ib" data-ov="find" aria-label="\uAC24\uB7EC\uB9AC \uAC80\uC0C9">' + I.search + '</button><button class="ib" data-ov="find" aria-label="\uAC24\uB7EC\uB9AC \uCD94\uAC00">' + I.plusGal + "</button>" + cogM + '</div><div class="scroll" id="fscroll"><button class="adb m-only" data-url="https://blinkarea.synology.me/" aria-label="\uAD11\uACE0: \uBE14\uCE74\uC774\uBE0C \uC5F4\uAE30"><span class="tx"><b>\uBE14\uB799\uD551\uD06C\uC758 \uBAA8\uB4E0 \uAE30\uB85D, \uBE14\uCE74\uC774\uBE0C</b><span>\uC0AC\uC9C4\xB7\uC601\uC0C1\xB7\uC74C\uC6D0 \uAE30\uB85D\uC744 \uD55C\uACF3\uC5D0\uC11C</span><i>\uC9C0\uAE08 \uAD6C\uACBD\uD558\uAE30 \u203A</i></span><span class="logo"><b>\uBE14\uCE74\uC774\uBE0C</b><i>BLINK AREA</i></span><em>AD</em></button><div class="me"><span class="av" style="background:#8aa3b8">' + I.sil + "</span><span><b>" + esc(D.me.name) + "</b><span>" + esc(D.me.status) + '</span></span><button class="pill" data-ov="log">\uD504\uB85C\uD544</button></div>' + (favs.length ? '<div class="sec"><span>\uC990\uACA8\uCC3E\uAE30 &nbsp;' + favs.length + "</span>" + I.down + '</div><div class="favs">' + favs.map((g) => '<button class="fav" data-g="' + esc(key(g)) + '" data-lp="gal" title="' + esc(gname(g)) + '">' + (R.updated[key(g)] ? '<i class="dot"></i>' : "") + galAv(g) + "<span>" + esc(gname(g)) + "</span></button>").join("") + "</div>" : "") + (upd.length ? '<div class="upd"><div class="sec"><span>\uC5C5\uB370\uC774\uD2B8\uD55C \uCE5C\uAD6C &nbsp;' + upd.length + "</span>" + I.down + "</div>" + upd.map(row).join("") + "</div>" : "") + '<div class="sec" style="margin-top:6px"><span>\uCE5C\uAD6C &nbsp;' + D.gals.length + "</span>" + I.down + "</div>" + (all.length ? all.map(row).join("") : '<div class="empty">\uC544\uC9C1 \uCD94\uAC00\uD55C \uAC24\uB7EC\uB9AC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.<br><button class="pill" data-ov="find">\uAC24\uB7EC\uB9AC \uCD94\uAC00</button></div>') + "</div>";
   }
   var PLAIN = ["\uC804\uCCB4", "\uC548\uC77D\uC74C", "ChatGPT"];
   function chatsHtml() {
@@ -1035,13 +1068,26 @@
     if (R.ov === "log") renderPane();
   }
   async function jump(v) {
+    if (!v.id && v.code) {
+      toast("\uAE00\uC744 \uC5EC\uB294 \uC911\u2026");
+      const r = await drive("gallId", { code: v.code, type: v.type }, mGallog(R.user, ""));
+      if (!r.id) {
+        toast(r.error || "\uAE00\uC744 \uC5F4\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.");
+        return;
+      }
+      v.id = r.id;
+    }
+    if (v.person) {
+      native.open("https://m.dcinside.com/person/" + v.id + "/" + v.no);
+      return;
+    }
     const g = D.gals.find((x) => x.id === v.id && x.type === "mini" === !!v.mini);
     if (!g) {
       native.open("https://m.dcinside.com/" + (v.mini ? "mini" : "board") + "/" + v.id + "/" + v.no);
       return;
     }
     await openGallery(key(g));
-    openPost(v.no, false, { id: v.no, title: v.title || "", notice: false, head: "", name: "", uid: "", ip: "", comments: 0, views: 0, up: 0 });
+    openPost(v.no, false, { id: v.no, title: v.orig || v.title || "", notice: false, head: "", name: "", uid: "", ip: "", comments: 0, views: 0, up: 0 });
   }
   function watch(gk, no, title, count, mine) {
     const old = D.watch.find((w) => w.g === gk && w.no === no);

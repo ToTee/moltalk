@@ -206,7 +206,8 @@ span.d-only,span.m-only{display:contents}
 /* ---------- 휴대폰(손가락으로 쓰는 좁은 화면): 구성은 같고 겉모습만 다릅니다. PC 창은 좁혀도 PC 모양 그대로입니다. ---------- */
 @media (pointer:coarse) and (max-width:600px){
   .d-only{display:none!important}
-  body{font-size:15px}
+  /* 글자 크기와 굵기는 카카오톡 화면과 나란히 놓고 맞춘 값입니다(제목만 조금 굵고 나머지는 보통 굵기). */
+  body{font-size:14px}
   /* 왼쪽 세로 메뉴가 맨 아래로 내려갑니다. 설정은 맨 위 줄에 있습니다. */
   .app{flex-direction:column}
   .pane{order:1;min-height:0}
@@ -216,35 +217,45 @@ span.d-only,span.m-only{display:contents}
   .rail .cnt{left:calc(50% + 4px);top:2px}
   .rail .dot{left:calc(50% + 9px)!important;right:auto!important;top:8px!important}
   .head{padding:12px 6px 2px 16px;gap:0}
-  .head h2{font-size:24px;letter-spacing:-.5px}
+  .head h2{font-size:21px;letter-spacing:-.5px}
   .head h2 small{display:none}
   .head .bk{margin-left:-8px}
   .ib{width:44px;height:44px}
   /* 친구 화면은 제목 자리에 내 프로필이 옵니다. */
   .head.fr h2,.me,.upd{display:none}
-  .who{flex:1;min-width:0;display:flex!important;align-items:center;gap:10px;min-height:44px;font-size:19px;font-weight:700}
+  .who{flex:1;min-width:0;display:flex!important;align-items:center;gap:10px;min-height:44px;font-size:17px;font-weight:500}
+  /* 친구 화면 맨 위 광고 칸 */
+  .adb{display:flex!important;align-items:center;gap:12px;width:calc(100% - 32px);margin:6px 16px 4px;padding:14px 14px 14px 18px;min-height:86px;background:#f5f5f6;border-radius:14px;position:relative}
+  .adb .tx{flex:1;min-width:0}
+  .adb .tx b{display:block;font-size:14px;font-weight:600}
+  .adb .tx span{display:block;font-size:12px;color:var(--sub);margin-top:2px}
+  .adb .tx i{display:block;font-style:normal;font-size:12px;color:#b8336a;margin-top:5px}
+  .adb .logo{flex:none;width:86px;height:58px;border-radius:12px;background:#111;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .adb .logo b{font-size:14px;font-weight:600;letter-spacing:1px}
+  .adb .logo i{font-style:normal;font-size:7px;letter-spacing:2px;color:#f4a6c8;margin-top:3px}
+  .adb em{position:absolute;right:7px;top:7px;font-style:normal;font-size:9px;font-weight:600;color:#666;background:#fff;border-radius:8px;padding:1px 5px}
   .who>span:last-child{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .av{width:52px;height:52px;font-size:19px}
+  .av{width:48px;height:48px;font-size:16px;font-weight:500}
   .who .av{width:38px;height:38px}
-  .sec{border-top:0;margin:0;padding:12px 16px 4px;font-size:16px;font-weight:700;color:var(--text);align-items:center}
+  .sec{border-top:0;margin:0;padding:12px 16px 4px;font-size:13px;font-weight:600;color:var(--text);align-items:center}
   .favs{gap:2px;padding:0 10px 10px}
-  .fav{width:68px}
-  .fav>span:last-child{font-size:13px;font-weight:400;padding:0 4px}
+  .fav{width:70px}
+  .fav>span:last-child{font-size:13px;font-weight:400;padding:0 2px}
   .fav .dot{left:auto;right:6px;top:4px}
-  .row{gap:13px;padding:8px 16px;min-height:68px}
-  .row b{font-size:16px;font-weight:400}
-  .row .st{font-size:14px}
+  .row{gap:13px;padding:8px 16px;min-height:64px}
+  .row b{font-size:15px;font-weight:400}
+  .row .st{font-size:13px}
   .row .dot{left:12px}
   .setlist .row{padding:14px 16px;min-height:0}
   .chips{padding:4px 16px 10px}
-  .chip{border:0;background:#f2f2f2;color:#4a4a4a;font-size:15px;font-weight:700;border-radius:19px;padding:9px 16px}
+  .chip{border:0;background:#f2f2f2;color:#4a4a4a;font-size:14px;font-weight:600;border-radius:19px;padding:9px 16px}
   .chip.on{background:#191919;color:#fff}
   .chip.ico{padding:9px 11px}
   .post{padding:10px 16px}
-  .post .av{width:52px;height:52px}
-  .post b small{font-size:15px;margin-left:6px}
-  .post .pv{font-size:14px}
-  .post .rt{font-size:12px;padding-top:3px}
+  .post .av{width:48px;height:48px}
+  .post b small{font-size:14px;margin-left:6px}
+  .post .pv{font-size:13px}
+  .post .rt{font-size:11px;padding-top:3px}
   .pintog::after{left:16px;right:16px}
   .searchbar{padding:0 16px 10px}
 }

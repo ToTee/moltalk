@@ -78,6 +78,10 @@ public class MainActivity extends Activity {
         super.onCreate(saved);
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.WHITE);
+        // 맨 위 상태 표시줄(시계, 배터리)과 맨 아래 내비게이션 바를 흰 바탕에 어두운 아이콘으로 맞춥니다.
+        getWindow().setStatusBarColor(Color.WHITE);
+        getWindow().setNavigationBarColor(Color.WHITE);
+        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | (Build.VERSION.SDK_INT >= 26 ? View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR : 0));
 
         main = new WebView(this);
         setup(main, UA);
