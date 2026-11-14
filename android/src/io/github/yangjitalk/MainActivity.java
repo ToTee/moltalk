@@ -59,6 +59,8 @@ public class MainActivity extends Activity {
     private WebView main;
     private WebView helper;
     private LinearLayout helperBox;
+    private View helperDim;
+    private TextView helperTitle;
     private ValueCallback<Uri[]> filePick;
 
     // 보조 웹뷰에서 진행 중인 작업 하나의 상태
@@ -78,6 +80,8 @@ public class MainActivity extends Activity {
 
         main = new WebView(this);
         setup(main, UA);
+        // 움직이는 디시콘은 소리 없는 영상이라, 누르지 않아도 재생되게 합니다(안 그러면 재생 버튼 그림만 보입니다).
+        main.getSettings().setMediaPlaybackRequiresUserGesture(false);
         main.addJavascriptInterface(new Bridge(), "YJ");
         main.setWebViewClient(new MainClient());
         main.setWebChromeClient(new Chooser());
@@ -90,11 +94,11 @@ public class MainActivity extends Activity {
         LinearLayout bar = new LinearLayout(this);
         bar.setGravity(Gravity.CENTER_VERTICAL);
         bar.setPadding(24, 8, 8, 8);
-        TextView title = new TextView(this);
+        TextView title = helperTitle = new TextView(this);
         title.setText("디시인사이드");
         title.setTextSize(16);
         title.setTextColor(Color.BLACK);
-        bar.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        bar.addView(title,new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         Button close = new Button(this);
         close.setText("닫기");
         close.setOnClickListener(v -> finishJob(jobVisible ? "false" : CANCELLED));
@@ -106,6 +110,12 @@ public class MainActivity extends Activity {
         helper.setWebViewClient(new HelperClient());
         helper.setWebChromeClient(new Chooser());
         helperBox.addView(helper, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
+        // '사람인지 확인' 팝업 뒤를 어둡게 가리는 막
+        helperDim = new View(this);
+        helperDim.setBackgroundColor(0x99000000);
+        helperDim.setClickable(true);
+        helperDim.setVisibility(View.GONE);
+        root.addView(helperDim, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         root.addView(helperBox, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         // 화면이 상태 표시줄, 내비게이션 바, 키보드에 가리지 않게 여백을 줍니다.
@@ -237,7 +247,10 @@ public class MainActivity extends Activity {
             ui.post(() -> startJob(id, url, null, true, optJson, optJson));
         }
         @JavascriptInterface public void open(String url) {
-            if (dcUrl(url)) ui.post(() -> { try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))); } catch (Exception ignored) { } });
+            // 글 속 링크는 기기의 브라우저로 엽니다. 웹 주소(http, https)만 허용합니다.
+            Uri u = url == null ? null : Uri.parse(url);
+            String scheme = u == null ? null : u.getScheme();
+            if (u != null && u.getUserInfo() == null && ("https".equals(scheme) || "http".equals(scheme))) ui.post(() -> { try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))); } catch (Exception ignored) { } });
         }
         @JavascriptInterface public void logout(String id) {
             ui.post(() -> CookieManager.getInstance().removeAllCookies(ok -> reply(id, "true")));
@@ -256,6 +269,7 @@ public class MainActivity extends Activity {
             ui.post(() -> {
                 if (jobId == null || jobVisible) return;
                 jobShown = on;
+                popup(on);
                 helperBox.setVisibility(on ? View.VISIBLE : View.INVISIBLE);
                 if (jobTimeout != null) { ui.removeCallbacks(jobTimeout); ui.postDelayed(jobTimeout, on ? 200000 : 45000); }
             });
@@ -285,13 +299,26 @@ public class MainActivity extends Activity {
         helper.loadUrl(url);
     }
 
-    private static final String CANCELLED = "{\"error\":\"창을 닫아 등록을 취소했습니다.\"}";
+    /** 공식 화면 상자를 화면 가운데의 작은 팝업으로 줄이거나(on), 전체 화면으로 되돌립니다. */
+    private void popup(boolean on) {
+        float d = getResources().getDisplayMetrics().density;
+        FrameLayout.LayoutParams lp = on
+            ? new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, Math.round(250 * d), Gravity.CENTER)
+            : new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+        if (on) lp.setMargins(Math.round(16 * d), 0, Math.round(16 * d), 0);
+        helperBox.setLayoutParams(lp);
+        helperDim.setVisibility(on ? View.VISIBLE : View.GONE);
+        helperTitle.setText(on ? "사람인지 확인" : "디시인사이드");
+    }
+
+    private static final String CANCELLED ="{\"error\":\"창을 닫아 등록을 취소했습니다.\"}";
 
     private void finishJob(String json) {
         if (jobId == null) return;
         String id = jobId;
         jobId = null;
         jobShown = false;
+        popup(false);
         if (jobTimeout != null) { ui.removeCallbacks(jobTimeout); jobTimeout = null; }
         helperBox.setVisibility(View.GONE);
         helper.loadUrl("about:blank");

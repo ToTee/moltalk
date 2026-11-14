@@ -63,6 +63,12 @@
           }
           continue;
         }
+        if (tag === "a") {
+          const href = abs(c.getAttribute("href") || ""), before = buf.length;
+          walk(c);
+          if (/^https?:\/\//.test(href) && !/https?:\/\//.test(buf.slice(before))) buf += (buf.length > before ? " " : "") + href;
+          continue;
+        }
         const block = /^(p|div|li|tr|h[1-6]|blockquote|ul|ol|table)$/.test(tag);
         if (block && buf && !buf.endsWith("\n")) buf += "\n";
         walk(c);
@@ -259,16 +265,28 @@
       if (!document.querySelector("#comment_addDiv" + idx)) window.comment_reple(idx);
       return { form: document.querySelector("#comment_write_reple"), memo: "#comment_memo_reple", mode: "commentReple", tmode: "txtconReple" };
     };
-    const reveal = (on) => {
-      let tip = document.querySelector("#yj-tip");
-      if (on && !tip) {
-        tip = document.createElement("div");
-        tip.id = "yj-tip";
-        tip.textContent = "'\uC0AC\uB78C\uC778\uC9C0 \uD655\uC778'\uC744 \uB20C\uB7EC \uC8FC\uC138\uC694. \uD655\uC778\uB418\uBA74 \uC790\uB3D9\uC73C\uB85C \uB4F1\uB85D\uB429\uB2C8\uB2E4.";
-        tip.style.cssText = "position:fixed;left:0;right:0;top:0;z-index:2147483647;background:#191919;color:#fff;font-size:14px;line-height:1.4;padding:10px 14px;text-align:center";
-        document.body.appendChild(tip);
+    const reveal = (on, host) => {
+      let tip = document.querySelector("#yj-tip"), st = document.querySelector("#yj-human");
+      if (on) {
+        if (!st) {
+          st = document.createElement("style");
+          st.id = "yj-human";
+          st.textContent = "html,body{background:#fff!important;overflow:hidden!important}body *{visibility:hidden!important}.yj-host,.yj-host *,#yj-tip{visibility:visible!important}.yj-host{position:fixed!important;left:0!important;right:0!important;top:56%!important;transform:translateY(-50%)!important;display:flex!important;justify-content:center!important;margin:0!important;z-index:2147483646!important}";
+          document.head.appendChild(st);
+        }
+        if (host) host.classList.add("yj-host");
+        if (!tip) {
+          tip = document.createElement("div");
+          tip.id = "yj-tip";
+          tip.textContent = "\uD655\uC778\uC744 \uB204\uB974\uBA74 \uC790\uB3D9\uC73C\uB85C \uB4F1\uB85D\uB429\uB2C8\uB2E4.";
+          tip.style.cssText = "position:fixed;left:0;right:0;top:0;z-index:2147483647;color:#444;font-size:14px;line-height:1.4;padding:14px 14px 0;text-align:center";
+          document.body.appendChild(tip);
+        }
+      } else {
+        if (st) st.remove();
+        if (tip) tip.remove();
+        for (const n of document.querySelectorAll(".yj-host")) n.classList.remove("yj-host");
       }
-      if (!on && tip) tip.remove();
       try {
         if (window.YJD && window.YJD.show) window.YJD.show(!!on);
       } catch (e) {
@@ -290,8 +308,7 @@
       };
       await until(() => token() || ts.state === "interactive" || ts.state === "error", 2e4);
       if (token()) return true;
-      (ts.host || slot).scrollIntoView({ block: "center" });
-      reveal(true);
+      reveal(true, ts.host || slot);
       const ok = await until(token, 17e4);
       reveal(false);
       return !!ok;
@@ -484,6 +501,10 @@
     bell: s('<path d="M6 17V11a6 6 0 0 1 12 0v6l1.5 2h-15z"/><path d="M10 21h4"/>'),
     sun: s('<circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/>'),
     cog,
+    /* 휴대폰 하단 메뉴용(속을 채운 모양) */
+    bellF: f('<path d="M12 2.5a6.5 6.5 0 0 0-6.5 6.5v5.2L3.6 17.6c-.4.7.1 1.4.9 1.4h15c.8 0 1.3-.7.9-1.4l-1.9-3.4V9A6.5 6.5 0 0 0 12 2.5z"/><path d="M9.6 20.2a2.5 2.5 0 0 0 4.8 0z"/>'),
+    smileF: f('<path fill-rule="evenodd" d="M12 2.5a9.5 9.5 0 1 0 0 19 9.5 9.5 0 0 0 0-19zM8.9 8.6a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4zm6.2 0a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4zM7.4 13.6h9.2a4.7 4.7 0 0 1-9.2 0z"/>'),
+    sunF: '<svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.4" stroke="none"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M18.5 5.5l-1.7 1.7M7.2 16.8l-1.7 1.7"/></svg>',
     search: s('<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/>', 22),
     plusGal: s('<circle cx="9.5" cy="8" r="3.6"/><path d="M2.5 20c0-3.6 3-6 7-6s7 2.4 7 6M19 6v6M16 9h6"/>'),
     write: s('<path d="M11 4.5c-4.4 0-8 2.8-8 6.3 0 2.2 1.4 4.1 3.5 5.2L6 19.5l3.6-2.4c.5.1.9.1 1.4.1 4.4 0 8-2.8 8-6.4"/><path d="M19 2.5v6M16 5.5h6"/>'),
@@ -668,9 +689,11 @@
     const s2 = D.seen[R.g + "/" + p.id];
     return s2 != null && p.comments > s2 ? p.comments - s2 : 0;
   }
+  var two = (pc, mobile) => '<span class="d-only">' + pc + '</span><span class="m-only">' + mobile + "</span>";
+  var cogM = '<button class="ib m-only" data-ov="set" aria-label="\uC124\uC815">' + I.cog + "</button>";
   function renderRail() {
     const n = R.list ? R.list.posts.reduce((a, p) => a + unreadOf(p), 0) : 0;
-    $("#rail").innerHTML = '<button class="ic' + (R.view === "friends" ? " on" : "") + '" data-view="friends" aria-label="\uCE5C\uAD6C">' + I.person + '</button><button class="ic' + (R.view === "chats" ? " on" : "") + '" data-view="chats" aria-label="\uCC44\uD305">' + I.chat + (n ? '<span class="cnt">' + (n > 999 ? "999+" : n) + "</span>" : "") + '</button><span class="ic" aria-hidden="true">' + I.more + '</span><span class="sp"></span><button class="ic' + (R.ov === "con" ? " on" : "") + '" data-ov="con" aria-label="\uB514\uC2DC\uCF58">' + I.smile + '</button><button class="ic' + (R.ov === "noti" ? " on" : "") + '" data-ov="noti" aria-label="\uC54C\uB9BC">' + I.bell + (D.notis.some((n2) => !n2.read) ? '<i class="dot" style="left:auto;right:-2px;top:-2px"></i>' : "") + '</button><button class="ic' + (D.aliasOn ? " on" : "") + '" data-alias aria-pressed="' + D.aliasOn + '" aria-label="\uAC24\uB7EC\uB9AC \uC774\uB984\uC744 \uC0AC\uB78C \uC774\uB984\uC73C\uB85C \uBC14\uAFB8\uAE30">' + I.sun + '</button><button class="ic' + (R.ov === "set" ? " on" : "") + '" data-ov="set" aria-label="\uC124\uC815">' + I.cog + "</button>";
+    $("#rail").innerHTML = '<button class="ic' + (R.view === "friends" ? " on" : "") + '" data-view="friends" aria-label="\uCE5C\uAD6C">' + I.person + '</button><button class="ic' + (R.view === "chats" ? " on" : "") + '" data-view="chats" aria-label="\uCC44\uD305">' + I.chat + (n ? '<span class="cnt">' + (n > 999 ? "999+" : n) + "</span>" : "") + '</button><span class="ic deco" aria-hidden="true">' + I.more + '</span><span class="sp"></span><button class="ic' + (R.ov === "con" ? " on" : "") + '" data-ov="con" aria-label="\uB514\uC2DC\uCF58">' + two(I.smile, I.smileF) + '</button><button class="ic' + (R.ov === "noti" ? " on" : "") + '" data-ov="noti" aria-label="\uC54C\uB9BC">' + two(I.bell, I.bellF) + (D.notis.some((n2) => !n2.read) ? '<i class="dot" style="left:auto;right:-2px;top:-2px"></i>' : "") + '</button><button class="ic' + (D.aliasOn ? " on" : "") + '" data-alias aria-pressed="' + D.aliasOn + '" aria-label="\uAC24\uB7EC\uB9AC \uC774\uB984\uC744 \uC0AC\uB78C \uC774\uB984\uC73C\uB85C \uBC14\uAFB8\uAE30">' + two(I.sun, I.sunF) + '</button><button class="ic' + (R.ov === "set" ? " on" : "") + '" data-ov="set" aria-label="\uC124\uC815">' + I.cog + "</button>";
   }
   function friendsHtml() {
     const row = (g) => {
@@ -678,12 +701,12 @@
       return '<button class="row' + (k === R.g ? " sel" : "") + '" data-g="' + esc(k) + '" data-lp="gal">' + (R.updated[k] ? '<i class="dot"></i>' : "") + galAv(g) + '<span class="tx"><b>' + esc(gname(g)) + "</b>" + (st ? '<span class="st">' + esc(st) + "</span>" : "") + "</span></button>";
     };
     const favs = D.favs.map(gal).filter(Boolean), upd = D.gals.filter((g) => R.updated[key(g)]), all = [...D.gals].sort((a, b) => gname(a).localeCompare(gname(b), "ko"));
-    return '<div class="head"><h2>\uCE5C\uAD6C</h2><button class="ib" data-ov="find" aria-label="\uAC24\uB7EC\uB9AC \uAC80\uC0C9">' + I.search + '</button><button class="ib" data-ov="find" aria-label="\uAC24\uB7EC\uB9AC \uCD94\uAC00">' + I.plusGal + '</button></div><div class="scroll" id="fscroll"><div class="me"><span class="av" style="background:#8aa3b8">' + I.sil + "</span><span><b>" + esc(D.me.name) + "</b><span>" + esc(D.me.status) + '</span></span><button class="pill" data-ov="log">\uD504\uB85C\uD544</button></div>' + (favs.length ? '<div class="sec"><span>\uC990\uACA8\uCC3E\uAE30 &nbsp;' + favs.length + "</span>" + I.down + '</div><div class="favs">' + favs.map((g) => '<button class="fav" data-g="' + esc(key(g)) + '" data-lp="gal" title="' + esc(gname(g)) + '">' + (R.updated[key(g)] ? '<i class="dot"></i>' : "") + galAv(g) + "<span>" + esc(gname(g)) + "</span></button>").join("") + "</div>" : "") + (upd.length ? '<div class="sec"><span>\uC5C5\uB370\uC774\uD2B8\uD55C \uCE5C\uAD6C &nbsp;' + upd.length + "</span>" + I.down + "</div>" + upd.map(row).join("") : "") + '<div class="sec" style="margin-top:6px"><span>\uCE5C\uAD6C &nbsp;' + D.gals.length + "</span>" + I.down + "</div>" + (all.length ? all.map(row).join("") : '<div class="empty">\uC544\uC9C1 \uCD94\uAC00\uD55C \uAC24\uB7EC\uB9AC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.<br><button class="pill" data-ov="find">\uAC24\uB7EC\uB9AC \uCD94\uAC00</button></div>') + "</div>";
+    return '<div class="head fr"><h2>\uCE5C\uAD6C</h2><button class="who m-only" data-ov="log" aria-label="\uB0B4 \uD504\uB85C\uD544 \uC5F4\uAE30"><span class="av" style="background:#8aa3b8">' + I.sil + "</span><span>" + esc(D.me.name) + '</span></button><button class="ib" data-ov="find" aria-label="\uAC24\uB7EC\uB9AC \uAC80\uC0C9">' + I.search + '</button><button class="ib" data-ov="find" aria-label="\uAC24\uB7EC\uB9AC \uCD94\uAC00">' + I.plusGal + "</button>" + cogM + '</div><div class="scroll" id="fscroll"><div class="me"><span class="av" style="background:#8aa3b8">' + I.sil + "</span><span><b>" + esc(D.me.name) + "</b><span>" + esc(D.me.status) + '</span></span><button class="pill" data-ov="log">\uD504\uB85C\uD544</button></div>' + (favs.length ? '<div class="sec"><span>\uC990\uACA8\uCC3E\uAE30 &nbsp;' + favs.length + "</span>" + I.down + '</div><div class="favs">' + favs.map((g) => '<button class="fav" data-g="' + esc(key(g)) + '" data-lp="gal" title="' + esc(gname(g)) + '">' + (R.updated[key(g)] ? '<i class="dot"></i>' : "") + galAv(g) + "<span>" + esc(gname(g)) + "</span></button>").join("") + "</div>" : "") + (upd.length ? '<div class="upd"><div class="sec"><span>\uC5C5\uB370\uC774\uD2B8\uD55C \uCE5C\uAD6C &nbsp;' + upd.length + "</span>" + I.down + "</div>" + upd.map(row).join("") + "</div>" : "") + '<div class="sec" style="margin-top:6px"><span>\uCE5C\uAD6C &nbsp;' + D.gals.length + "</span>" + I.down + "</div>" + (all.length ? all.map(row).join("") : '<div class="empty">\uC544\uC9C1 \uCD94\uAC00\uD55C \uAC24\uB7EC\uB9AC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.<br><button class="pill" data-ov="find">\uAC24\uB7EC\uB9AC \uCD94\uAC00</button></div>') + "</div>";
   }
   var PLAIN = ["\uC804\uCCB4", "\uC548\uC77D\uC74C", "ChatGPT"];
   function chatsHtml() {
     const g = gal(R.g);
-    if (!g) return '<div class="head"><h2>\uCC44\uD305 <small>\u25BC</small></h2></div><div class="empty">\uCE5C\uAD6C \uBAA9\uB85D\uC5D0\uC11C \uAC24\uB7EC\uB9AC\uB97C \uACE0\uB974\uBA74<br>\uAE00 \uBAA9\uB85D\uC774 \uC5EC\uAE30\uC5D0 \uB098\uC635\uB2C8\uB2E4.</div>';
+    if (!g) return '<div class="head"><h2>\uCC44\uD305 <small>\u25BC</small></h2>' + cogM + '</div><div class="empty">\uCE5C\uAD6C \uBAA9\uB85D\uC5D0\uC11C \uAC24\uB7EC\uB9AC\uB97C \uACE0\uB974\uBA74<br>\uAE00 \uBAA9\uB85D\uC774 \uC5EC\uAE30\uC5D0 \uB098\uC635\uB2C8\uB2E4.</div>';
     const L = R.list, heads = L?.heads || [], plain = !heads.length;
     const tabs = plain ? PLAIN.map((n) => ({ id: n === "\uC804\uCCB4" ? "" : n, name: n })) : [{ id: "", name: "\uC804\uCCB4" }, ...heads];
     const pins = (L?.posts || []).filter((p) => p.notice);
@@ -699,7 +722,7 @@
     const shownPins = posts.filter((p) => p.notice), allRest = posts.filter((p) => !p.notice), rest = allRest.slice(0, R.shown);
     R.hidden = allRest.length - rest.length;
     const body = !L ? R.listErr ? '<div class="empty">' + esc(R.listErr) + '<br><button class="pill" data-reload>\uB2E4\uC2DC \uC2DC\uB3C4</button></div>' : '<div class="spin">\uBD88\uB7EC\uC624\uB294 \uC911\u2026</div>' : (R.pinOpen ? shownPins : shownPins.slice(0, 1)).map(rowHtml).join("") + (shownPins.length > 1 ? '<button class="pintog" data-pintog aria-expanded="' + R.pinOpen + '" aria-label="' + (R.pinOpen ? "\uACF5\uC9C0 \uC811\uAE30" : "\uACF5\uC9C0 " + (shownPins.length - 1) + "\uAC1C \uB354 \uBCF4\uAE30") + '"></button>' : "") + (rest.length ? rest.map(rowHtml).join("") : '<div class="empty">\uC774 \uD0ED\uC5D0\uB294 \uC544\uC9C1 \uAE00\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.</div>') + (R.hidden > 0 || L.more && !(plain && R.head) ? '<button class="more-row" data-more>' + (R.listBusy ? "\uBD88\uB7EC\uC624\uB294 \uC911\u2026" : "\uC774\uC804 \uAE00 \uB354 \uBCF4\uAE30") + "</button>" : "");
-    return '<div class="head"><h2>\uCC44\uD305 <small>\u25BC</small></h2><button class="ib' + (R.filterOn ? " act" : "") + '" data-filter aria-label="\uAE00 \uAC80\uC0C9">' + I.search + '</button><button class="ib" data-write aria-label="\uAE00\uC4F0\uAE30">' + I.write + "</button></div>" + (R.filterOn ? '<div class="searchbar"><input id="filter" placeholder="\uBD88\uB7EC\uC628 \uAE00 \uC81C\uBAA9\uC5D0\uC11C \uCC3E\uAE30" value="' + esc(R.filter) + '"></div>' : "") + '<div class="chips" id="chips">' + tabs.map((t) => '<button class="chip' + (String(t.id) === String(R.head) ? " on" : "") + '" data-h="' + esc(t.id) + '">' + esc(t.name) + "</button>").join("") + '<button class="chip ico' + (R.pinOpen ? " on" : "") + '" data-pintog aria-pressed="' + R.pinOpen + '" aria-label="' + (R.pinOpen ? "\uACF5\uC9C0 \uC811\uAE30" : "\uACF5\uC9C0 \uBAA8\uB450 \uBCF4\uAE30") + '">' + I.listp + (!R.pinOpen && pins.length > 1 ? '<i class="cdot"></i>' : "") + '</button></div><div class="scroll" id="cscroll">' + body + "</div>";
+    return '<div class="head"><h2>\uCC44\uD305 <small>\u25BC</small></h2><button class="ib' + (R.filterOn ? " act" : "") + '" data-filter aria-label="\uAE00 \uAC80\uC0C9">' + I.search + '</button><button class="ib" data-write aria-label="\uAE00\uC4F0\uAE30">' + I.write + "</button>" + cogM + "</div>" + (R.filterOn ? '<div class="searchbar"><input id="filter" placeholder="\uBD88\uB7EC\uC628 \uAE00 \uC81C\uBAA9\uC5D0\uC11C \uCC3E\uAE30" value="' + esc(R.filter) + '"></div>' : "") + '<div class="chips" id="chips">' + tabs.map((t) => '<button class="chip' + (String(t.id) === String(R.head) ? " on" : "") + '" data-h="' + esc(t.id) + '">' + esc(t.name) + "</button>").join("") + '<button class="chip ico' + (R.pinOpen ? " on" : "") + '" data-pintog aria-pressed="' + R.pinOpen + '" aria-label="' + (R.pinOpen ? "\uACF5\uC9C0 \uC811\uAE30" : "\uACF5\uC9C0 \uBAA8\uB450 \uBCF4\uAE30") + '">' + I.listp + (!R.pinOpen && pins.length > 1 ? '<i class="cdot"></i>' : "") + '</button></div><div class="scroll" id="cscroll">' + body + "</div>";
   }
   function overlayHtml() {
     const x = '<button class="ib" data-ov="" aria-label="\uB2EB\uAE30">\u2715</button>';
@@ -798,7 +821,8 @@
     const t = e.target;
     if (t.id === "cscroll" && t.scrollTop + t.clientHeight > t.scrollHeight - 200) showMore(true);
   }, true);
-  var bub = (t, q = "") => '<div class="bub">' + q + esc(t) + (t.length > 280 || t.split("\n").length > 8 ? '<div class="more" aria-hidden="true"><span>\uC804\uCCB4\uBCF4\uAE30</span>' + I.next + "</div>" : "") + "</div>";
+  var linkify = (t) => t.split(/(https?:\/\/[^\s<>"']+)/).map((s2, i) => i % 2 ? '<a class="lk" href="' + esc(s2) + '" data-url="' + esc(s2) + '">' + esc(s2) + "</a>" : esc(s2)).join("");
+  var bub = (t, q = "") => '<div class="bub">' + q + linkify(t) + (t.length > 280 || t.split("\n").length > 8 ? '<div class="more" aria-hidden="true"><span>\uC804\uCCB4\uBCF4\uAE30</span>' + I.next + "</div>" : "") + "</div>";
   var conVideo = (src, alt) => '<video class="dcon1" autoplay loop muted playsinline src="' + esc(src) + '" aria-label="' + esc(alt || "\uB514\uC2DC\uCF58") + '"></video>';
   document.addEventListener("error", (e) => {
     const n = e.target;
@@ -1298,8 +1322,8 @@
       clearTimeout(lp);
       lp = setTimeout(() => {
         lp = null;
-        if (drag?.moved) return;
         lpSkip = true;
+        drag = null;
         longPress(t);
       }, 500);
       const mv = (v) => {
@@ -1315,7 +1339,7 @@
   document.addEventListener("pointermove", (e) => {
     if (!drag) return;
     const d = e.clientX - drag.x;
-    if (Math.abs(d) > 4) drag.moved = true;
+    if (Math.abs(d) > 8) drag.moved = true;
     if (drag.moved) drag.c.scrollLeft = drag.l - d;
   });
   document.addEventListener("pointerup", () => {
@@ -1376,6 +1400,12 @@
       R.menu = null;
       R.ask = false;
       renderRoom(true);
+    }
+    const a = e.target.closest("a[data-url]");
+    if (a) {
+      e.preventDefault();
+      native.open(a.dataset.url);
+      return;
     }
     const b = e.target.closest("button");
     if (!b) return;

@@ -29,6 +29,8 @@ export function toBlocks(root){
   if(tag==='iframe'||tag==='embed'){const src=abs(c.getAttribute('src')||'');if(src){flush();out.push({t:'embed',src})}continue}
   const cls=c.getAttribute('class')||'';
   if(/txtdccon/.test(cls)){const v=c.textContent.trim(),inner=c.querySelector('[class*="ctxt_"]');if(v){flush();out.push({t:'txtcon',v,bg:(cls.match(/cbg_([0-9a-f]{6})/i)||[])[1]||'3b4890',fg:((inner?.getAttribute('class')||'').match(/ctxt_([0-9a-f]{6})/i)||[])[1]||'ffffff'})}continue}
+  /* 링크: 보이는 글자에 주소가 없으면 주소를 뒤에 붙여, 화면에서 누를 수 있게 합니다. */
+  if(tag==='a'){const href=abs(c.getAttribute('href')||''),before=buf.length;walk(c);if(/^https?:\/\//.test(href)&&!/https?:\/\//.test(buf.slice(before)))buf+=(buf.length>before?' ':'')+href;continue}
   const block=/^(p|div|li|tr|h[1-6]|blockquote|ul|ol|table)$/.test(tag);
   if(block&&buf&&!buf.endsWith('\n'))buf+='\n';
   walk(c);

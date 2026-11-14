@@ -10,6 +10,10 @@ export const I={
  bell:s('<path d="M6 17V11a6 6 0 0 1 12 0v6l1.5 2h-15z"/><path d="M10 21h4"/>'),
  sun:s('<circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/>'),
  cog,
+ /* 휴대폰 하단 메뉴용(속을 채운 모양) */
+ bellF:f('<path d="M12 2.5a6.5 6.5 0 0 0-6.5 6.5v5.2L3.6 17.6c-.4.7.1 1.4.9 1.4h15c.8 0 1.3-.7.9-1.4l-1.9-3.4V9A6.5 6.5 0 0 0 12 2.5z"/><path d="M9.6 20.2a2.5 2.5 0 0 0 4.8 0z"/>'),
+ smileF:f('<path fill-rule="evenodd" d="M12 2.5a9.5 9.5 0 1 0 0 19 9.5 9.5 0 0 0 0-19zM8.9 8.6a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4zm6.2 0a1.2 1.2 0 1 1 0 2.4 1.2 1.2 0 0 1 0-2.4zM7.4 13.6h9.2a4.7 4.7 0 0 1-9.2 0z"/>'),
+ sunF:'<svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.4" stroke="none"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M18.5 5.5l-1.7 1.7M7.2 16.8l-1.7 1.7"/></svg>',
  search:s('<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/>',22),
  plusGal:s('<circle cx="9.5" cy="8" r="3.6"/><path d="M2.5 20c0-3.6 3-6 7-6s7 2.4 7 6M19 6v6M16 9h6"/>'),
  write:s('<path d="M11 4.5c-4.4 0-8 2.8-8 6.3 0 2.2 1.4 4.1 3.5 5.2L6 19.5l3.6-2.4c.5.1.9.1 1.4.1 4.4 0 8-2.8 8-6.4"/><path d="M19 2.5v6M16 5.5h6"/>'),

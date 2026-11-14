@@ -28,10 +28,17 @@ function helpers(){
   return {form:document.querySelector('#comment_write_reple'),memo:'#comment_memo_reple',mode:'commentReple',tmode:'txtconReple'};
  };
  // 숨겨진 공식 화면을 사용자에게 잠깐 보여 주거나 다시 숨깁니다(안드로이드는 YJD.show, 윈도우는 콘솔 신호).
- const reveal=on=>{
-  let tip=document.querySelector('#yj-tip');
-  if(on&&!tip){tip=document.createElement('div');tip.id='yj-tip';tip.textContent="'사람인지 확인'을 눌러 주세요. 확인되면 자동으로 등록됩니다.";tip.style.cssText='position:fixed;left:0;right:0;top:0;z-index:2147483647;background:#191919;color:#fff;font-size:14px;line-height:1.4;padding:10px 14px;text-align:center';document.body.appendChild(tip)}
-  if(!on&&tip)tip.remove();
+ // 보여 줄 때는 디시 화면의 나머지를 모두 가리고 확인 상자(host)만 가운데에 남겨, 작은 팝업처럼 보이게 합니다.
+ const reveal=(on,host)=>{
+  let tip=document.querySelector('#yj-tip'),st=document.querySelector('#yj-human');
+  if(on){
+   if(!st){st=document.createElement('style');st.id='yj-human';st.textContent='html,body{background:#fff!important;overflow:hidden!important}body *{visibility:hidden!important}.yj-host,.yj-host *,#yj-tip{visibility:visible!important}.yj-host{position:fixed!important;left:0!important;right:0!important;top:56%!important;transform:translateY(-50%)!important;display:flex!important;justify-content:center!important;margin:0!important;z-index:2147483646!important}';document.head.appendChild(st)}
+   if(host)host.classList.add('yj-host');
+   if(!tip){tip=document.createElement('div');tip.id='yj-tip';tip.textContent='확인을 누르면 자동으로 등록됩니다.';tip.style.cssText='position:fixed;left:0;right:0;top:0;z-index:2147483647;color:#444;font-size:14px;line-height:1.4;padding:14px 14px 0;text-align:center';document.body.appendChild(tip)}
+  }else{
+   if(st)st.remove();if(tip)tip.remove();
+   for(const n of document.querySelectorAll('.yj-host'))n.classList.remove('yj-host');
+  }
   try{if(window.YJD&&window.YJD.show)window.YJD.show(!!on)}catch(e){}
   console.log(on?'__YJ_SHOW__':'__YJ_HIDE__');
  };
@@ -45,7 +52,7 @@ function helpers(){
   const token=()=>{try{return window.turnstile&&ts.id!==null&&window.turnstile.getResponse(ts.id)||''}catch(e){return ''}};
   await until(()=>token()||ts.state==='interactive'||ts.state==='error',20000);
   if(token())return true;
-  (ts.host||slot).scrollIntoView({block:'center'});reveal(true);
+  reveal(true,ts.host||slot);
   const ok=await until(token,170000);reveal(false);
   return !!ok;
  };

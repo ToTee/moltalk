@@ -34,7 +34,8 @@ ipcMain.handle('http',async(event,url,opt={})=>{
   req.end(method==='POST'?String(opt.body??''):undefined);
  });
 });
-ipcMain.handle('open',(event,url)=>{if(dcUrl(url))shell.openExternal(url)});
+// 글 속 링크는 기기의 기본 브라우저로 엽니다. 웹 주소(http, https)만 허용합니다.
+ipcMain.handle('open',(event,url)=>{try{const x=new URL(url);if(/^https?:$/.test(x.protocol)&&!x.username&&!x.password)shell.openExternal(x.href)}catch{}});
 
 // 쓰기·삭제·로그인은 디시 공식 모바일 화면을 보조 창에서 열어 처리합니다. 로그인 쿠키는 같은 세션을 함께 씁니다.
 const MOBILE_UA='Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36';
@@ -59,7 +60,7 @@ ipcMain.handle('drive',async(event,url,code,opt={})=>{
    const arm=ms=>{clearTimeout(timer);timer=setTimeout(()=>res({error:'시간이 초과되었습니다.'}),ms)};arm(limit);
    // '사람인지 확인'을 직접 눌러야 하면 공식 화면이 신호를 보냅니다. 그동안 창을 보여 주고 기다리는 시간을 늘립니다.
    w.webContents.on('console-message',(e,level,message)=>{const m=typeof message==='string'?message:e&&e.message;
-    if(m==='__YJ_SHOW__'){w.show();arm(200000)}else if(m==='__YJ_HIDE__'){w.hide();arm(limit)}});
+    if(m==='__YJ_SHOW__'){w.setContentSize(380,230);w.center();w.setTitle('사람인지 확인');w.show();arm(200000)}else if(m==='__YJ_HIDE__'){w.hide();arm(limit)}});
   });
   const closed=new Promise(res=>w.once('closed',()=>res({error:'창을 닫아 등록을 취소했습니다.'})));
   const run=w.webContents.executeJavaScript(code,true).catch(async err=>{await sleep(2500);return {error:'처리 중 오류가 났습니다: '+err.message}});

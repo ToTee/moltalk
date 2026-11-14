@@ -66,14 +66,17 @@ function toast(msg){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTi
 
 /* ---------- 왼쪽 메뉴 ---------- */
 function unreadOf(p){const s=D.seen[R.g+'/'+p.id];return s!=null&&p.comments>s?p.comments-s:0}
+/* 넓은 화면(PC)과 좁은 화면(휴대폰)에서 다르게 보이는 부분은 둘 다 넣어 두고 app.css가 하나만 보여 줍니다. */
+const two=(pc,mobile)=>'<span class="d-only">'+pc+'</span><span class="m-only">'+mobile+'</span>';
+const cogM='<button class="ib m-only" data-ov="set" aria-label="설정">'+I.cog+'</button>';
 function renderRail(){
  const n=R.list?R.list.posts.reduce((a,p)=>a+unreadOf(p),0):0;
  $('#rail').innerHTML='<button class="ic'+(R.view==='friends'?' on':'')+'" data-view="friends" aria-label="친구">'+I.person+'</button>'+
   '<button class="ic'+(R.view==='chats'?' on':'')+'" data-view="chats" aria-label="채팅">'+I.chat+(n?'<span class="cnt">'+(n>999?'999+':n)+'</span>':'')+'</button>'+
-  '<span class="ic" aria-hidden="true">'+I.more+'</span><span class="sp"></span>'+
-  '<button class="ic'+(R.ov==='con'?' on':'')+'" data-ov="con" aria-label="디시콘">'+I.smile+'</button>'+
-  '<button class="ic'+(R.ov==='noti'?' on':'')+'" data-ov="noti" aria-label="알림">'+I.bell+(D.notis.some(n=>!n.read)?'<i class="dot" style="left:auto;right:-2px;top:-2px"></i>':'')+'</button>'+
-  '<button class="ic'+(D.aliasOn?' on':'')+'" data-alias aria-pressed="'+D.aliasOn+'" aria-label="갤러리 이름을 사람 이름으로 바꾸기">'+I.sun+'</button>'+
+  '<span class="ic deco" aria-hidden="true">'+I.more+'</span><span class="sp"></span>'+
+  '<button class="ic'+(R.ov==='con'?' on':'')+'" data-ov="con" aria-label="디시콘">'+two(I.smile,I.smileF)+'</button>'+
+  '<button class="ic'+(R.ov==='noti'?' on':'')+'" data-ov="noti" aria-label="알림">'+two(I.bell,I.bellF)+(D.notis.some(n=>!n.read)?'<i class="dot" style="left:auto;right:-2px;top:-2px"></i>':'')+'</button>'+
+  '<button class="ic'+(D.aliasOn?' on':'')+'" data-alias aria-pressed="'+D.aliasOn+'" aria-label="갤러리 이름을 사람 이름으로 바꾸기">'+two(I.sun,I.sunF)+'</button>'+
   '<button class="ic'+(R.ov==='set'?' on':'')+'" data-ov="set" aria-label="설정">'+I.cog+'</button>';
 }
 
@@ -82,10 +85,10 @@ function friendsHtml(){
  const row=g=>{const k=key(g),st=D.aliasOn?alias(g).stat:R.latest[k]?.title||'';
   return '<button class="row'+(k===R.g?' sel':'')+'" data-g="'+esc(k)+'" data-lp="gal">'+(R.updated[k]?'<i class="dot"></i>':'')+galAv(g)+'<span class="tx"><b>'+esc(gname(g))+'</b>'+(st?'<span class="st">'+esc(st)+'</span>':'')+'</span></button>'};
  const favs=D.favs.map(gal).filter(Boolean),upd=D.gals.filter(g=>R.updated[key(g)]),all=[...D.gals].sort((a,b)=>gname(a).localeCompare(gname(b),'ko'));
- return '<div class="head"><h2>친구</h2><button class="ib" data-ov="find" aria-label="갤러리 검색">'+I.search+'</button><button class="ib" data-ov="find" aria-label="갤러리 추가">'+I.plusGal+'</button></div>'+
+ return '<div class="head fr"><h2>친구</h2><button class="who m-only" data-ov="log" aria-label="내 프로필 열기"><span class="av" style="background:#8aa3b8">'+I.sil+'</span><span>'+esc(D.me.name)+'</span></button><button class="ib" data-ov="find" aria-label="갤러리 검색">'+I.search+'</button><button class="ib" data-ov="find" aria-label="갤러리 추가">'+I.plusGal+'</button>'+cogM+'</div>'+
   '<div class="scroll" id="fscroll"><div class="me"><span class="av" style="background:#8aa3b8">'+I.sil+'</span><span><b>'+esc(D.me.name)+'</b><span>'+esc(D.me.status)+'</span></span><button class="pill" data-ov="log">프로필</button></div>'+
   (favs.length?'<div class="sec"><span>즐겨찾기 &nbsp;'+favs.length+'</span>'+I.down+'</div><div class="favs">'+favs.map(g=>'<button class="fav" data-g="'+esc(key(g))+'" data-lp="gal" title="'+esc(gname(g))+'">'+(R.updated[key(g)]?'<i class="dot"></i>':'')+galAv(g)+'<span>'+esc(gname(g))+'</span></button>').join('')+'</div>':'')+
-  (upd.length?'<div class="sec"><span>업데이트한 친구 &nbsp;'+upd.length+'</span>'+I.down+'</div>'+upd.map(row).join(''):'')+
+  (upd.length?'<div class="upd"><div class="sec"><span>업데이트한 친구 &nbsp;'+upd.length+'</span>'+I.down+'</div>'+upd.map(row).join('')+'</div>':'')+
   '<div class="sec" style="margin-top:6px"><span>친구 &nbsp;'+D.gals.length+'</span>'+I.down+'</div>'+
   (all.length?all.map(row).join(''):'<div class="empty">아직 추가한 갤러리가 없습니다.<br><button class="pill" data-ov="find">갤러리 추가</button></div>')+'</div>';
 }
@@ -94,7 +97,7 @@ function friendsHtml(){
 const PLAIN=['전체','안읽음','ChatGPT'];
 function chatsHtml(){
  const g=gal(R.g);
- if(!g)return '<div class="head"><h2>채팅 <small>▼</small></h2></div><div class="empty">친구 목록에서 갤러리를 고르면<br>글 목록이 여기에 나옵니다.</div>';
+ if(!g)return '<div class="head"><h2>채팅 <small>▼</small></h2>'+cogM+'</div><div class="empty">친구 목록에서 갤러리를 고르면<br>글 목록이 여기에 나옵니다.</div>';
  const L=R.list,heads=L?.heads||[],plain=!heads.length;
  const tabs=plain?PLAIN.map(n=>({id:n==='전체'?'':n,name:n})):[{id:'',name:'전체'},...heads];
  const pins=(L?.posts||[]).filter(p=>p.notice);
@@ -115,7 +118,7 @@ function chatsHtml(){
   (R.pinOpen?shownPins:shownPins.slice(0,1)).map(rowHtml).join('')+(shownPins.length>1?'<button class="pintog" data-pintog aria-expanded="'+R.pinOpen+'" aria-label="'+(R.pinOpen?'공지 접기':'공지 '+(shownPins.length-1)+'개 더 보기')+'"></button>':'')+
   (rest.length?rest.map(rowHtml).join(''):'<div class="empty">이 탭에는 아직 글이 없습니다.</div>')+
   (R.hidden>0||(L.more&&!(plain&&R.head))?'<button class="more-row" data-more>'+(R.listBusy?'불러오는 중…':'이전 글 더 보기')+'</button>':'');
- return '<div class="head"><h2>채팅 <small>▼</small></h2><button class="ib'+(R.filterOn?' act':'')+'" data-filter aria-label="글 검색">'+I.search+'</button><button class="ib" data-write aria-label="글쓰기">'+I.write+'</button></div>'+
+ return '<div class="head"><h2>채팅 <small>▼</small></h2><button class="ib'+(R.filterOn?' act':'')+'" data-filter aria-label="글 검색">'+I.search+'</button><button class="ib" data-write aria-label="글쓰기">'+I.write+'</button>'+cogM+'</div>'+
   (R.filterOn?'<div class="searchbar"><input id="filter" placeholder="불러온 글 제목에서 찾기" value="'+esc(R.filter)+'"></div>':'')+
   '<div class="chips" id="chips">'+tabs.map(t=>'<button class="chip'+(String(t.id)===String(R.head)?' on':'')+'" data-h="'+esc(t.id)+'">'+esc(t.name)+'</button>').join('')+
   '<button class="chip ico'+(R.pinOpen?' on':'')+'" data-pintog aria-pressed="'+R.pinOpen+'" aria-label="'+(R.pinOpen?'공지 접기':'공지 모두 보기')+'">'+I.listp+(!R.pinOpen&&pins.length>1?'<i class="cdot"></i>':'')+'</button></div>'+
@@ -195,7 +198,9 @@ function showMore(auto){
 document.addEventListener('scroll',e=>{const t=e.target;if(t.id==='cscroll'&&t.scrollTop+t.clientHeight>t.scrollHeight-200)showMore(true)},true);
 
 /* ---------- 채팅방(본문 + 댓글) ---------- */
-const bub=(t,q='')=>'<div class="bub">'+q+esc(t)+(t.length>280||t.split('\n').length>8?'<div class="more" aria-hidden="true"><span>전체보기</span>'+I.next+'</div>':'')+'</div>';
+/* 글 속의 주소는 누르면 기기의 브라우저로 열리는 링크가 됩니다. */
+const linkify=t=>t.split(/(https?:\/\/[^\s<>"']+)/).map((s,i)=>i%2?'<a class="lk" href="'+esc(s)+'" data-url="'+esc(s)+'">'+esc(s)+'</a>':esc(s)).join('');
+const bub=(t,q='')=>'<div class="bub">'+q+linkify(t)+(t.length>280||t.split('\n').length>8?'<div class="more" aria-hidden="true"><span>전체보기</span>'+I.next+'</div>':'')+'</div>';
 const conVideo=(src,alt)=>'<video class="dcon1" autoplay loop muted playsinline src="'+esc(src)+'" aria-label="'+esc(alt||'디시콘')+'"></video>';
 /* 디시콘 주소는 그림일 수도 영상일 수도 있습니다. 그림으로 못 읽으면 영상으로 한 번 바꿔 봅니다. */
 document.addEventListener('error',e=>{const n=e.target;if(n.tagName==='IMG'&&n.classList.contains('dcon1')&&n.isConnected)n.outerHTML=conVideo(n.src,n.alt)},true);
@@ -435,10 +440,11 @@ let drag=null,dragged=false,lp=null,lpSkip=false;
 document.addEventListener('pointerdown',e=>{
  const c=e.target.closest('.chips,.favs');if(c)drag={c,x:e.clientX,l:c.scrollLeft,moved:false};
  const t=e.target.closest('[data-lp]');if(t&&!e.button){const x=e.clientX,y=e.clientY;clearTimeout(lp);
-  lp=setTimeout(()=>{lp=null;if(drag?.moved)return;lpSkip=true;longPress(t)},500);
+  /* 꾹 누르는 동안 손가락이 조금 흔들려도(8픽셀 이내) 길게 누르기로 봅니다. 그보다 많이 움직이면 아래 mv가 취소합니다. */
+  lp=setTimeout(()=>{lp=null;lpSkip=true;drag=null;longPress(t)},500);
   const mv=v=>{if(Math.abs(v.clientX-x)+Math.abs(v.clientY-y)>8){clearTimeout(lp);lp=null;document.removeEventListener('pointermove',mv)}};document.addEventListener('pointermove',mv)}
 });
-document.addEventListener('pointermove',e=>{if(!drag)return;const d=e.clientX-drag.x;if(Math.abs(d)>4)drag.moved=true;if(drag.moved)drag.c.scrollLeft=drag.l-d});
+document.addEventListener('pointermove',e=>{if(!drag)return;const d=e.clientX-drag.x;if(Math.abs(d)>8)drag.moved=true;if(drag.moved)drag.c.scrollLeft=drag.l-d});
 document.addEventListener('pointerup',()=>{clearTimeout(lp);lp=null;if(drag&&drag.moved){dragged=true;setTimeout(()=>dragged=false)}drag=null;if(lpSkip)setTimeout(()=>lpSkip=false,50)});
 document.addEventListener('pointercancel',()=>{clearTimeout(lp);lp=null;drag=null});
 document.addEventListener('wheel',e=>{const c=e.target.closest('.chips,.favs');if(c&&c.scrollWidth>c.clientWidth){c.scrollLeft+=e.deltaY;e.preventDefault()}},{passive:false});
@@ -454,6 +460,7 @@ document.addEventListener('click',e=>{
  if(e.target.closest('#viewer')){$('#viewer').hidden=true;return}
  const z=e.target.closest('[data-zoom]');if(z){$('#viewer').innerHTML='<img src="'+esc(z.src)+'" alt="">';$('#viewer').hidden=false;return}
  if(R.menu!=null&&!e.target.closest('[data-reply],[data-cdel],[data-postdel],[data-pedit]')){R.menu=null;R.ask=false;renderRoom(true)}
+ const a=e.target.closest('a[data-url]');if(a){e.preventDefault();native.open(a.dataset.url);return}
  const b=e.target.closest('button');if(!b)return;const d=b.dataset;
  if(d.view){R.view=d.view;R.ov='';renderPane()}
  else if(d.stab!=null){R.stab=d.stab;R.saved=false;if(d.ov)R.ov=d.ov;renderPane();if(d.stab==='계정'&&!R.userKnown)checkUser()}
