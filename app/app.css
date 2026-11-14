@@ -44,7 +44,8 @@ body{display:flex;flex-direction:column}
 #ptr svg{width:20px;height:20px}
 #ptr.spin svg{animation:ptrspin .7s linear infinite}
 @keyframes ptrspin{to{transform:rotate(360deg)}}
-.scroll::-webkit-scrollbar{width:8px}.scroll::-webkit-scrollbar-thumb{background:#d0d0d0;border-radius:4px}
+/* 스크롤 막대는 PC와 휴대폰 모두 보이지 않게 합니다(휠·끌기로는 그대로 움직입니다). */
+*::-webkit-scrollbar{display:none}
 .av{flex:none;width:44px;height:44px;border-radius:40%;display:grid;place-items:center;color:#23303b;font-weight:700;font-size:17px;overflow:hidden}
 .av svg{width:64%;height:64%}
 .av img{width:100%;height:100%;object-fit:cover;display:block}
