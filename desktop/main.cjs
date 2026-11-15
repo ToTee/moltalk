@@ -1,5 +1,5 @@
-// 몰톡 윈도우용 껍데기. 화면(app/)을 띄우고, 디시로 가는 요청만 대신 보내 줍니다.
-const {app,BrowserWindow,Menu,Notification,Tray,desktopCapturer,dialog,ipcMain,net,screen,session,shell}=require('electron');
+// 몰톡 윈도우·맥용 껍데기. 화면(app/)을 띄우고, 디시로 가는 요청만 대신 보내 줍니다.
+const {app,BrowserWindow,Menu,Notification,Tray,desktopCapturer,nativeImage,dialog,ipcMain,net,screen,session,shell}=require('electron');
 const path=require('path');
 const fs=require('fs');
 const {execFileSync,spawn}=require('child_process');
@@ -17,6 +17,7 @@ app.setAppUserModelId(app.isPackaged?'io.github.moltalk':'io.github.moltalk.dev'
 const dcHost=h=>/(^|\.)dcinside\.(com|co\.kr)$/.test(h);
 const dcUrl=u=>{try{const x=new URL(u);return x.protocol==='https:'&&!x.username&&!x.password&&dcHost(x.hostname)?x:null}catch{return null}};
 let win=null;
+const MAC=process.platform==='darwin';
 
 /* ---------- 진단 기록 ----------
    창 크기를 끌 때 화면이 회색으로 덮이는 문제를 조사하기 위한 기록입니다. 이 컴퓨터의 저장 폴더(diag/)에만 남고 어디로도 보내지 않습니다.
@@ -26,7 +27,7 @@ function diag(...a){try{fs.mkdirSync(diagDir(),{recursive:true});fs.appendFileSy
 const allWindows=()=>BrowserWindow.getAllWindows().map(w=>({id:w.id,title:w.getTitle(),visible:w.isVisible(),bounds:w.getBounds()}));
 let shots=0,shotBusy=false;
 async function diagShot(tag){
- if(shotBusy||shots>=12)return;shotBusy=true;shots++;
+ if(MAC||shotBusy||shots>=12)return;/* 맥에서는 찍지 않습니다(화면 기록 권한을 묻는 창이 뜹니다). */shotBusy=true;shots++;
  try{const d=screen.getPrimaryDisplay(),src=await desktopCapturer.getSources({types:['screen'],thumbnailSize:{width:Math.round(d.size.width/2),height:Math.round(d.size.height/2)}});
   const name='shot-'+Date.now()+'-'+tag+'.png';if(src[0]){fs.writeFileSync(path.join(diagDir(),name),src[0].thumbnail.toPNG());diag('shot',name)}}catch(e){diag('shot-error',e.message)}
  shotBusy=false;
@@ -202,7 +203,8 @@ function createWindow(){
  const test=!!process.env.YJ_SHOT;/* 확인용 실행은 창을 화면에 띄우지 않습니다. */
  win=new BrowserWindow({width:Number(process.env.YJ_W)||440,height:800,minWidth:360,minHeight:520,title:'몰톡',autoHideMenuBar:true,backgroundColor:'#ffffff',
   /* 윈도우 기본 제목 줄을 없애고, 최소화·최대화·닫기 단추만 화면 오른쪽 위에 얹습니다. 창을 끄는 자리는 app.css의 .win 규칙이 만듭니다. */
-  titleBarStyle:'hidden',titleBarOverlay:{color:'rgba(0,0,0,0)',symbolColor:'#8a8a8a',height:30},show:!test||!!process.env.YJ_VISIBLE,/* YJ_VISIBLE: 확인용 실행에서도 창을 실제로 띄웁니다. */
+  /* 맥은 닫기·최소화·최대화 단추(신호등)가 왼쪽 위에 놓입니다. */
+  titleBarStyle:'hidden',...(MAC?{trafficLightPosition:{x:10,y:7}}:{titleBarOverlay:{color:'rgba(0,0,0,0)',symbolColor:'#8a8a8a',height:30}}),show:!test||!!process.env.YJ_VISIBLE,/* YJ_VISIBLE: 확인용 실행에서도 창을 실제로 띄웁니다. */
   webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true,additionalArguments:['--yj-version='+app.getVersion()]}});
  if(process.env.YJ_VISIBLE)win.setAlwaysOnTop(true);
  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
@@ -226,7 +228,7 @@ function createWindow(){
    다만 그래픽 카드를 아예 끄면 브라우저가 '소프트웨어 그래픽'으로 보여 '사람인지 확인'이 비정상으로 판단할 수 있어,
    화면을 겹쳐 그리는 일(합성)만 그래픽 카드에 맡기지 않고 그래픽 카드 자체는 켜 둡니다. YJ_GPU=off 는 예전처럼 완전히 끕니다. */
 if(process.env.YJ_GPU==='off')app.disableHardwareAcceleration();
-else if(!process.env.YJ_GPU)app.commandLine.appendSwitch('disable-gpu-compositing');
+else if(!process.env.YJ_GPU&&!MAC)app.commandLine.appendSwitch('disable-gpu-compositing');/* 윈도우에서만 생긴 문제라 맥은 그대로 둡니다. */
 // 앱은 하나만 실행합니다(두 개가 같은 저장 공간을 함께 쓰면 서로 방해합니다). 확인용 실행은 예외입니다.
 if(!process.env.YJ_SHOT&&!app.requestSingleInstanceLock())app.quit();
 else{
@@ -240,9 +242,11 @@ let tray=null,quitting=false;
 function showWin(){if(!win)return;if(win.isMinimized())win.restore();win.show();win.focus()}
 function setupTray(){
  win.on('close',e=>{if(!quitting){e.preventDefault();win.hide()}});
- tray=new Tray(path.join(__dirname,'tray.png'));tray.setToolTip('몰톡');
+ /* 맥의 메뉴 막대 아이콘은 작아야 해서 같은 그림을 절반 크기(16)로 보이게 합니다. */
+ tray=new Tray(MAC?nativeImage.createFromBuffer(fs.readFileSync(path.join(__dirname,'tray.png')),{scaleFactor:2}):path.join(__dirname,'tray.png'));tray.setToolTip('몰톡');
  tray.setContextMenu(Menu.buildFromTemplate([{label:'열기',click:showWin},{type:'separator'},{label:'종료',click:()=>app.quit()}]));
  tray.on('click',showWin);
 }
 app.on('before-quit',()=>{quitting=true});
 app.on('window-all-closed',()=>app.quit());
+app.on('activate',showWin);/* 맥: Dock의 아이콘을 누르면 숨겨 둔 창을 다시 엽니다. */

@@ -1,0 +1,63 @@
+# 맥용 설치 파일(.dmg)을 만들어 릴리스에 올립니다. 맥용은 맥에서만 만들 수 있어 GitHub의 맥 빌드 서버를 씁니다.
+# 릴리스를 올리면 자동으로 돌고, 수동으로 돌릴 때는 릴리스 이름(예: v0.1.60)을 적습니다.
+name: mac
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "릴리스 이름 (예 v0.1.60)"
+        required: true
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci || npm install
+      - run: npm run build:mac
+      # 애플 개발자 서명이 없으므로 이 컴퓨터용 임시 서명만 합니다. 이것이 없으면 애플 실리콘 맥에서 '손상되었습니다'라며 열리지 않습니다.
+      - name: 서명하고 dmg 만들기
+        run: |
+          set -euo pipefail
+          APP="$(ls -d release/mac-universal/*.app)"
+          VER="$(node -p "require('./package.json').version")"
+          codesign --force --deep --sign - "$APP"
+          codesign --verify --deep --strict "$APP"
+          lipo -archs "$APP/Contents/MacOS/"*
+          mkdir dmg
+          cp -R "$APP" dmg/
+          ln -s /Applications dmg/Applications
+          hdiutil create -volname "MolTalk" -srcfolder dmg -ov -format UDZO "MolTalk-$VER.dmg"
+          ls -l "MolTalk-$VER.dmg"
+          echo "DMG=MolTalk-$VER.dmg" >> "$GITHUB_ENV"
+          echo "APP=$APP" >> "$GITHUB_ENV"
+      # 만든 앱을 실제로 한 번 켜서 화면을 찍어 둡니다(확인용, 실패해도 릴리스는 올립니다).
+      - name: 켜지는지 확인
+        continue-on-error: true
+        timeout-minutes: 3
+        run: |
+          mkdir -p shots
+          YJ_SHOT="$PWD/shots/app.png" YJ_VISIBLE=1 YJ_WAIT=8000 "$APP/Contents/MacOS/"* > shots/log.txt 2>&1 &
+          sleep 6
+          screencapture -x shots/screen.png || true
+          wait
+          ls -l shots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: shots
+          path: shots
+      - run: gh release upload "$TAG" "$DMG" --clobber

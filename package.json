@@ -1,6 +1,6 @@
 {
   "name": "moltalk",
-  "version": "0.1.59",
+  "version": "0.1.60",
   "description": "디시인사이드를 메신저 화면으로 보는 비공식 열람 앱",
   "private": true,
   "type": "module",
@@ -9,6 +9,7 @@
     "build": "node tools/build.mjs",
     "start": "node tools/build.mjs && electron .",
     "build:exe": "node tools/build.mjs && electron-builder --win nsis",
+    "build:mac": "node tools/build.mjs && electron-builder --mac dir --universal",
     "build:apk": "node android/build-apk.mjs"
   },
   "build": {
@@ -34,6 +35,12 @@
       ],
       "icon": "build/icon.png",
       "artifactName": "MolTalk-Setup-${version}.exe"
+    },
+    "mac": {
+      "target": "dir",
+      "icon": "build/icon.png",
+      "identity": null,
+      "category": "public.app-category.social-networking"
     },
     "nsis": {
       "oneClick": true,

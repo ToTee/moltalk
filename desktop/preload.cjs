@@ -2,7 +2,7 @@
 const {contextBridge,ipcRenderer}=require('electron');
 const version=(process.argv.find(a=>a.startsWith('--yj-version='))||'').slice(13);
 contextBridge.exposeInMainWorld('native',{
- platform:'windows',version,
+ platform:process.platform==='darwin'?'mac':'windows',version,
  http:(url,opt)=>ipcRenderer.invoke('http',url,opt),
  open:url=>ipcRenderer.invoke('open',url),
  drive:(url,code,opt)=>ipcRenderer.invoke('drive',url,code,opt),
