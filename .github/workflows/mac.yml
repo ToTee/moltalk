@@ -8,7 +8,7 @@ on:
     inputs:
       tag:
         description: "릴리스 이름 (예 v0.1.60)"
-        required: true
+        required: false
 permissions:
   contents: write
 jobs:
@@ -22,7 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ env.TAG }}
+          ref: ${{ github.event.release.tag_name || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -50,14 +50,25 @@ jobs:
         timeout-minutes: 3
         run: |
           mkdir -p shots
-          YJ_SHOT="$PWD/shots/app.png" YJ_VISIBLE=1 YJ_WAIT=8000 "$APP/Contents/MacOS/"* > shots/log.txt 2>&1 &
+          export ELECTRON_ENABLE_LOGGING=1 YJ_VISIBLE=1 YJ_WAIT=8000
+          YJ_SHOT="$PWD/shots/app.png" "$APP/Contents/MacOS/"* > shots/log.txt 2>&1 &
           sleep 6
           screencapture -x shots/screen.png || true
-          wait
+          wait || echo "앱 종료 코드 $?"
+          head -c 3000 shots/log.txt || true
+          # 포장하지 않은 채로도 켜 봅니다(포장 문제인지 코드 문제인지 가립니다).
+          YJ_SHOT="$PWD/shots/dev.png" npx electron . > shots/dev-log.txt 2>&1 &
+          sleep 6
+          screencapture -x shots/dev-screen.png || true
+          wait || echo "개발 실행 종료 코드 $?"
+          head -c 3000 shots/dev-log.txt || true
+          sleep 5
+          cp ~/Library/Logs/DiagnosticReports/* shots/ 2>/dev/null || true
           ls -l shots
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: shots
           path: shots
-      - run: gh release upload "$TAG" "$DMG" --clobber
+      - if: env.TAG != ''
+        run: gh release upload "$TAG" "$DMG" --clobber
