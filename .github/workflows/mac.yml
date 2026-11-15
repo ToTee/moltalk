@@ -44,27 +44,17 @@ jobs:
           ls -l "MolTalk-$VER.dmg"
           echo "DMG=MolTalk-$VER.dmg" >> "$GITHUB_ENV"
           echo "APP=$APP" >> "$GITHUB_ENV"
-      # 만든 앱을 실제로 한 번 켜서 화면을 찍어 둡니다(확인용, 실패해도 릴리스는 올립니다).
+      # 만든 앱을 실제로 한 번 켜서 화면을 찍습니다. 켜지지 않으면 여기서 멈추고 릴리스에 올리지 않습니다.
+      # (앱 이름이 한글이면 맥에서 켜지자마자 꺼져서, 맥용은 영문 이름 MolTalk 으로 포장합니다.)
       - name: 켜지는지 확인
-        continue-on-error: true
         timeout-minutes: 3
         run: |
           mkdir -p shots
-          export ELECTRON_ENABLE_LOGGING=1 YJ_VISIBLE=1 YJ_WAIT=8000
-          YJ_SHOT="$PWD/shots/app.png" "$APP/Contents/MacOS/"* > shots/log.txt 2>&1 &
-          sleep 6
+          YJ_SHOT="$PWD/shots/app.png" YJ_VISIBLE=1 YJ_WAIT=8000 "$APP/Contents/MacOS/"* > shots/log.txt 2>&1 &
+          sleep 7
           screencapture -x shots/screen.png || true
-          wait || echo "앱 종료 코드 $?"
-          head -c 3000 shots/log.txt || true
-          # 포장하지 않은 채로도 켜 봅니다(포장 문제인지 코드 문제인지 가립니다).
-          YJ_SHOT="$PWD/shots/dev.png" npx electron . > shots/dev-log.txt 2>&1 &
-          sleep 6
-          screencapture -x shots/dev-screen.png || true
-          wait || echo "개발 실행 종료 코드 $?"
-          head -c 3000 shots/dev-log.txt || true
-          sleep 5
-          cp ~/Library/Logs/DiagnosticReports/* shots/ 2>/dev/null || true
-          ls -l shots
+          wait
+          test -s shots/app.png
       - uses: actions/upload-artifact@v4
         if: always()
         with:

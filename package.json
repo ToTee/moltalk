@@ -9,7 +9,7 @@
     "build": "node tools/build.mjs",
     "start": "node tools/build.mjs && electron .",
     "build:exe": "node tools/build.mjs && electron-builder --win nsis",
-    "build:mac": "node tools/build.mjs && electron-builder --mac dir --universal",
+    "build:mac": "node tools/build.mjs && electron-builder --mac dir --universal -c.productName=MolTalk",
     "build:apk": "node android/build-apk.mjs"
   },
   "build": {
@@ -40,6 +40,9 @@
       "target": "dir",
       "icon": "build/icon.png",
       "identity": null,
+      "extendInfo": {
+        "CFBundleDisplayName": "몰톡"
+      },
       "category": "public.app-category.social-networking"
     },
     "nsis": {
