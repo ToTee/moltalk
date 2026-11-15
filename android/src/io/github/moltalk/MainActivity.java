@@ -282,6 +282,16 @@ public class MainActivity extends Activity {
             if (vid == null || !vid.matches("[A-Za-z0-9_-]{11}")) return;
             ui.post(() -> openYt(vid));
         }
+        /** 다크 모드: 맨 위 상태 표시줄과 맨 아래 내비게이션 바를 화면 색에 맞춥니다(어두우면 밝은 아이콘, 밝으면 어두운 아이콘). */
+        @JavascriptInterface public void theme(boolean dark) {
+            ui.post(() -> {
+                int bg = dark ? 0xFF1E1F22 : Color.WHITE;
+                rootView.setBackgroundColor(bg);
+                getWindow().setStatusBarColor(bg);
+                getWindow().setNavigationBarColor(bg);
+                getWindow().getDecorView().setSystemUiVisibility(dark ? 0 : (View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | (Build.VERSION.SDK_INT >= 26 ? View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR : 0)));
+            });
+        }
         @JavascriptInterface public void notify(String title, String body) {
             ui.post(() -> showNote(title, body));
         }

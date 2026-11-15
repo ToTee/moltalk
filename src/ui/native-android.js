@@ -14,6 +14,8 @@ export function androidNative(YJ){
   /* 유튜브는 앱 화면과 따로 둔 재생 화면에서 틉니다(유튜브 쪽 스크립트가 앱 기능을 쓰지 못하게). */
   youtube:id=>YJ.youtube(String(id)),
   logout:()=>call('logout'),
-  notify:(title,body)=>YJ.notify(String(title||''),String(body||''))
+  notify:(title,body)=>YJ.notify(String(title||''),String(body||'')),
+  /* 다크 모드: 맨 위 상태 표시줄과 맨 아래 내비게이션 바의 색을 화면에 맞춥니다. */
+  theme:dark=>YJ.theme(!!dark)
  };
 }

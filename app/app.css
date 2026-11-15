@@ -420,3 +420,77 @@ span.d-only,span.m-only{display:contents}
   .pintog::after{left:16px;right:16px}
   .searchbar{padding:0 16px 10px}
 }
+
+/* ---------- 다크 모드(설정 > 화면) ----------
+   html에 dark 표시가 붙으면 아래 색으로 바뀝니다. 말풍선 가운데 내 것(노란색)과 광고, 프로필 그림, 원본 모양으로 보기(흰 바탕)는 그대로 둡니다. */
+html.dark{color-scheme:dark;--bg:#1e1f22;--card:#2b2d31;--field:#26282c;--edge:#3d4046;--side:#17181a;--line:#2f3136;--text:#e7e8ea;--sub:#9a9ea6;--room:#1b222b;--hover:#2a2c30;--chip-line:#3d4046;--ink:#191919}
+html.dark body{background:var(--bg)}
+html.dark .adpc{background:var(--bg)}
+html.dark .adpc:hover{background:var(--hover)}
+html.dark .adpc .tx i,html.dark .adpc em{background:var(--card);color:var(--sub)}
+html.dark .rail{color:#6b7078}
+html.dark .rail .on{color:#f2f3f5}
+html.dark .ib.act{color:var(--ink)}
+html.dark #ptr{background:var(--card);color:var(--text)}
+html.dark .scroll::-webkit-scrollbar-thumb{background-color:rgba(255,255,255,.22)}
+html.dark .scroll::-webkit-scrollbar-thumb:hover{background-color:rgba(255,255,255,.4)}
+html.dark #sthumb i{background:rgba(255,255,255,.34)}
+html.dark #sthumb.drag i{background:rgba(255,255,255,.55)}
+html.dark .pill,html.dark .cshop,html.dark .amenu button{border-color:var(--edge)}
+html.dark .cshop{background:var(--card)}
+html.dark .dot{border-color:var(--bg)}
+html.dark .row.sel{background:var(--hover)}
+html.dark .chip.on{background:#e7e8ea;border-color:#e7e8ea;color:var(--ink)}
+html.dark .pintog::after{background:var(--line)}
+html.dark .pintog:hover::after{background:var(--edge)}
+html.dark .ov{background:var(--bg)}
+html.dark input,html.dark textarea,html.dark select{background:var(--field);color:var(--text);border-color:var(--edge)}
+html.dark input::placeholder,html.dark textarea::placeholder{color:#7d8188}
+html.dark .slot input:disabled{background:#202225;color:#6f737a}
+html.dark .setf label.chk input{accent-color:#fee500}
+html.dark .save,html.dark .pub,html.dark .send.ok,html.dark .gbtn .gok{color:var(--ink)}
+html.dark .trow .pub{color:#fff}
+html.dark .rhead .tt span,html.dark .m .nm,html.dark .m .nm i,html.dark .tm{color:#98a2ad}
+html.dark .rhead .ib:hover{background:rgba(255,255,255,.08)}
+html.dark .notice,html.dark .nmini,html.dark .wtitle{background:var(--card);box-shadow:0 1px 2px rgba(0,0,0,.5)}
+html.dark .wtitle input{background:transparent}
+html.dark .wprog .box{background:var(--card)}
+html.dark .wprog b{color:var(--text)}
+html.dark .wprog small{color:var(--sub)}
+html.dark .wprog .sp{border-color:#44474d;border-top-color:#e7e8ea}
+html.dark .wprog .pbar{background:#44474d}
+html.dark .wprog .pbar i{background:#e7e8ea}
+html.dark .bub,html.dark .embed{background:#353a42;color:var(--text)}
+html.dark .lk{color:#8ab8ff}
+html.dark .q{border-bottom-color:rgba(255,255,255,.14);color:#a9afb8}
+html.dark .q b{color:#e7e8ea}
+/* 내 말풍선은 노란 바탕 그대로라 글자도 어두운 색 그대로 둡니다. */
+html.dark .m.mine .bub{background:var(--mine);color:var(--ink)}
+html.dark .m.mine .lk{color:#1558b0}
+html.dark .m.mine .q{border-bottom-color:rgba(0,0,0,.1);color:#666}
+html.dark .m.mine .q b{color:#333}
+html.dark .media{background:#2b3138}
+html.dark .gbox{background:var(--card)}
+html.dark .gerr{color:#ff8a80}
+html.dark .gbtn button{background:#3a3d43}
+html.dark .rpop{background:var(--card);box-shadow:0 6px 22px rgba(0,0,0,.6)}
+html.dark .rpop button:disabled{color:#666a71}
+html.dark .delbtn{background:#555a62}
+html.dark .inp,html.dark .replybar,html.dark .cpanel{background:var(--bg)}
+html.dark .inp textarea{background:transparent}
+html.dark .send{background:var(--card);border-color:var(--edge);color:var(--sub)}
+html.dark .send.ok{background:var(--mine);border-color:#f0d800}
+html.dark .cpkg,html.dark .con{background:#2f3237}
+html.dark .con:hover{background:#3a3d43}
+html.dark .sw{box-shadow:inset 0 0 0 1px rgba(255,255,255,.35)}
+html.dark .cpkg.on,html.dark .con.sel{background:var(--mine);outline-color:#fff}
+/* 원본 모양으로 보기: 글쓴이가 고른 글자색이 그대로 보이도록 밝을 때와 같은 흰 바탕과 색을 씁니다. */
+html.dark .orig{color-scheme:light;color:#191919;--text:#191919;--sub:#636363;--line:#ececec;--hover:#f5f5f5}
+html.dark .orig .embed{background:#f2f2f3;color:#191919}
+@media (pointer:coarse) and (max-width:600px){
+  html.dark .rail{background:var(--bg);border-top-color:var(--line);color:#6b7078}
+  html.dark .chip{background:var(--card);color:#c5c8cd}
+  html.dark .chip.on{background:#e7e8ea;color:var(--ink)}
+  html.dark .adb{background:var(--card)}
+  html.dark .adb em{background:var(--bg);color:var(--sub)}
+}
