@@ -1573,7 +1573,7 @@
       };
       msgs.forEach((m, i) => {
         if (m.sys) {
-          h += '<div class="sys"><span>' + esc(m.sys) + "</span></div>";
+          h += '<div class="sys" id="cstart"><span>' + esc(m.sys) + "</span></div>";
           return;
         }
         if (m.d && dayKey(m.d) !== day) {
@@ -1593,13 +1593,45 @@
     } else h = r.err ? '<div class="sys err"><span>' + esc(r.err) + '</span></div><div class="sys"><button data-rreload>\uB2E4\uC2DC \uC2DC\uB3C4</button></div>' : '<div class="sys"><span>\uBD88\uB7EC\uC624\uB294 \uC911\u2026</span></div>';
     const people = p ? (/* @__PURE__ */ new Set([author, ...(r.comments || []).map(who)])).size : 1;
     el.innerHTML = '<div class="rhead"><button class="ib back" data-back aria-label="\uBAA9\uB85D\uC73C\uB85C">' + I.back + "</button>" + (meta.notice ? gridAv(meta.id) : avSpan(roomAvIdx, author)) + '<span class="tt"><b>' + esc(title) + "</b><span>" + esc(gname(g)) + " \xB7 \uCC38\uC5EC " + people + '\uBA85</span></span><button class="ib" data-rreload aria-label="\uC0C8\uB85C\uACE0\uCE68">' + I.refresh + '</button><button class="ib" data-rmenu aria-label="\uAE00 \uBA54\uB274" aria-expanded="' + !!R.rmenu + '">' + I.menu + "</button></div>" + /* 오른쪽 위 메뉴: 원본 모양으로 보기(글쓴이가 꾸민 그대로), 디시에서 열기 */
-    (R.rmenu ? '<button class="rdim" data-rmenu aria-label="\uBA54\uB274 \uB2EB\uAE30"></button><div class="rpop"><button data-orig' + (p ? "" : " disabled") + '>\uC6D0\uBCF8 \uBAA8\uC591\uC73C\uB85C \uBCF4\uAE30</button><button data-vote="up"' + (p ? "" : " disabled") + ">\uCD94\uCC9C" + (p ? " " + (p.up || 0) : "") + '</button><button data-vote="down"' + (p ? "" : " disabled") + ">\uBE44\uCD94\uCC9C" + (p && p.down ? " " + p.down : "") + '</button><button data-rmenu data-url="' + esc(postUrl(g, r.no)) + '">\uB514\uC2DC\uC5D0\uC11C \uC5F4\uAE30</button></div>' : "") + (R.orig && p ? '<div class="orig"><div class="ohead"><button class="ib" data-orig aria-label="\uCC44\uD305\uBC29\uC73C\uB85C \uB3CC\uC544\uAC00\uAE30">' + I.back + "</button><b>\uC6D0\uBCF8 \uBCF4\uAE30<small>" + esc(title) + '</small></b></div><div class="scroll" id="oscroll"><div class="oin">' + (p.html || "<p>\uBCF8\uBB38\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.</p>") + "</div></div></div>" : "") + (R.nfold ? '<button class="nmini" data-nfold aria-label="\uACF5\uC9C0 \uD3BC\uCE58\uAE30">' + I.horn + "</button>" : '<div class="notice">' + I.horn + '<span class="tx"><div>' + ((p || meta).head ? "[" + esc((p || meta).head) + "] " : "") + esc(meta.title) + "</div><div>" + esc(author) + " \xB7 \uC870\uD68C " + ((p || meta).views || 0).toLocaleString() + " \xB7 \uCD94\uCC9C " + ((p || meta).up || 0) + '</div></span><button class="nbtn" data-nfold aria-label="\uACF5\uC9C0 \uC811\uAE30">' + I.up + "</button></div>") + '<div class="scroll" id="rscroll"><div class="msgs">' + h + "</div></div>" + (R.cpanel ? '<div class="cpanel">' + consHtml() + "</div>" : "") + (R.tpanel ? txtconHtml() : "") + (R.reply ? '<div class="replybar"><span>' + esc(who(R.reply)) + '\uC5D0\uAC8C \uB2F5\uC7A5</span><button class="ib" data-noreply aria-label="\uB2F5\uC7A5 \uCDE8\uC18C">\u2715</button></div>' : "") + '<form class="inp" id="cform"><textarea placeholder="\uBA54\uC2DC\uC9C0 \uC785\uB825" aria-label="\uB313\uAE00 \uC785\uB825" maxlength="200">' + esc(draft) + '</textarea><div class="bar"><button type="button" class="ib" data-url="' + esc(mView(g, r.no)) + '" aria-label="\uB514\uC2DC \uD654\uBA74\uC5D0\uC11C \uC5F4\uAE30">' + I.plus + '</button><button type="button" class="ib' + (R.cpanel ? " act" : "") + '" data-cpanel aria-expanded="' + R.cpanel + '" aria-label="\uB514\uC2DC\uCF58">' + I.smile + '</button><button type="button" class="ib' + (R.tpanel ? " act" : "") + '" data-tpanel aria-expanded="' + R.tpanel + '" aria-label="\uAE00\uC790\uCF58">' + I.file + '</button><span></span><button class="send' + (draft.trim() && !R.sending ? " ok" : "") + '"' + (R.sending ? " disabled" : "") + ">" + (R.sending ? "\uBCF4\uB0B4\uB294 \uC911\u2026" : "\uC804\uC1A1") + "</button></div></form>";
+    (R.rmenu ? '<button class="rdim" data-rmenu aria-label="\uBA54\uB274 \uB2EB\uAE30"></button><div class="rpop"><button data-orig' + (p ? "" : " disabled") + '>\uC6D0\uBCF8 \uBAA8\uC591\uC73C\uB85C \uBCF4\uAE30</button><button data-vote="up"' + (p ? "" : " disabled") + ">\uCD94\uCC9C" + (p ? " " + (p.up || 0) : "") + '</button><button data-vote="down"' + (p ? "" : " disabled") + ">\uBE44\uCD94\uCC9C" + (p && p.down ? " " + p.down : "") + '</button><button data-rmenu data-url="' + esc(postUrl(g, r.no)) + '">\uB514\uC2DC\uC5D0\uC11C \uC5F4\uAE30</button></div>' : "") + (R.orig && p ? '<div class="orig"><div class="ohead"><button class="ib" data-orig aria-label="\uCC44\uD305\uBC29\uC73C\uB85C \uB3CC\uC544\uAC00\uAE30">' + I.back + "</button><b>\uC6D0\uBCF8 \uBCF4\uAE30<small>" + esc(title) + '</small></b></div><div class="scroll" id="oscroll"><div class="oin">' + (p.html || "<p>\uBCF8\uBB38\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.</p>") + "</div></div></div>" : "") + (R.nfold ? '<button class="nmini" data-nfold aria-label="\uACF5\uC9C0 \uD3BC\uCE58\uAE30">' + I.horn + "</button>" : '<div class="notice">' + I.horn + '<span class="tx"><div>' + ((p || meta).head ? "[" + esc((p || meta).head) + "] " : "") + esc(meta.title) + "</div><div>" + esc(author) + " \xB7 \uC870\uD68C " + ((p || meta).views || 0).toLocaleString() + " \xB7 \uCD94\uCC9C " + ((p || meta).up || 0) + '</div></span><button class="nbtn" data-nfold aria-label="\uACF5\uC9C0 \uC811\uAE30">' + I.up + "</button></div>") + /* 글과 댓글 칸 오른쪽 아래에 떠 있는 이동 단추: 맨 위로, 댓글 시작으로, 맨 마지막 댓글로 */
+    '<div class="rwrap"><div class="scroll" id="rscroll"><div class="msgs">' + h + '</div></div><div class="jump" id="jump"><button type="button" data-jump="top" aria-label="\uB9E8 \uC704\uB85C" title="\uB9E8 \uC704\uB85C" hidden>' + JI.top + '</button><button type="button" data-jump="cm" aria-label="\uB313\uAE00 \uC2DC\uC791\uC73C\uB85C" title="\uB313\uAE00 \uC2DC\uC791\uC73C\uB85C" hidden>' + JI.cm + '</button><button type="button" data-jump="end" aria-label="\uB9E8 \uB9C8\uC9C0\uB9C9 \uB313\uAE00\uB85C" title="\uB9E8 \uB9C8\uC9C0\uB9C9 \uB313\uAE00\uB85C" hidden>' + JI.end + "</button></div></div>" + (R.cpanel ? '<div class="cpanel">' + consHtml() + "</div>" : "") + (R.tpanel ? txtconHtml() : "") + (R.reply ? '<div class="replybar"><span>' + esc(who(R.reply)) + '\uC5D0\uAC8C \uB2F5\uC7A5</span><button class="ib" data-noreply aria-label="\uB2F5\uC7A5 \uCDE8\uC18C">\u2715</button></div>' : "") + '<form class="inp" id="cform"><textarea placeholder="\uBA54\uC2DC\uC9C0 \uC785\uB825" aria-label="\uB313\uAE00 \uC785\uB825" maxlength="200">' + esc(draft) + '</textarea><div class="bar"><button type="button" class="ib" data-url="' + esc(mView(g, r.no)) + '" aria-label="\uB514\uC2DC \uD654\uBA74\uC5D0\uC11C \uC5F4\uAE30">' + I.plus + '</button><button type="button" class="ib' + (R.cpanel ? " act" : "") + '" data-cpanel aria-expanded="' + R.cpanel + '" aria-label="\uB514\uC2DC\uCF58">' + I.smile + '</button><button type="button" class="ib' + (R.tpanel ? " act" : "") + '" data-tpanel aria-expanded="' + R.tpanel + '" aria-label="\uAE00\uC790\uCF58">' + I.file + '</button><span></span><button class="send' + (draft.trim() && !R.sending ? " ok" : "") + '"' + (R.sending ? " disabled" : "") + ">" + (R.sending ? "\uBCF4\uB0B4\uB294 \uC911\u2026" : "\uC804\uC1A1") + "</button></div></form>";
     if (otop && $("#room .orig .scroll")) $("#room .orig .scroll").scrollTop = otop;
     const sc = $("#rscroll");
     if (R.toBottom) {
       sc.scrollTop = sc.scrollHeight;
       R.toBottom = false;
     } else sc.scrollTop = top;
+    jumpUpdate();
+  }
+  var JSVG = (d) => '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + d + "</svg>";
+  var JI = { top: JSVG('<path d="M6 12l6-6 6 6"/><path d="M6 18l6-6 6 6"/>'), cm: JSVG('<path d="M4 5.5h16v10.5H10l-4.5 3.5V16H4z"/><path d="M8 9.5h8M8 12.5h5"/>'), end: JSVG('<path d="M6 6l6 6 6-6"/><path d="M6 12l6 6 6-6"/>') };
+  var cmTop = (sc) => {
+    const c = sc.querySelector("#cstart");
+    return c ? Math.max(0, Math.round(c.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop - 8)) : null;
+  };
+  var jumpIdle = null;
+  function jumpUpdate(active) {
+    const sc = $("#rscroll"), box = $("#jump");
+    if (!sc || !box) return;
+    const max = sc.scrollHeight - sc.clientHeight, t = sc.scrollTop, cm = cmTop(sc), can = max > 40;
+    box.querySelector('[data-jump="top"]').hidden = !can || t <= 8;
+    box.querySelector('[data-jump="cm"]').hidden = !can || cm == null || Math.abs(Math.min(cm, max) - t) <= 8;
+    box.querySelector('[data-jump="end"]').hidden = !can || t >= max - 8;
+    if (active) {
+      box.classList.add("on");
+      clearTimeout(jumpIdle);
+      jumpIdle = setTimeout(() => $("#jump")?.classList.remove("on"), 2e3);
+    }
+  }
+  document.addEventListener("scroll", (e) => {
+    if (e.target.id === "rscroll") jumpUpdate(true);
+  }, true);
+  function jumpTo(where) {
+    const sc = $("#rscroll");
+    if (!sc) return;
+    const cm = cmTop(sc);
+    sc.scrollTop = where === "top" ? 0 : where === "cm" && cm != null ? cm : sc.scrollHeight;
+    jumpUpdate(true);
   }
   var postUrl = (g, no) => "https://gall.dcinside.com/" + (g.type === "minor" ? "mgallery/" : g.type === "mini" ? "mini/" : "") + "board/view/?id=" + g.id + "&no=" + no;
   var DCCON_SHOP = "https://m.dcinside.com/dcconShop/dcconList";
@@ -2315,6 +2347,10 @@
     }
     if (d.ytbig) {
       openBigYt(b);
+      return;
+    }
+    if (d.jump) {
+      jumpTo(d.jump);
       return;
     }
     if (d.view) {

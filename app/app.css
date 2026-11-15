@@ -189,6 +189,12 @@ body{display:flex;flex-direction:column}
 .nbtn:hover{background:var(--hover)}
 .nmini{align-self:flex-end;margin:0 8px 6px;width:34px;height:34px;flex:none;border-radius:50%;background:#fff;display:grid;place-items:center;box-shadow:0 1px 2px rgba(0,0,0,.2)}
 .msgs{padding:6px 10px 12px}
+/* 글과 댓글 칸 오른쪽 아래에 떠 있는 이동 단추(맨 위로, 댓글 시작으로, 맨 마지막 댓글로) */
+.rwrap{flex:1;min-height:0;display:flex;flex-direction:column;position:relative}
+.jump{position:absolute;right:16px;bottom:10px;z-index:3;display:flex;flex-direction:column;gap:10px;opacity:.5;transition:opacity .25s}
+.jump.on,.jump:hover{opacity:1}
+.jump button{width:40px;height:40px;border-radius:50%;background:#fff;color:#3a4550;display:grid;place-items:center;box-shadow:0 1px 4px rgba(0,0,0,.28)}
+.jump button svg{display:block}
 .sys{text-align:center;margin:10px 0}
 .sys span,.sys button{background:rgba(0,0,0,.5);color:#fff;font-size:11px;border-radius:12px;padding:3px 12px}
 .sys.err span{background:#b3261e}
@@ -476,6 +482,7 @@ html.dark .gbtn button{background:#3a3d43}
 html.dark .rpop{background:var(--card);box-shadow:0 6px 22px rgba(0,0,0,.6)}
 html.dark .rpop button:disabled{color:#666a71}
 html.dark .delbtn{background:#555a62}
+html.dark .jump button{background:var(--card);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.6)}
 html.dark .inp,html.dark .replybar,html.dark .cpanel{background:var(--bg)}
 html.dark .inp textarea{background:transparent}
 html.dark .send{background:var(--card);border-color:var(--edge);color:var(--sub)}
@@ -489,6 +496,9 @@ html.dark .orig{color-scheme:light;color:#191919;--text:#191919;--sub:#636363;--
 html.dark .orig .embed{background:#f2f2f3;color:#191919}
 @media (pointer:coarse) and (max-width:600px){
   html.dark .rail{background:var(--bg);border-top-color:var(--line);color:#6b7078}
+  /* 휴대폰은 오른쪽 끝의 스크롤 손잡이 자리를 피해 조금 안쪽에 둡니다. */
+  .jump{right:34px}
+  .jump button{width:44px;height:44px}
   html.dark .chip{background:var(--card);color:#c5c8cd}
   html.dark .chip.on{background:#e7e8ea;color:var(--ink)}
   html.dark .adb{background:var(--card)}

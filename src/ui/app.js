@@ -383,7 +383,7 @@ function renderRoom(keep){
    if(k==null){if(taken.size>=AV_N){taken.clear();for(const v of [...cmtIdx.values()].slice(-8))taken.add(v)}/* 그림을 다 썼으면 방금 쓴 8장만 피해서 다시 씁니다. */
     k=avBase(m.w,m.c.uid);for(let n=0;taken.has(k)&&n<AV_N;n++)k=(k+1)%AV_N;cmtIdx.set(ck,k);taken.add(k)}return avSpan(k,m.w)};
   msgs.forEach((m,i)=>{
-   if(m.sys){h+='<div class="sys"><span>'+esc(m.sys)+'</span></div>';return}
+   if(m.sys){h+='<div class="sys" id="cstart"><span>'+esc(m.sys)+'</span></div>';return}
    if(m.d&&dayKey(m.d)!==day){day=dayKey(m.d);h+='<div class="sys"><span>'+dayLabel(m.d)+'</span></div>'}
    const prev=msgs[i-1],next=msgs[i+1],first=!prev||prev.sys||prev.w!==m.w||prev.mine!==m.mine,last=!next||next.sys||next.w!==m.w;
    const body=m.q&&m.b.t!=='text'?bub('',m.q)+'</div><div class="ln blk">'+blockHtml(m.b):blockHtml(m.b,m.q||'');
@@ -405,13 +405,30 @@ function renderRoom(keep){
   (R.rmenu?'<button class="rdim" data-rmenu aria-label="메뉴 닫기"></button><div class="rpop"><button data-orig'+(p?'':' disabled')+'>원본 모양으로 보기</button><button data-vote="up"'+(p?'':' disabled')+'>추천'+(p?' '+(p.up||0):'')+'</button><button data-vote="down"'+(p?'':' disabled')+'>비추천'+(p&&p.down?' '+p.down:'')+'</button><button data-rmenu data-url="'+esc(postUrl(g,r.no))+'">디시에서 열기</button></div>':'')+
   (R.orig&&p?'<div class="orig"><div class="ohead"><button class="ib" data-orig aria-label="채팅방으로 돌아가기">'+I.back+'</button><b>원본 보기<small>'+esc(title)+'</small></b></div><div class="scroll" id="oscroll"><div class="oin">'+(p.html||'<p>본문이 없습니다.</p>')+'</div></div></div>':'')+
   (R.nfold?'<button class="nmini" data-nfold aria-label="공지 펼치기">'+I.horn+'</button>':'<div class="notice">'+I.horn+'<span class="tx"><div>'+((p||meta).head?'['+esc((p||meta).head)+'] ':'')+esc(meta.title)+'</div><div>'+esc(author)+' · 조회 '+((p||meta).views||0).toLocaleString()+' · 추천 '+((p||meta).up||0)+'</div></span><button class="nbtn" data-nfold aria-label="공지 접기">'+I.up+'</button></div>')+
-  '<div class="scroll" id="rscroll"><div class="msgs">'+h+'</div></div>'+
+  /* 글과 댓글 칸 오른쪽 아래에 떠 있는 이동 단추: 맨 위로, 댓글 시작으로, 맨 마지막 댓글로 */
+  '<div class="rwrap"><div class="scroll" id="rscroll"><div class="msgs">'+h+'</div></div>'+'<div class="jump" id="jump"><button type="button" data-jump="top" aria-label="맨 위로" title="맨 위로" hidden>'+JI.top+'</button><button type="button" data-jump="cm" aria-label="댓글 시작으로" title="댓글 시작으로" hidden>'+JI.cm+'</button><button type="button" data-jump="end" aria-label="맨 마지막 댓글로" title="맨 마지막 댓글로" hidden>'+JI.end+'</button></div>'+'</div>'+
   (R.cpanel?'<div class="cpanel">'+consHtml()+'</div>':'')+(R.tpanel?txtconHtml():'')+
   (R.reply?'<div class="replybar"><span>'+esc(who(R.reply))+'에게 답장</span><button class="ib" data-noreply aria-label="답장 취소">✕</button></div>':'')+
   '<form class="inp" id="cform"><textarea placeholder="메시지 입력" aria-label="댓글 입력" maxlength="200">'+esc(draft)+'</textarea><div class="bar"><button type="button" class="ib" data-url="'+esc(mView(g,r.no))+'" aria-label="디시 화면에서 열기">'+I.plus+'</button><button type="button" class="ib'+(R.cpanel?' act':'')+'" data-cpanel aria-expanded="'+R.cpanel+'" aria-label="디시콘">'+I.smile+'</button><button type="button" class="ib'+(R.tpanel?' act':'')+'" data-tpanel aria-expanded="'+R.tpanel+'" aria-label="글자콘">'+I.file+'</button><span></span><button class="send'+(draft.trim()&&!R.sending?' ok':'')+'"'+(R.sending?' disabled':'')+'>'+(R.sending?'보내는 중…':'전송')+'</button></div></form>';
  if(otop&&$('#room .orig .scroll'))$('#room .orig .scroll').scrollTop=otop;
  const sc=$('#rscroll');if(R.toBottom){sc.scrollTop=sc.scrollHeight;R.toBottom=false}else sc.scrollTop=top;
+ jumpUpdate();
 }
+/* 이동 단추: 이미 그 자리에 있으면 그 단추는 숨깁니다. 스크롤하는 동안은 또렷하게, 멈추면 2초 뒤 흐리게 보입니다. */
+const JSVG=d=>'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+d+'</svg>';
+const JI={top:JSVG('<path d="M6 12l6-6 6 6"/><path d="M6 18l6-6 6 6"/>'),cm:JSVG('<path d="M4 5.5h16v10.5H10l-4.5 3.5V16H4z"/><path d="M8 9.5h8M8 12.5h5"/>'),end:JSVG('<path d="M6 6l6 6 6-6"/><path d="M6 12l6 6 6-6"/>')};
+const cmTop=sc=>{const c=sc.querySelector('#cstart');return c?Math.max(0,Math.round(c.getBoundingClientRect().top-sc.getBoundingClientRect().top+sc.scrollTop-8)):null};
+let jumpIdle=null;
+function jumpUpdate(active){
+ const sc=$('#rscroll'),box=$('#jump');if(!sc||!box)return;
+ const max=sc.scrollHeight-sc.clientHeight,t=sc.scrollTop,cm=cmTop(sc),can=max>40;
+ box.querySelector('[data-jump="top"]').hidden=!can||t<=8;
+ box.querySelector('[data-jump="cm"]').hidden=!can||cm==null||Math.abs(Math.min(cm,max)-t)<=8;
+ box.querySelector('[data-jump="end"]').hidden=!can||t>=max-8;
+ if(active){box.classList.add('on');clearTimeout(jumpIdle);jumpIdle=setTimeout(()=>$('#jump')?.classList.remove('on'),2000)}
+}
+document.addEventListener('scroll',e=>{if(e.target.id==='rscroll')jumpUpdate(true)},true);
+function jumpTo(where){const sc=$('#rscroll');if(!sc)return;const cm=cmTop(sc);/* 부드럽게 미끄러지는 이동은 쓰지 않습니다(이동 도중 화면이 다시 그려지면 중간에 멈춥니다). */sc.scrollTop=where==='top'?0:where==='cm'&&cm!=null?cm:sc.scrollHeight;jumpUpdate(true)}
 const postUrl=(g,no)=>'https://gall.dcinside.com/'+(g.type==='minor'?'mgallery/':g.type==='mini'?'mini/':'')+'board/view/?id='+g.id+'&no='+no;
 
 /* ---------- 디시콘·글자콘 창 ---------- */
@@ -713,6 +730,7 @@ document.addEventListener('click',e=>{
  if(d.mvplay!=null){startMv(b.closest('.mvw')?.querySelector('video'));return}
  if(d.yt){playYt(b);return}
  if(d.ytbig){openBigYt(b);return}
+ if(d.jump){jumpTo(d.jump);return}
  if(d.view){R.view=d.view;R.ov='';renderPane()}
  else if(d.stab!=null){R.stab=d.stab;R.saved=false;if(d.ov)R.ov=d.ov;renderPane();if(d.stab==='계정'&&!R.userKnown)checkUser()}
  else if(d.ov!=null){R.ov=R.ov===d.ov?'':d.ov;if(d.ov==='set')R.stab='';
