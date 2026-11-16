@@ -191,6 +191,20 @@
     walk(root);
     return out;
   }
+  function parsePum(doc) {
+    const tx = (s2) => {
+      const n = doc.querySelector(s2);
+      if (!n) return "";
+      const c = n.cloneNode(true);
+      for (const b of c.querySelectorAll(".blind")) b.remove();
+      return c.textContent.replace(/\s+/g, " ").trim();
+    };
+    const href = doc.querySelector(".cloned_card_body a")?.getAttribute("href") || "", m = href.match(/^\/(mgallery\/|mini\/)?board\/view\/\?id=(\w+)&no=(\d+)/);
+    const img = abs(doc.querySelector(".cloned_media img")?.getAttribute("src") || "");
+    const title = tx(".cloned_subject h4");
+    if (!title || !m) return { t: "pum", gall: "", title: "", text: tx("body") || doc.textContent.replace(/\s+/g, " ").trim().slice(0, 200) || "\uC6D0\uBCF8 \uAE00\uC744 \uBCFC \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.", name: "", img: "", url: "", id: "", no: 0, mini: false };
+    return { t: "pum", gall: tx(".gallview_head h3"), title, text: tx(".cloned_card_body p"), name: (tx(".nickname em") || "\u3147\u3147") + tx(".nickname .ip"), img: /^https:\/\//.test(img) ? img : "", url: BASE + href, id: m[2], no: Number(m[3]), mini: m[1] === "mini/" };
+  }
   function writer(node) {
     return { name: node?.getAttribute("data-nick") || "\u3147\u3147", uid: node?.getAttribute("data-uid") || "", ip: node?.getAttribute("data-ip") || "" };
   }
@@ -228,7 +242,8 @@
       if (m && name2 && !heads.some((h) => h.id === m[1])) heads.push({ id: m[1], name: name2 });
     }
     const name = (doc.querySelector("title")?.textContent || "").split(" - ")[0].replace(/\s*(마이너|미니|인물)?\s*갤러리$/, "").trim();
-    return { posts, heads, name };
+    const nextPos = ((doc.querySelector("a.search_next")?.getAttribute("href") || "").match(/[?&]search_pos=(-?\d+)/) || [])[1] || "";
+    return { posts, heads, name, nextPos };
   }
   function parseView(doc, no) {
     const text = (s2) => doc.querySelector(s2)?.textContent.trim() || "";
@@ -240,7 +255,9 @@
       tail.v = tail.v.replace(/\n?\s*-\s*dc\s+(official\s+)?app\s*$/i, "").trim();
       if (!tail.v) blocks.pop();
     }
+    const pm = root && /pum_ajax\\?\/get_contents/.test(root.innerHTML) ? root.innerHTML.match(/"_GALLTYPE_":"(\w{0,3})","id":"(\w{1,80})","no":"?(\d+)/) : null;
     return {
+      pum: pm ? { gt: pm[1], id: pm[2], no: pm[3] } : null,
       id: Number(no),
       title,
       head: text(".title_headtext").replace(/^\[|\]$/g, ""),
@@ -305,13 +322,29 @@
         return parseGallerySearch(parse(await get("https://search.dcinside.com/gallery/q/" + encodeURIComponent(q))));
       },
       /* rec: 개념글만 봅니다(디시 목록의 "개념글" 탭과 같은 주소). */
-      async listPosts(g, { page = 1, head = "", rec = false } = {}) {
+      async listPosts(g, { page = 1, head = "", rec = false, q = "", pos = "" } = {}) {
+        q = String(q || "").trim();
+        if (q.length > 60) throw Error("\uAC80\uC0C9\uC5B4\uB294 60\uC790\uAE4C\uC9C0 \uC4F8 \uC218 \uC788\uC2B5\uB2C8\uB2E4.");
+        if (pos !== "" && !/^-?\d+$/.test(String(pos))) throw Error("\uC798\uBABB\uB41C \uAC80\uC0C9 \uC704\uCE58\uC785\uB2C8\uB2E4.");
         if (head !== "" && !/^\d{1,6}$/.test(String(head))) throw Error("\uC798\uBABB\uB41C \uB9D0\uBA38\uB9AC\uC785\uB2C8\uB2E4.");
-        return parseList(parse(await get(boardUrl(g, "lists") + "&page=" + Math.max(1, page | 0) + (head !== "" ? "&search_head=" + head : "") + (rec ? "&exception_mode=recommend" : ""))));
+        return parseList(parse(await get(boardUrl(g, "lists") + "&page=" + Math.max(1, page | 0) + (head !== "" ? "&search_head=" + head : "") + (rec ? "&exception_mode=recommend" : "") + (q ? "&search_pos=" + pos + "&s_type=search_subject_memo&s_keyword=" + encodeURIComponent(q) : ""))));
       },
       async readPost(g, no) {
         if (!/^\d+$/.test(String(no))) throw Error("\uC798\uBABB\uB41C \uAE00 \uBC88\uD638\uC785\uB2C8\uB2E4.");
-        return parseView(parse(await get(boardUrl(g, "view") + "&no=" + no)), no);
+        const ref = boardUrl(g, "view") + "&no=" + no, post = parseView(parse(await get(ref)), no);
+        if (post.pum) {
+          let b;
+          try {
+            const r = await http(BASE + "/ajax/pum_ajax/get_contents", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8", "X-Requested-With": "XMLHttpRequest", Referer: ref }, body: new URLSearchParams({ ci_t: "", _GALLTYPE_: post.pum.gt, id: post.pum.id, no: post.pum.no }).toString() });
+            if (r.status !== 200 || !r.text.trim()) throw 0;
+            b = parsePum(parse("<!doctype html><html><body>" + r.text + "</body></html>"));
+          } catch {
+            b = { t: "pum", gall: "", title: "", text: "\uD37C \uC628 \uAE00\uC744 \uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.", name: "", img: "", url: "", id: "", no: 0, mini: false };
+          }
+          post.blocks.push(b);
+          post.html += "<p>" + (b.url ? '<a href="' + hesc(b.url) + '" data-url="' + hesc(b.url) + '">[\uD37C \uC628 \uAE00] ' + hesc(b.title) + "</a>" : hesc(b.text)) + "</p>";
+        }
+        return post;
       },
       /* 본문 동영상: 재생 단추를 눌렀을 때만 재생 창 화면을 한 번 읽습니다. */
       async readMovie(url) {
@@ -1149,6 +1182,7 @@
     pc: {},
     shown: 20,
     hidden: 0,
+    q: "",
     search: { q: "", res: null, busy: false, err: "" },
     filter: "",
     filterOn: false,
@@ -1252,7 +1286,7 @@
     if (D.hideNotice) posts = posts.filter((p) => !p.notice);
     if (plain && R.head === "\uC548\uC77D\uC74C") posts = posts.filter((p) => p.notice || unreadOf(p));
     if (plain && R.head === "ChatGPT") posts = posts.filter((p) => p.notice);
-    if (R.filter) posts = posts.filter((p) => p.notice || p.title.includes(R.filter));
+    if (R.filter && R.filter !== R.q) posts = posts.filter((p) => p.notice || p.title.includes(R.filter));
     const recent = [];
     const rowAv = (p) => {
       let k = avBase(who(p), p.id);
@@ -1269,8 +1303,8 @@
     };
     const shownPins = posts.filter((p) => p.notice), allRest = posts.filter((p) => !p.notice), rest = allRest.slice(0, R.shown);
     R.hidden = allRest.length - rest.length;
-    const body = !L ? R.listErr ? '<div class="empty">' + esc(R.listErr) + '<br><button class="pill" data-reload>\uB2E4\uC2DC \uC2DC\uB3C4</button></div>' : '<div class="spin">\uBD88\uB7EC\uC624\uB294 \uC911\u2026</div>' : (R.pinOpen ? shownPins : shownPins.slice(0, 1)).map(rowHtml).join("") + (shownPins.length > 1 ? '<button class="pintog" data-pintog aria-expanded="' + R.pinOpen + '" aria-label="' + (R.pinOpen ? "\uACF5\uC9C0 \uC811\uAE30" : "\uACF5\uC9C0 " + (shownPins.length - 1) + "\uAC1C \uB354 \uBCF4\uAE30") + '"></button>' : "") + (rest.length ? rest.map(rowHtml).join("") : '<div class="empty">\uC774 \uD0ED\uC5D0\uB294 \uC544\uC9C1 \uAE00\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.</div>') + (R.hidden > 0 || L.more && !(plain && R.head) ? '<button class="more-row" data-more>' + (R.listBusy ? "\uBD88\uB7EC\uC624\uB294 \uC911\u2026" : "\uC774\uC804 \uAE00 \uB354 \uBCF4\uAE30") + "</button>" : "");
-    return '<div class="head"><h2>\uCC44\uD305 <small>\u25BC</small></h2><button class="ib' + (R.filterOn ? " act" : "") + '" data-filter aria-label="\uAE00 \uAC80\uC0C9">' + I.search + '</button><button class="ib" data-write aria-label="\uAE00\uC4F0\uAE30">' + I.write + '</button><button class="ib d-only" data-refresh aria-label="\uC0C8\uB85C\uACE0\uCE68 (F5)" title="\uC0C8\uB85C\uACE0\uCE68 (F5)">' + I.refresh + "</button>" + cogM + "</div>" + (R.filterOn ? '<div class="searchbar"><input id="filter" placeholder="\uBD88\uB7EC\uC628 \uAE00 \uC81C\uBAA9\uC5D0\uC11C \uCC3E\uAE30" value="' + esc(R.filter) + '"></div>' : "") + /* 개념글만 보기: 켜면 디시의 개념글 목록을 읽어 옵니다. 말머리 탭과 함께 쓸 수 있습니다. 맨 앞 '전체' 탭 바로 오른쪽에 둡니다. */
+    const body = !L ? R.listErr ? '<div class="empty">' + esc(R.listErr) + '<br><button class="pill" data-reload>\uB2E4\uC2DC \uC2DC\uB3C4</button></div>' : '<div class="spin">\uBD88\uB7EC\uC624\uB294 \uC911\u2026</div>' : (R.pinOpen ? shownPins : shownPins.slice(0, 1)).map(rowHtml).join("") + (shownPins.length > 1 ? '<button class="pintog" data-pintog aria-expanded="' + R.pinOpen + '" aria-label="' + (R.pinOpen ? "\uACF5\uC9C0 \uC811\uAE30" : "\uACF5\uC9C0 " + (shownPins.length - 1) + "\uAC1C \uB354 \uBCF4\uAE30") + '"></button>' : "") + (rest.length ? rest.map(rowHtml).join("") : '<div class="empty">' + (R.q ? "\uC774 \uBC94\uC704\uC5D0\uB294 \uAC80\uC0C9 \uACB0\uACFC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4." : "\uC774 \uD0ED\uC5D0\uB294 \uC544\uC9C1 \uAE00\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.") + "</div>") + (R.hidden > 0 || L.more && !(plain && R.head) ? '<button class="more-row" data-more>' + (R.listBusy ? "\uBD88\uB7EC\uC624\uB294 \uC911\u2026" : R.q ? "\uC774\uC804 \uAE00\uC5D0\uC11C \uB354 \uCC3E\uAE30" : "\uC774\uC804 \uAE00 \uB354 \uBCF4\uAE30") + "</button>" : "");
+    return '<div class="head"><h2>\uCC44\uD305 <small>\u25BC</small></h2><button class="ib' + (R.filterOn ? " act" : "") + '" data-filter aria-label="\uAE00 \uAC80\uC0C9">' + I.search + '</button><button class="ib" data-write aria-label="\uAE00\uC4F0\uAE30">' + I.write + '</button><button class="ib d-only" data-refresh aria-label="\uC0C8\uB85C\uACE0\uCE68 (F5)" title="\uC0C8\uB85C\uACE0\uCE68 (F5)">' + I.refresh + "</button>" + cogM + "</div>" + (R.filterOn ? '<form class="searchbar" id="filterf"><input id="filter" placeholder="\uC81C\uBAA9+\uB0B4\uC6A9 \uAC80\uC0C9" maxlength="60" enterkeyhint="search" value="' + esc(R.filter) + '"><button class="pill">\uAC80\uC0C9</button></form>' : "") + /* 개념글만 보기: 켜면 디시의 개념글 목록을 읽어 옵니다. 말머리 탭과 함께 쓸 수 있습니다. 맨 앞 '전체' 탭 바로 오른쪽에 둡니다. */
     '<div class="chips" id="chips">' + tabs.map((t, i) => '<button class="chip' + (String(t.id) === String(R.head) ? " on" : "") + '" data-h="' + esc(t.id) + '">' + esc(t.name) + "</button>" + (i ? "" : '<button class="chip' + (R.rec ? " on" : "") + '" data-rec aria-pressed="' + !!R.rec + '">\uAC1C\uB150\uAE00</button>')).join("") + (D.hideNotice ? "" : '<button class="chip ico' + (R.pinOpen ? " on" : "") + '" data-pintog aria-pressed="' + R.pinOpen + '" aria-label="' + (R.pinOpen ? "\uACF5\uC9C0 \uC811\uAE30" : "\uACF5\uC9C0 \uBAA8\uB450 \uBCF4\uAE30") + '">' + I.listp + (!R.pinOpen && pins.length > 1 ? '<i class="cdot"></i>' : "") + "</button>") + '</div><div class="scroll" id="cscroll">' + (R.g === BLINK ? adM(true) : "") + body + "</div>";
   }
   function overlayHtml() {
@@ -1342,7 +1376,7 @@
         const k = gk + "/" + no;
         if (R.g === gk && Date.now() >= pvPause) try {
           await new Promise((r) => setTimeout(r, 1400));
-          const post = await dc.readPost(g, no), t = post.blocks.find((b) => b.t === "text");
+          const post = await dc.readPost(g, no), t = post.blocks.find((b) => b.t === "text") || ((p) => p && { v: "\uD37C \uC628 \uAE00: " + (p.title || p.text) })(post.blocks.find((b) => b.t === "pum"));
           R.pc[k] = { post, at: Date.now() };
           R.pv[k] = t ? t.v.replace(/\s+/g, " ").slice(0, 120) : post.blocks.some((b) => b.t === "video" || b.t === "movie" || b.t === "yt" || b.t === "embed") ? "\uB3D9\uC601\uC0C1\uC744 \uBCF4\uB0C8\uC2B5\uB2C8\uB2E4." : post.blocks.length ? "\uC0AC\uC9C4\uC744 \uBCF4\uB0C8\uC2B5\uB2C8\uB2E4." : "";
           const el = document.querySelector('#cscroll .row.post[data-p="' + no + '"] .pv');
@@ -1522,6 +1556,7 @@
     if (b.t === "video") return '<video class="media gifv" loop muted playsinline preload="metadata" src="' + esc(b.src) + '"' + (b.poster ? ' poster="' + esc(b.poster) + '"' : "") + "></video>";
     if (b.t === "yt") return ytButton(b.id);
     if (b.t === "movie") return MV[b.src] ? movieHtml(b.src, MV[b.src]) : '<button class="embed movie" data-movie="' + esc(b.src) + '">\u25B6 \uB3D9\uC601\uC0C1 \uC7AC\uC0DD</button>';
+    if (b.t === "pum") return b.url ? '<button class="pumc" data-pum="' + esc(JSON.stringify({ id: b.id, no: b.no, mini: b.mini, title: b.title })) + '" aria-label="\uD37C \uC628 \uAE00 \uC5F4\uAE30"><small>' + esc(b.gall) + " \xB7 " + esc(b.name) + "</small><b>" + esc(b.title) + "</b>" + (b.text ? "<span>" + esc(b.text) + "</span>" : "") + (b.img ? '<img loading="lazy" src="' + esc(b.img) + '" alt="">' : "") + "</button>" : bub(b.text, q);
     return '<button class="embed" data-url="' + esc(b.src) + '">\uB3D9\uC601\uC0C1\xB7\uC678\uBD80 \uCF58\uD150\uCE20 \uC5F4\uAE30</button>';
   }
   function renderRoom(keep) {
@@ -2049,8 +2084,8 @@
   async function loadList({ append = false, fresh = false } = {}) {
     const g = gal(R.g);
     if (!g) return;
-    const seq = ++R.seq, head = R.list && !R.list.heads.length ? "" : R.head, rec = !!R.rec;
-    const ck = R.g + "|" + head + (rec ? "|rec" : ""), c = R.cache[ck];
+    const seq = ++R.seq, head = R.list && !R.list.heads.length ? "" : R.head, rec = !!R.rec, q = R.q;
+    const ck = R.g + "|" + head + (rec ? "|rec" : "") + (q ? "|q:" + q : ""), c = R.cache[ck];
     if (!append && !fresh && c && Date.now() - c.at < 6e4) {
       R.list = c.list;
       R.listErr = "";
@@ -2065,21 +2100,31 @@
     R.listBusy = true;
     renderPane();
     try {
-      const page = append ? R.list.page + 1 : 1, res = await dc.listPosts(g, { page, head, rec });
+      const page = append ? R.list.page + 1 : 1, pos = append && R.list.pos || "", res = await dc.listPosts(g, { page, head, rec, q, pos });
       if (seq !== R.seq) return;
       if (append) {
         const ids = new Set(R.list.posts.map((p) => p.id)), add = res.posts.filter((p) => !p.notice && !ids.has(p.id));
         R.list.posts.push(...add);
         R.list.page = page;
         R.list.more = add.length > 0;
+        if (q && !add.length && res.nextPos) {
+          R.list.pos = res.nextPos;
+          R.list.page = 0;
+          R.list.more = true;
+        }
       } else {
-        if (head || rec) {
+        if ((head || rec) && !q) {
           const ids = new Set(res.posts.map((p) => p.id)), pins = (R.cache[R.g + "|"]?.list.posts || []).filter((p) => p.notice && !ids.has(p.id));
           res.posts.unshift(...pins);
         }
         R.list = { posts: res.posts, heads: res.heads.length ? res.heads : R.list?.heads || [], page: 1, more: res.posts.some((p) => !p.notice) };
+        if (q && !R.list.more && res.nextPos) {
+          R.list.pos = res.nextPos;
+          R.list.page = 0;
+          R.list.more = true;
+        }
       }
-      if (!head && !rec) {
+      if (!head && !rec && !q) {
         const t = res.posts.find((p) => !p.notice);
         if (t && !append) {
           R.latest[R.g] = { id: t.id, title: t.title };
@@ -2111,6 +2156,7 @@
     R.view = "chats";
     R.ov = "";
     R.filter = "";
+    R.q = "";
     R.filterOn = false;
     R.pinOpen = false;
     R.list = null;
@@ -2348,6 +2394,10 @@
       playYt(b);
       return;
     }
+    if (d.pum) {
+      jump(JSON.parse(d.pum));
+      return;
+    }
     if (d.ytbig) {
       openBigYt(b);
       return;
@@ -2452,8 +2502,12 @@
       renderPane();
     } else if (d.filter != null) {
       R.filterOn = !R.filterOn;
-      if (!R.filterOn) R.filter = "";
-      renderPane();
+      const had = R.q;
+      if (!R.filterOn) R.filter = R.q = "";
+      if (had && !R.q) {
+        R.shown = 20;
+        loadList();
+      } else renderPane();
       $("#filter")?.focus();
     } else if (d.add != null) {
       const g = R.search.res[+d.add];
@@ -2710,6 +2764,13 @@
   document.addEventListener("submit", async (e) => {
     e.preventDefault();
     const f2 = e.target;
+    if (f2.id === "filterf") {
+      R.filter = R.q = $("#filter").value.trim();
+      R.shown = 20;
+      $("#filter").blur();
+      loadList();
+      return;
+    }
     if (f2.id === "findf") {
       const S = R.search;
       S.q = $("#findq").value.trim();

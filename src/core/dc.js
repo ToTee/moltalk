@@ -96,6 +96,16 @@ export function toHtml(root){
  walk(root);return out;
 }
 
+/* 퍼 온 글의 원본 카드(갤러리 이름, 글쓴이, 제목, 앞부분, 그림)를 읽습니다. */
+export function parsePum(doc){
+ const tx=s=>{const n=doc.querySelector(s);if(!n)return '';const c=n.cloneNode(true);for(const b of c.querySelectorAll('.blind'))b.remove();return c.textContent.replace(/\s+/g,' ').trim()};
+ const href=doc.querySelector('.cloned_card_body a')?.getAttribute('href')||'',m=href.match(/^\/(mgallery\/|mini\/)?board\/view\/\?id=(\w+)&no=(\d+)/);
+ const img=abs(doc.querySelector('.cloned_media img')?.getAttribute('src')||'');
+ const title=tx('.cloned_subject h4');
+ if(!title||!m)return {t:'pum',gall:'',title:'',text:tx('body')||doc.textContent.replace(/\s+/g,' ').trim().slice(0,200)||'원본 글을 볼 수 없습니다.',name:'',img:'',url:'',id:'',no:0,mini:false};
+ return {t:'pum',gall:tx('.gallview_head h3'),title,text:tx('.cloned_card_body p'),name:(tx('.nickname em')||'ㅇㅇ')+tx('.nickname .ip'),img:/^https:\/\//.test(img)?img:'',url:BASE+href,id:m[2],no:Number(m[3]),mini:m[1]==='mini/'};
+}
+
 function writer(node){return {name:node?.getAttribute('data-nick')||'ㅇㅇ',uid:node?.getAttribute('data-uid')||'',ip:node?.getAttribute('data-ip')||''}}
 
 export function parseList(doc){
@@ -114,7 +124,9 @@ export function parseList(doc){
  const heads=[];
  for(const n of doc.querySelectorAll('[onclick*="listSearchHead"]')){const m=(n.getAttribute('onclick')||'').match(/listSearchHead\(\s*['"]?(\d{1,6})/),name=n.textContent.trim();if(m&&name&&!heads.some(h=>h.id===m[1]))heads.push({id:m[1],name})}
  const name=(doc.querySelector('title')?.textContent||'').split(' - ')[0].replace(/\s*(마이너|미니|인물)?\s*갤러리$/,'').trim();
- return {posts,heads,name};
+ /* 글 검색은 한 번에 일정 범위의 글만 뒤집니다. 더 오래된 범위로 넘어가는 "다음 검색"의 위치값을 함께 돌려줍니다. */
+ const nextPos=((doc.querySelector('a.search_next')?.getAttribute('href')||'').match(/[?&]search_pos=(-?\d+)/)||[])[1]||'';
+ return {posts,heads,name,nextPos};
 }
 
 export function parseView(doc,no){
@@ -125,7 +137,9 @@ export function parseView(doc,no){
  /* 공식 앱이 본문 끝에 붙이는 꼬리말은 숨깁니다. */
  const tail=blocks[blocks.length-1];
  if(tail?.t==='text'){tail.v=tail.v.replace(/\n?\s*-\s*dc\s+(official\s+)?app\s*$/i,'').trim();if(!tail.v)blocks.pop()}
- return {id:Number(no),title,head:text('.title_headtext').replace(/^\[|\]$/g,''),...writer(doc.querySelector('.gallview_head .gall_writer')),
+ /* 퍼 온 글(펌): 본문에는 내용이 없고, 원본 글을 따로 불러오는 스크립트만 들어 있습니다. 원본 갤러리와 글 번호를 꺼내 둡니다. */
+ const pm=root&&/pum_ajax\\?\/get_contents/.test(root.innerHTML)?root.innerHTML.match(/"_GALLTYPE_":"(\w{0,3})","id":"(\w{1,80})","no":"?(\d+)/):null;
+ return {pum:pm?{gt:pm[1],id:pm[2],no:pm[3]}:null,id:Number(no),title,head:text('.title_headtext').replace(/^\[|\]$/g,''),...writer(doc.querySelector('.gallview_head .gall_writer')),
   time:date?.getAttribute('title')||date?.textContent.trim()||'',views:num(text('.gallview_head .gall_count')),up:num(text('#recommend_view_up_'+no)),down:num(text('#recommend_view_down_'+no)),
   commentCount:num(text('.gallview_head .gall_comment')),blocks,html:root?toHtml(root):'',token:doc.querySelector('input[name="e_s_n_o"]')?.getAttribute('value')||''};
 }
@@ -162,8 +176,13 @@ export function createDc({http,parse}){
  return {
   async searchGalleries(q){q=String(q||'').trim();if(!q||q.length>60)throw Error('검색어를 1~60자로 입력해 주세요.');return parseGallerySearch(parse(await get('https://search.dcinside.com/gallery/q/'+encodeURIComponent(q))))},
   /* rec: 개념글만 봅니다(디시 목록의 "개념글" 탭과 같은 주소). */
-  async listPosts(g,{page=1,head='',rec=false}={}){if(head!==''&&!/^\d{1,6}$/.test(String(head)))throw Error('잘못된 말머리입니다.');return parseList(parse(await get(boardUrl(g,'lists')+'&page='+Math.max(1,page|0)+(head!==''?'&search_head='+head:'')+(rec?'&exception_mode=recommend':''))))},
-  async readPost(g,no){if(!/^\d+$/.test(String(no)))throw Error('잘못된 글 번호입니다.');return parseView(parse(await get(boardUrl(g,'view')+'&no='+no)),no)},
+  async listPosts(g,{page=1,head='',rec=false,q='',pos=''}={}){q=String(q||'').trim();if(q.length>60)throw Error('검색어는 60자까지 쓸 수 있습니다.');if(pos!==''&&!/^-?\d+$/.test(String(pos)))throw Error('잘못된 검색 위치입니다.');if(head!==''&&!/^\d{1,6}$/.test(String(head)))throw Error('잘못된 말머리입니다.');return parseList(parse(await get(boardUrl(g,'lists')+'&page='+Math.max(1,page|0)+(head!==''?'&search_head='+head:'')+(rec?'&exception_mode=recommend':'')+(q?'&search_pos='+pos+'&s_type=search_subject_memo&s_keyword='+encodeURIComponent(q):''))))},
+  async readPost(g,no){if(!/^\d+$/.test(String(no)))throw Error('잘못된 글 번호입니다.');const ref=boardUrl(g,'view')+'&no='+no,post=parseView(parse(await get(ref)),no);
+   /* 퍼 온 글이면 원본 카드를 한 번 더 읽어 본문 끝에 붙입니다. 못 읽어도 글 자체는 열립니다. */
+   if(post.pum){let b;try{const r=await http(BASE+'/ajax/pum_ajax/get_contents',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded; charset=UTF-8','X-Requested-With':'XMLHttpRequest',Referer:ref},body:new URLSearchParams({ci_t:'',_GALLTYPE_:post.pum.gt,id:post.pum.id,no:post.pum.no}).toString()});
+     if(r.status!==200||!r.text.trim())throw 0;b=parsePum(parse('<!doctype html><html><body>'+r.text+'</body></html>'))}catch{b={t:'pum',gall:'',title:'',text:'퍼 온 글을 불러오지 못했습니다.',name:'',img:'',url:'',id:'',no:0,mini:false}}
+    post.blocks.push(b);post.html+='<p>'+(b.url?'<a href="'+hesc(b.url)+'" data-url="'+hesc(b.url)+'">[퍼 온 글] '+hesc(b.title)+'</a>':hesc(b.text))+'</p>'}
+   return post},
   /* 본문 동영상: 재생 단추를 눌렀을 때만 재생 창 화면을 한 번 읽습니다. */
   async readMovie(url){if(!MOVIE.test(String(url)))throw Error('잘못된 동영상 주소입니다.');return parseMovie(parse(await get(url)))},
   async readComments(g,no,token,page=1){

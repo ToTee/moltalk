@@ -104,7 +104,7 @@ const dayLabel=d=>d.getFullYear()+'년 '+(d.getMonth()+1)+'월 '+d.getDate()+'�
 
 /* ---------- 실행 중 상태 ---------- */
 const R={view:'friends',g:null,head:'',list:null,listErr:'',listBusy:false,seq:0,room:null,roomSeq:0,ov:'',pinOpen:false,nfold:false,stab:'',saved:false,
- latest:{},updated:{},cache:{},hk:{},pv:{},pc:{},shown:20,hidden:0,search:{q:'',res:null,busy:false,err:''},filter:'',filterOn:false,gmenu:null,log:'게시글',
+ latest:{},updated:{},cache:{},hk:{},pv:{},pc:{},shown:20,hidden:0,q:'',search:{q:'',res:null,busy:false,err:''},filter:'',filterOn:false,gmenu:null,log:'게시글',
  av:{},gallog:{},user:'',userKnown:false,reply:null,menu:null,ask:false,cpanel:false,tpanel:false,cons:{items:null,busy:false,err:''},con1:null,tcon:'',write:null,sending:false,toBottom:false};
 const who=x=>x.name+(x.ip?'('+x.ip+')':'');
 /* 글(채팅방)의 프로필 그림 번호. 글마다 따로 정합니다. 글 목록을 그릴 때 가까운 줄과 겹치지 않게 고른 번호를 R.av에 적어 두고,
@@ -185,7 +185,8 @@ function chatsHtml(){
  let posts=L?L.posts:[];if(D.hideNotice)posts=posts.filter(p=>!p.notice);
  if(plain&&R.head==='안읽음')posts=posts.filter(p=>p.notice||unreadOf(p));
  if(plain&&R.head==='ChatGPT')posts=posts.filter(p=>p.notice);
- if(R.filter)posts=posts.filter(p=>p.notice||p.title.includes(R.filter));
+ /* 검색한 낱말 그대로면 디시가 제목+내용으로 찾아 준 결과이므로 거르지 않습니다. 그 뒤에 더 적으면 받은 결과 안에서 제목으로 거릅니다. */
+ if(R.filter&&R.filter!==R.q)posts=posts.filter(p=>p.notice||p.title.includes(R.filter));
  /* 같은 그림이 잇달아 나오지 않게, 바로 앞 8줄에 쓰인 그림은 건너뛰고 다음 그림을 씁니다. */
  const recent=[];
  const rowAv=p=>{let k=avBase(who(p),p.id);while(recent.includes(k))k=(k+1)%AV_N;recent.push(k);if(recent.length>8)recent.shift();R.av[R.g+'/'+p.id]=k;return avSpan(k,who(p))};
@@ -200,10 +201,10 @@ function chatsHtml(){
  R.hidden=allRest.length-rest.length;
  const body=!L?(R.listErr?'<div class="empty">'+esc(R.listErr)+'<br><button class="pill" data-reload>다시 시도</button></div>':'<div class="spin">불러오는 중…</div>'):
   (R.pinOpen?shownPins:shownPins.slice(0,1)).map(rowHtml).join('')+(shownPins.length>1?'<button class="pintog" data-pintog aria-expanded="'+R.pinOpen+'" aria-label="'+(R.pinOpen?'공지 접기':'공지 '+(shownPins.length-1)+'개 더 보기')+'"></button>':'')+
-  (rest.length?rest.map(rowHtml).join(''):'<div class="empty">이 탭에는 아직 글이 없습니다.</div>')+
-  (R.hidden>0||(L.more&&!(plain&&R.head))?'<button class="more-row" data-more>'+(R.listBusy?'불러오는 중…':'이전 글 더 보기')+'</button>':'');
+  (rest.length?rest.map(rowHtml).join(''):'<div class="empty">'+(R.q?'이 범위에는 검색 결과가 없습니다.':'이 탭에는 아직 글이 없습니다.')+'</div>')+
+  (R.hidden>0||(L.more&&!(plain&&R.head))?'<button class="more-row" data-more>'+(R.listBusy?'불러오는 중…':R.q?'이전 글에서 더 찾기':'이전 글 더 보기')+'</button>':'');
  return '<div class="head"><h2>채팅 <small>▼</small></h2><button class="ib'+(R.filterOn?' act':'')+'" data-filter aria-label="글 검색">'+I.search+'</button><button class="ib" data-write aria-label="글쓰기">'+I.write+'</button><button class="ib d-only" data-refresh aria-label="새로고침 (F5)" title="새로고침 (F5)">'+I.refresh+'</button>'+cogM+'</div>'+
-  (R.filterOn?'<div class="searchbar"><input id="filter" placeholder="불러온 글 제목에서 찾기" value="'+esc(R.filter)+'"></div>':'')+
+  (R.filterOn?'<form class="searchbar" id="filterf"><input id="filter" placeholder="제목+내용 검색" maxlength="60" enterkeyhint="search" value="'+esc(R.filter)+'"><button class="pill">검색</button></form>':'')+
   /* 개념글만 보기: 켜면 디시의 개념글 목록을 읽어 옵니다. 말머리 탭과 함께 쓸 수 있습니다. 맨 앞 '전체' 탭 바로 오른쪽에 둡니다. */
   '<div class="chips" id="chips">'+tabs.map((t,i)=>'<button class="chip'+(String(t.id)===String(R.head)?' on':'')+'" data-h="'+esc(t.id)+'">'+esc(t.name)+'</button>'+
    (i?'':'<button class="chip'+(R.rec?' on':'')+'" data-rec aria-pressed="'+!!R.rec+'">개념글</button>')).join('')+
@@ -272,7 +273,7 @@ async function previews(){
  for(const no of todo)pvBusy.add(gk+'/'+no);
  if(!todo.length)return;pvRunning=true;
  const work=async()=>{for(let no;(no=todo.shift())!=null;){const k=gk+'/'+no;
-  if(R.g===gk&&Date.now()>=pvPause)try{await new Promise(r=>setTimeout(r,1400));const post=await dc.readPost(g,no),t=post.blocks.find(b=>b.t==='text');R.pc[k]={post,at:Date.now()};
+  if(R.g===gk&&Date.now()>=pvPause)try{await new Promise(r=>setTimeout(r,1400));const post=await dc.readPost(g,no),t=post.blocks.find(b=>b.t==='text')||(p=>p&&{v:'퍼 온 글: '+(p.title||p.text)})(post.blocks.find(b=>b.t==='pum'));R.pc[k]={post,at:Date.now()};
    R.pv[k]=t?t.v.replace(/\s+/g,' ').slice(0,120):post.blocks.some(b=>b.t==='video'||b.t==='movie'||b.t==='yt'||b.t==='embed')?'동영상을 보냈습니다.':post.blocks.length?'사진을 보냈습니다.':'';
    const el=document.querySelector('#cscroll .row.post[data-p="'+no+'"] .pv');if(el&&R.g===gk&&R.view==='chats'&&R.pv[k])el.textContent=R.pv[k]}catch(e){if(e.code==='BUSY')pvPause=Date.now()+60000;else R.pv[k]=''}
   pvBusy.delete(k)}};
@@ -353,6 +354,8 @@ function blockHtml(b,q=''){
  if(b.t==='video')return '<video class="media gifv" loop muted playsinline preload="metadata" src="'+esc(b.src)+'"'+(b.poster?' poster="'+esc(b.poster)+'"':'')+'></video>';
  if(b.t==='yt')return ytButton(b.id);
  if(b.t==='movie')return MV[b.src]?movieHtml(b.src,MV[b.src]):'<button class="embed movie" data-movie="'+esc(b.src)+'">▶ 동영상 재생</button>';
+ /* 퍼 온 글: 원본 글의 갤러리·제목·앞부분을 카드로 보여 주고, 누르면 원본 글을 엽니다. */
+ if(b.t==='pum')return b.url?'<button class="pumc" data-pum="'+esc(JSON.stringify({id:b.id,no:b.no,mini:b.mini,title:b.title}))+'" aria-label="퍼 온 글 열기"><small>'+esc(b.gall)+' · '+esc(b.name)+'</small><b>'+esc(b.title)+'</b>'+(b.text?'<span>'+esc(b.text)+'</span>':'')+(b.img?'<img loading="lazy" src="'+esc(b.img)+'" alt="">':'')+'</button>':bub(b.text,q);
  return '<button class="embed" data-url="'+esc(b.src)+'">동영상·외부 콘텐츠 열기</button>';
 }
 function renderRoom(keep){
@@ -629,23 +632,26 @@ async function publish(){
 
 /* ---------- 불러오기 ---------- */
 async function loadList({append=false,fresh=false}={}){
- const g=gal(R.g);if(!g)return;const seq=++R.seq,head=R.list&&!R.list.heads.length?'':R.head,rec=!!R.rec;
- const ck=R.g+'|'+head+(rec?'|rec':''),c=R.cache[ck];
+ const g=gal(R.g);if(!g)return;const seq=++R.seq,head=R.list&&!R.list.heads.length?'':R.head,rec=!!R.rec,q=R.q;
+ const ck=R.g+'|'+head+(rec?'|rec':'')+(q?'|q:'+q:''),c=R.cache[ck];
  if(!append&&!fresh&&c&&Date.now()-c.at<60000){R.list=c.list;R.listErr='';R.listBusy=false;renderPane();return}
  if(!append){R.list=null;R.listErr=''}R.listBusy=true;renderPane();
- try{const page=append?R.list.page+1:1,res=await dc.listPosts(g,{page,head,rec});if(seq!==R.seq)return;
-  if(append){const ids=new Set(R.list.posts.map(p=>p.id)),add=res.posts.filter(p=>!p.notice&&!ids.has(p.id));R.list.posts.push(...add);R.list.page=page;R.list.more=add.length>0}
+ try{const page=append?R.list.page+1:1,pos=append&&R.list.pos||'',res=await dc.listPosts(g,{page,head,rec,q,pos});if(seq!==R.seq)return;
+  if(append){const ids=new Set(R.list.posts.map(p=>p.id)),add=res.posts.filter(p=>!p.notice&&!ids.has(p.id));R.list.posts.push(...add);R.list.page=page;R.list.more=add.length>0;
+   /* 검색: 이 범위의 결과를 다 봤으면 다음 번에는 더 오래된 범위에서 찾습니다. */
+   if(q&&!add.length&&res.nextPos){R.list.pos=res.nextPos;R.list.page=0;R.list.more=true}}
   else{
    /* 말머리 탭에서도 공지는 맨 위에 남도록, 전체 목록에서 본 공지를 앞에 붙입니다. */
-   if(head||rec){const ids=new Set(res.posts.map(p=>p.id)),pins=(R.cache[R.g+'|']?.list.posts||[]).filter(p=>p.notice&&!ids.has(p.id));res.posts.unshift(...pins)}
-   R.list={posts:res.posts,heads:res.heads.length?res.heads:R.list?.heads||[],page:1,more:res.posts.some(p=>!p.notice)}}
-  if(!head&&!rec){const t=res.posts.find(p=>!p.notice);if(t&&!append){R.latest[R.g]={id:t.id,title:t.title};D.top[R.g]=t.id;delete R.updated[R.g];save()}}
+   if((head||rec)&&!q){const ids=new Set(res.posts.map(p=>p.id)),pins=(R.cache[R.g+'|']?.list.posts||[]).filter(p=>p.notice&&!ids.has(p.id));res.posts.unshift(...pins)}
+   R.list={posts:res.posts,heads:res.heads.length?res.heads:R.list?.heads||[],page:1,more:res.posts.some(p=>!p.notice)};
+   if(q&&!R.list.more&&res.nextPos){R.list.pos=res.nextPos;R.list.page=0;R.list.more=true}}
+  if(!head&&!rec&&!q){const t=res.posts.find(p=>!p.notice);if(t&&!append){R.latest[R.g]={id:t.id,title:t.title};D.top[R.g]=t.id;delete R.updated[R.g];save()}}
   if(res.name&&g.name!==res.name&&/^[A-Za-z0-9_]+$/.test(g.name)){g.name=res.name;save()}
   R.cache[ck]={list:R.list,at:Date.now()};
  }catch(e){if(seq!==R.seq)return;if(append){moreHold=Date.now()+15000;toast(e.message)}else R.listErr=e.message}
  R.listBusy=false;renderPane();
 }
-async function openGallery(k){R.g=k;R.head='';R.rec=false;R.shown=20;R.view='chats';R.ov='';R.filter='';R.filterOn=false;R.pinOpen=false;R.list=null;await loadList()}
+async function openGallery(k){R.g=k;R.head='';R.rec=false;R.shown=20;R.view='chats';R.ov='';R.filter='';R.q='';R.filterOn=false;R.pinOpen=false;R.list=null;await loadList()}
 async function openPost(no,fresh,given){
  /* 지금 목록에서 연 글이면 현재 갤러리, 열려 있던 방을 다시 읽는 것이면 그 방의 갤러리를 씁니다(방을 연 뒤 다른 갤러리로 옮겼을 수 있습니다). */
  const inList=given||R.list?.posts.find(p=>p.id===no),meta=inList||R.room?.meta;if(!meta)return;
@@ -729,6 +735,7 @@ document.addEventListener('click',e=>{
  if(d.mvbig!=null){openBig(b);return}
  if(d.mvplay!=null){startMv(b.closest('.mvw')?.querySelector('video'));return}
  if(d.yt){playYt(b);return}
+ if(d.pum){jump(JSON.parse(d.pum));return}
  if(d.ytbig){openBigYt(b);return}
  if(d.jump){jumpTo(d.jump);return}
  if(d.view){R.view=d.view;R.ov='';renderPane()}
@@ -758,7 +765,7 @@ document.addEventListener('click',e=>{
  else if(d.rreload!=null){if(R.room)openPost(R.room.no,true)}
  else if(d.cmore!=null){moreComments()}
  else if(d.back!=null){R.room=null;R.roomSeq++;renderRoom();renderPane()}
- else if(d.filter!=null){R.filterOn=!R.filterOn;if(!R.filterOn)R.filter='';renderPane();$('#filter')?.focus()}
+ else if(d.filter!=null){R.filterOn=!R.filterOn;const had=R.q;if(!R.filterOn)R.filter=R.q='';if(had&&!R.q){R.shown=20;loadList()}else renderPane();$('#filter')?.focus()}
  else if(d.add!=null){const g=R.search.res[+d.add];if(g&&!gal(key(g))){D.gals.push(g);save();renderPane();loadLatest([g])}}
  else if(d.mephoto!=null){pickPhoto(u=>{D.me.photo=u;save();renderPane();renderRoom(true)})}
  else if(d.mephotodel!=null){delete D.me.photo;save();renderPane();renderRoom(true)}
@@ -821,6 +828,8 @@ document.addEventListener('change',e=>{
    w.pending.push({file:copy,name:f.name,video,url:URL.createObjectURL(copy)});renderWrite()}})();renderWrite()}
  else if(e.target.matches('.slot select')){const t=e.target.nextElementSibling;t.disabled=e.target.value!=='custom';if(!t.disabled)t.focus()}});
 document.addEventListener('submit',async e=>{e.preventDefault();const f=e.target;
+ /* 글 검색: 검색 단추나 엔터를 누르면 디시에서 제목+내용으로 찾습니다. 빈칸으로 검색하면 원래 목록으로 돌아갑니다. */
+ if(f.id==='filterf'){R.filter=R.q=$('#filter').value.trim();R.shown=20;$('#filter').blur();loadList();return}
  if(f.id==='findf'){const S=R.search;S.q=$('#findq').value.trim();if(!S.q)return;S.busy=true;S.err='';renderPane();try{S.res=await dc.searchGalleries(S.q)}catch(x){S.err=x.message;S.res=null}S.busy=false;renderPane()}
  else if(f.id==='gform'){const nick=f.elements.gnick.value.trim(),pw=f.elements.gpw.value;if(!nick||pw.length<2){f.querySelector('.gerr').textContent='닉네임과 비밀번호(2자 이상)를 입력해 주세요.';return}D.guest={nick,pw};save();gaskClose('guest')}
  else if(f.id==='setf'){const el=f.elements;if(R.stab==='계정'){const nick=el.gnick.value.trim(),pw=el.gpw.value;D.guest=nick&&pw.length>=2?{nick,pw}:null;if((nick||pw)&&!D.guest){toast('닉네임과 비밀번호(2자 이상)를 모두 입력해 주세요.');return}}else if(R.stab==='화면'){D.hideUpd=el.hideupd.checked;D.hideNotice=el.hidenotice.checked;D.dark=el.dark.checked;applyTheme()}else if(R.stab==='프로필'){D.me.name=el.name.value.trim()||'ㅇㅇ';D.me.status=el.status.value.trim()}else D.rooms=D.rooms.map((r,i)=>({mode:el['m'+i].value,text:el['t'+i].value.trim()}));save();R.saved=true;renderPane();renderRoom(true)}
